@@ -10,6 +10,6 @@ Training and macro-tracking app. The MVP plan is in `docs/MVP.md`; every decisio
 
 ## Design: wireframes in the shared Claude design workspace
 - Max builds the web dashboard and Nima builds the iOS app, so both follow one shared look.
-- Wireframes and mockups are made with Claude design in the shared workspace (the MVP wireframes canvas, linked from #36). Do not start a screen in code without a wireframe there.
+- Wireframes and mockups are made with Claude design in the shared workspace (the MVP wireframes canvas: https://claude.ai/artifact/K6QcNcoePkCkXds6arS4fo#page-dcb81aee8d83, also linked from #36). Do not start a screen in code without a wireframe there.
 - Style: off-white background, orange accent, clean and professional, taken from the Firecrawl home page. Proposed, not yet agreed with Nima: shared design tokens in `packages/design/tokens.json`, generated for Swift and CSS.
 - Change a screen on the shared canvas first, then in code, so the two apps stay in step.
