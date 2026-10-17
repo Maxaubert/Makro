@@ -1,6 +1,6 @@
 # Makro MVP
 
-Status: **proposal, waiting for Max's review** (2026-10-17). Every decision behind this document is logged in [`DECISIONS.md`](../DECISIONS.md).
+Status: **accepted** (merged in #19, 2026-10-17). The work is tracked in the MVP epic (#36). Every decision behind this document is logged in [`DECISIONS.md`](../DECISIONS.md).
 
 ## Goal
 
