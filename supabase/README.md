@@ -9,3 +9,5 @@ Makro's backend (decision #20: Supabase free plan, Frankfurt). Everything here d
 Read the most-missed products in the SQL editor: `select * from public.miss_summary limit 50;`
 
 Run locally (Docker needed): `npx supabase db start`, `npx supabase test db`, `deno test supabase/functions/`.
+
+Deploys: merging to master applies new migrations to the Frankfurt project through the Supabase GitHub integration (working directory `.`, production branch `master`).
