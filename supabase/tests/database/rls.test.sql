@@ -1,5 +1,5 @@
 begin;
-select plan(9);
+select plan(10);
 
 -- Every table in public must have RLS on (#33).
 select is(
@@ -21,7 +21,8 @@ select throws_ok($$select 1 from public.misses$$, '42501', null, 'signed-in user
 -- The function runs as service_role: it can insert a miss, and only insert.
 set local role service_role;
 select lives_ok($$insert into public.misses (type, ean) values ('scan_not_found', '7038010000000')$$, 'service_role can insert a miss');
-select throws_ok($$select 1 from public.misses$$, '42501', null, 'service_role cannot read misses');
+select lives_ok($$insert into public.misses (id, type, ean) values ('00000000-0000-4000-8000-000000000002', 'scan_not_found', '7038010000000') on conflict (id) do nothing$$, 'service_role can upsert by id, so offline retries are safe');
+select throws_ok($$select ean from public.misses$$, '42501', null, 'service_role cannot read miss data');
 
 reset role;
 -- The table itself rejects a row with no barcode and no text.
