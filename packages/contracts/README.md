@@ -2,7 +2,7 @@
 
 Shared test data that the Swift app and the Python pipeline are both checked against (#32). A golden file holds inputs and the exact expected outputs. It contains no code. Each suite reads the files, runs its own implementation on every input and compares the result with the stored answer.
 
-Status: proposed, waiting for Nima to approve (see decision 31 in `DECISIONS.md`).
+Status: proposed, waiting for Nima to approve (see decision 31 in `DECISIONS.md`). The first cases were drafted by Max; Nima may change any of them.
 
 ## Who consumes what (the oracle)
 
@@ -14,17 +14,31 @@ Status: proposed, waiting for Nima to approve (see decision 31 in `DECISIONS.md`
 | `search/normalise.json` (query text to normalised tokens: ø, æ, å, case, typos) | yes | yes | Both sides build or query the search index and must normalise alike |
 | `search/results.json` (query to expected product ids) | yes | no | Runs against a small pinned fixture database, not the full catalogue |
 
-Directory layout, to be created as each set lands:
+## Who does what (proposed, change it if you disagree)
+
+| Piece | Owner |
+|---|---|
+| Swift test runner for `nutrition/` and `goals/` | Nima |
+| Python test runner for `search/normalise.json` | Max |
+| Maths cases (`nutrition/`, `goals/`) | Max drafted the first ones; Nima owns them from here, since the maths is Swift only |
+| Normalisation cases (`search/`) | Max |
+| `constants.json` (look up and cite Nordic guidance) | Max looks up, Nima approves |
+
+## What is here and what is not yet
 
 ```
 packages/contracts/
   README.md
-  constants.json
-  nutrition/
-  goals/
-  search/
-  fixtures/        small pinned products.sqlite for search/results.json
+  nutrition/portion.json     done (6 cases)
+  nutrition/totals.json      done (5 cases)
+  search/normalise.json      done (20 cases, generated from the current build_slim.normalise)
+  goals/                     not yet: needs the activity multipliers and fat minimum decided first
+  constants.json             not yet: values must be looked up and cited
+  search/results.json        not yet: needs the pinned fixture database
+  fixtures/                  not yet
 ```
+
+The test runners (Swift and Python) are not written yet, so nothing in CI reads these files.
 
 ## File format
 
@@ -61,4 +75,6 @@ Missing means unknown, never zero (accuracy rule 2).
 
 - [ ] Nima approves the oracle split and the rounding rules.
 - [ ] `constants.json` values looked up and cited from Nordic guidance (needs sources, not memory).
-- [ ] First cases: nutrition maths, then normalisation.
+- [ ] Goal cases, once the activity multipliers and fat minimum are decided.
+- [ ] Both test runners, then wire them into CI.
+- [ ] Search typo cases: the current normalisation rule has no typo handling, so the rule needs defining first.
