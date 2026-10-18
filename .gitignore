@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Xcode and Swift
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.build/
+.swiftpm/
+build/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+Secrets.xcconfig
+
+# Product database files come from nutrition-data releases, never git
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# Editors and tools
+.vscode/
+.idea/
+node_modules/

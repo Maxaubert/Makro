@@ -1,0 +1,10 @@
+# One line ending for everyone (Mac and Windows)
+* text=auto eol=lf
+*.sh text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.sqlite binary
+*.ttf binary
+*.otf binary
