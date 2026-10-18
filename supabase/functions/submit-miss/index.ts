@@ -38,11 +38,17 @@ Deno.serve(async (req) => {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   const bucket = await sha256(`${ip}|${key}`);
   const { data: allowed, error: rateError } = await db.rpc("miss_rate_check", { p_bucket: bucket, p_max: MAX_PER_HOUR });
-  if (rateError) return json(500, { error: "rate check failed" });
+  if (rateError) {
+    console.error("rate check failed", rateError.code, rateError.message);
+    return json(500, { error: "rate check failed" });
+  }
   if (!allowed) return json(429, { error: "too many requests" });
 
   // A client-supplied id makes offline retries idempotent: the same miss is stored once.
   const { error } = await db.from("misses").upsert(v.row, { onConflict: "id", ignoreDuplicates: true });
-  if (error) return json(500, { error: "insert failed" });
+  if (error) {
+    console.error("insert failed", error.code, error.message); // no request data in logs
+    return json(500, { error: "insert failed" });
+  }
   return json(201, { ok: true });
 });
