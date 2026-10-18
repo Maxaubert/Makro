@@ -10,8 +10,8 @@ How to build, test and open PRs (accuracy rules, commands, tech choices): @AGENT
 - Out-of-MVP work carries the `later` label and stays in the backlog until the epic says otherwise.
 - Changing a decision means adding a new entry to `DECISIONS.md` that supersedes the old one. Do not edit history.
 
-## Design: wireframes in the shared Claude design workspace
+## Design: the "B Night" canvas in the shared Claude design workspace
 - Max builds the web dashboard and Nima builds the iOS app, so both follow one shared look.
-- Wireframes and mockups are made with Claude design in the shared workspace (the MVP wireframes canvas: https://claude.ai/artifact/K6QcNcoePkCkXds6arS4fo#page-dcb81aee8d83, also linked from #36). Do not start a screen in code without a wireframe there.
-- Style: off-white background, orange accent, clean and professional, taken from the Firecrawl home page. Proposed, not yet agreed with Nima: shared design tokens in `packages/design/tokens.json`, generated for Swift and CSS.
+- The landed design (2026-10-18) is the "B Night" page on the shared canvas: https://claude.ai/artifact/K6QcNcoePkCkXds6arS4fo (also linked from #36). Its 19 screens cover home (Today, Diary, Weight, Profile), adding food (search, portion, scan, type the code, not in database, found without nutrition, custom food), voice logging, and onboarding. The canvas is the visual authority: when it and this file disagree, the canvas wins. Do not start a screen in code without a design there.
+- Style: dark ground (#0D0D0E), cards on #18181A with a 1 px #2A2A2D border and 20 px corners, text #F4F4F5 with #9A9AA0 for secondary text, one orange accent (#FF4C00, with lighter orange tints) for the primary action and progress. Space Grotesk throughout. Signature elements: a half-ring calorie gauge on Today, small macro rings, a bar chart for weight. Proposed, not yet agreed with Nima: shared design tokens in `packages/design/tokens.json`, generated for Swift and CSS.
 - Change a screen on the shared canvas first, then in code, so the two apps stay in step.
