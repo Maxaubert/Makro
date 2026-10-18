@@ -1,5 +1,5 @@
 begin;
-select plan(7);
+select plan(9);
 
 -- Every table in public must have RLS on (#33).
 select is(
@@ -17,6 +17,11 @@ select throws_ok($$select public.miss_rate_check('x', 1)$$, '42501', null, 'anon
 
 set local role authenticated;
 select throws_ok($$select 1 from public.misses$$, '42501', null, 'signed-in users cannot read misses');
+
+-- The function runs as service_role: it can insert a miss, and only insert.
+set local role service_role;
+select lives_ok($$insert into public.misses (type, ean) values ('scan_not_found', '7038010000000')$$, 'service_role can insert a miss');
+select throws_ok($$select 1 from public.misses$$, '42501', null, 'service_role cannot read misses');
 
 reset role;
 -- The table itself rejects a row with no barcode and no text.
