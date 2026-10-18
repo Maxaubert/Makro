@@ -2,6 +2,8 @@
 
 Training and macro-tracking app. The MVP plan is in `docs/MVP.md`; every decision is logged in `DECISIONS.md`.
 
+How to build, test and open PRs (accuracy rules, commands, tech choices): @AGENTS.md
+
 ## One source of truth for the roadmap
 - **The MVP epic (#36) is the roadmap and the issue tracker.** Work is planned, ordered and tracked there. Do not keep a second roadmap in docs, chat or another tool.
 - Every piece of work is an issue linked from the epic. New work gets an issue and a line in the epic first. Closing an issue ticks it in the epic.

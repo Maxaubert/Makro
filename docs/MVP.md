@@ -187,6 +187,4 @@ Each slice is thin and end to end, and testable on our phones.
 
 ## After approval
 
-1. Create an **MVP** milestone and an epic issue with the slices above as linked issues.
-2. Label the existing issues `mvp` or `later`.
-3. Close #14, #15, #16 and #18 by linking them to their entries in `DECISIONS.md`. Anything still open in them becomes a new focused issue, for example the lawyer questions in #15.
+Done on 2026-10-17: the MVP milestone, the epic (#36) and the issue labels exist. Follow-up work is tracked in the epic.
