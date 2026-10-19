@@ -62,8 +62,11 @@ Do not run Mac-only commands (Xcode, `xcodebuild`, simulators) on Windows or Lin
 
 - One issue per PR. Write "Part of #N" for slice issues: a slice is done only after the TestFlight check and demo note, so it is closed by hand, not by the merge.
 - Fill in the PR template (definition of done and accuracy rules).
-- The other person reviews before merge.
 - Never commit secrets, `.env` files, `Secrets.xcconfig` or database files.
 - Changing a decision means a new entry in `DECISIONS.md` that supersedes the old one.
 
-Open team conventions (commit attribution, merge style, branch protection, code owners) are being settled in #41.
+## Team conventions (#41, decision 33)
+
+- **Pull requests only.** Nothing is pushed straight to `master` (it deploys Supabase). Squash merge, and the branch is deleted on merge.
+- **Owners and review** (`.github/CODEOWNERS`): `apps/ios/` Nima; `supabase/` and `eval/` Max; `packages/contracts/` and `packages/design/` both. An owner merges a PR in their own area once CI is green; the other reviews when asked. Contract and design-token changes need both to approve. For agent-written PRs, the owner reads the diff and the list of tests before merging.
+- **AI attribution** (`Co-Authored-By`, "Generated with" lines, session links) is each author's choice. Not required, not forbidden.

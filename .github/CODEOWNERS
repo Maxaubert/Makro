@@ -1,0 +1,6 @@
+# Who owns what (#41). Owners merge their own area after green CI; packages/contracts needs both.
+/apps/ios/            @nimkimi
+/supabase/            @Maxaubert
+/eval/                @Maxaubert
+/packages/contracts/  @nimkimi @Maxaubert
+/packages/design/     @nimkimi @Maxaubert
