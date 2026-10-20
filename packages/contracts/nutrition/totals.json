@@ -237,6 +237,104 @@
         }
       },
       "note": "A known zero is covered."
+    },
+    {
+      "id": "totals-zero-and-unknown",
+      "input": {
+        "items": [
+          {
+            "kcal": 0,
+            "protein_g": 0,
+            "fat_g": 0,
+            "carbs_g": 0,
+            "fibre_g": 0
+          },
+          {
+            "kcal": null,
+            "protein_g": null,
+            "fat_g": null,
+            "carbs_g": null,
+            "fibre_g": null
+          }
+        ]
+      },
+      "expected": {
+        "kcal": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        },
+        "protein_g": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        },
+        "fat_g": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        },
+        "carbs_g": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        },
+        "fibre_g": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        }
+      },
+      "note": "Sum is 0 with covered 1 of 2: a known zero is a value, not unknown. Catches `sum == 0 ? nil : sum`."
+    },
+    {
+      "id": "totals-zero-and-zero",
+      "input": {
+        "items": [
+          {
+            "kcal": 0,
+            "protein_g": 0,
+            "fat_g": 0,
+            "carbs_g": 0,
+            "fibre_g": 0
+          },
+          {
+            "kcal": 0,
+            "protein_g": 0,
+            "fat_g": 0,
+            "carbs_g": 0,
+            "fibre_g": 0
+          }
+        ]
+      },
+      "expected": {
+        "kcal": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        },
+        "protein_g": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        },
+        "fat_g": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        },
+        "carbs_g": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        },
+        "fibre_g": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        }
+      },
+      "note": "Sum is 0 with covered 2 of 2."
     }
   ]
 }

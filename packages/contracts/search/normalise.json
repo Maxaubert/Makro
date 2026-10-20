@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Search normalisation, applied to product text when the index is built and to the query when searching. Rule: lowercase, then ø->o, æ->ae, å->a (also ä->a, ö->o, ü->u, ß->ss), then strip other accents (NFKD, remove combining marks). Tokens: split the normalised text on anything that is not a-z or 0-9, dropping empties. Source of truth for the rule today: normalise() in loftspace/nutrition-data tools/build_slim.py. Expected values were generated from it.",
+  "description": "Search normalisation, applied to product text when the index is built and to the query when searching. Rule: lowercase, then ø->o, æ->ae, å->a (also ä->a, ö->o, ü->u, ß->ss), then strip other accents (NFKD, remove combining marks). Tokens: split the normalised text on anything that is not a Unicode letter or number (what FTS5 unicode61 does), dropping empties. Letters such as ł are kept as they are. Source of truth for the rule today: normalise() in loftspace/nutrition-data tools/build_slim.py. Expected values were generated from it.",
   "cases": [
     {
       "id": "normalise-01",
@@ -204,6 +204,28 @@
       "expected": {
         "normalised": "  ",
         "tokens": []
+      }
+    },
+    {
+      "id": "normalise-21",
+      "input": "Łosoś",
+      "expected": {
+        "normalised": "łosos",
+        "tokens": [
+          "łosos"
+        ]
+      }
+    },
+    {
+      "id": "normalise-22",
+      "input": "D-vita 50μg",
+      "expected": {
+        "normalised": "d-vita 50μg",
+        "tokens": [
+          "d",
+          "vita",
+          "50μg"
+        ]
       }
     }
   ]
