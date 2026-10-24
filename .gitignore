@@ -26,3 +26,5 @@ Secrets.xcconfig
 .idea/
 node_modules/
 __pycache__/
+# Python
+*.pyc
