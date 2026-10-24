@@ -11,8 +11,8 @@ MINCED = "kjottdeig-id"
 MINCED_ALT = "kjottdeig-other-id"
 
 
-def case(cid, items, lang="nb", tags=()):
-    return {"id": cid, "lang": lang, "text": "x", "source": "max", "tags": list(tags), "items": items}
+def case(cid, items, lang="nb", tags=(), source="max"):
+    return {"id": cid, "lang": lang, "text": "x", "source": source, "tags": list(tags), "items": items}
 
 
 def item(products, quantity, unit):
@@ -21,6 +21,10 @@ def item(products, quantity, unit):
 
 def out(product_id, quantity, unit):
     return {"product_id": product_id, "quantity": quantity, "unit": unit}
+
+
+def ask(options):
+    return {"ask": True, "options": options}
 
 
 class ScoreLine(unittest.TestCase):
@@ -78,6 +82,24 @@ class ScoreLine(unittest.TestCase):
         self.assertEqual(score.score_line(c, [out(MINCED, 200.0, "g")])["verdict"], "correct")
         self.assertEqual(score.score_line(c, [out(MINCED, 200.5, "g")])["verdict"], "wrong")
 
+    def test_range_accepts_any_quantity_inside(self):
+        c = case("a", [item([EGG], [10, 15], "g")])
+        for q in (10, 12.5, 15):
+            self.assertEqual(score.score_line(c, [out(EGG, q, "g")])["verdict"], "correct")
+        for q in (9.9, 15.1):
+            self.assertEqual(score.score_line(c, [out(EGG, q, "g")])["verdict"], "wrong")
+
+    def test_ask_item_needs_the_app_to_ask(self):
+        c = case("a", [item([EGG], 2, "piece"), ask([MINCED, MINCED_ALT])])
+        self.assertEqual(score.score_line(c, [out(EGG, 2, "piece"), {"ask": True}])["verdict"], "correct")
+        r = score.score_line(c, [out(EGG, 2, "piece"), out(MINCED, 1, "piece")])
+        self.assertEqual(r["verdict"], "wrong")
+        self.assertEqual(r["product_ok"], 1)
+
+    def test_asking_when_the_line_is_clear_is_wrong(self):
+        c = case("a", [item([EGG], 2, "piece")])
+        self.assertEqual(score.score_line(c, [{"ask": True}])["verdict"], "wrong")
+
 
 class Report(unittest.TestCase):
     def setUp(self):
@@ -116,6 +138,23 @@ class Report(unittest.TestCase):
         outputs = dict(self.outputs, zzz=[out(EGG, 1, "piece")])
         self.assertEqual(score.build_report(self.cases, outputs)["unknown_ids"], ["zzz"])
 
+    def test_synthetic_lines_are_a_stress_set_outside_the_gate(self):
+        cases = [case(str(i), [item([EGG], 1, "piece")]) for i in range(10)]
+        cases += [case(f"s{i}", [item([EGG], 1, "piece")], source="synthetic") for i in range(10)]
+        outputs = {str(i): [out(EGG, 1, "piece")] for i in range(9)}
+        rep = score.build_report(cases, outputs)
+        self.assertEqual((rep["lines"], rep["correct"]), (10, 9))
+        self.assertTrue(rep["gate_passed"])
+        self.assertEqual(rep["stress"], {"lines": 10, "correct": 0})
+        self.assertEqual(rep["by_source"]["synthetic"], {"lines": 10, "correct": 0})
+
+    def test_gate_fails_without_real_lines(self):
+        cases = [case("s", [item([EGG], 1, "piece")], source="synthetic")]
+        rep = score.build_report(cases, {"s": [out(EGG, 1, "piece")]})
+        self.assertEqual(rep["lines"], 0)
+        self.assertIsNone(rep["accuracy"])
+        self.assertFalse(rep["gate_passed"])
+
 
 class Files(unittest.TestCase):
     def write(self, name, lines):
@@ -147,6 +186,21 @@ class Files(unittest.TestCase):
 
     def test_load_cases_rejects_bad_lang(self):
         p = self.write("c.jsonl", [case("a", [item([EGG], 1, "piece")], lang="de")])
+        with self.assertRaises(ValueError):
+            score.load_cases(p)
+
+    def test_load_cases_rejects_bad_source(self):
+        p = self.write("c.jsonl", [case("a", [item([EGG], 1, "piece")], source="bob")])
+        with self.assertRaises(ValueError):
+            score.load_cases(p)
+
+    def test_load_cases_rejects_backwards_range(self):
+        p = self.write("c.jsonl", [case("a", [item([EGG], [15, 10], "g")])])
+        with self.assertRaises(ValueError):
+            score.load_cases(p)
+
+    def test_load_cases_rejects_ask_without_options(self):
+        p = self.write("c.jsonl", [case("a", [{"ask": True, "options": []}])])
         with self.assertRaises(ValueError):
             score.load_cases(p)
 
