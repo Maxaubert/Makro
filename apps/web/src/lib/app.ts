@@ -41,7 +41,6 @@ export class App {
   private state: AppState;
   private listeners = new Set<() => void>();
   private dbReady: Promise<unknown> | null = null;
-  private started = false;
 
   constructor() {
     const url = import.meta.env.VITE_SUPABASE_URL;
@@ -97,12 +96,9 @@ export class App {
     }
     this.set({ fatal: null });
     await this.refreshPending();
-    if (!this.started) {
-      this.started = true;
-      this.scheduler.start();
-    } else {
-      void this.scheduler.runNow();
-    }
+    // After a sign-out the scheduler is stopped; start() brings back the timer and the
+    // reconnect listener; when it is already running, start() just syncs now.
+    this.scheduler.start();
     await this.loadProducts();
   }
 

@@ -79,7 +79,7 @@ Returns the caller's rows with `server_seq > since`, across all tables, ordered 
 - Each row appears once, at its latest version. Rows include tombstones, `server_seq` and the generated totals, never `user_id`.
 - `more: true` means call again with the new `cursor`. When no rows are returned, `cursor` equals `since`.
 - Apply one page and its cursor in one local transaction. A child can arrive before its parent (there are no foreign keys on reference columns).
-- When applying a pulled row, keep it if its `updated_at` is later than or equal to the local copy's (on a tie the server copy wins), and store `server_seq`.
+- When applying a pulled row, the server copy wins and its `server_seq` is stored. The only exception: the row has a change waiting in the local outbox and the local `updated_at` is later than the pulled one (on a tie the server copy wins). Do not compare against the local `updated_at` of a row with nothing to push: the server stores `least(client updated_at, now())`, so after a push from a fast clock the local value is later than the server's, and later edits from another device would be skipped for good once the cursor moves past them.
 
 ## Protocol version
 

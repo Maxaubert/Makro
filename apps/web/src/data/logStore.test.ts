@@ -174,7 +174,7 @@ describe('applying a pull page', () => {
     expect(store.pendingCount()).toBe(0);
   });
 
-  it('keeps a newer local copy, and lets the server win a tie', () => {
+  it('keeps a newer local copy that is waiting to push, and lets the server win a tie', () => {
     const e = entry();
     store.saveLogEntry(e);
     store.updateLogEntry(e.id, { quantity: 400 });
@@ -184,6 +184,32 @@ describe('applying a pull page', () => {
     const local = store.dayEntries('2026-10-20')[0];
     store.applyPullPage([{ table: 'log_entries', row: serverRow({ ...e, updated_at: local.updated_at }, { quantity: 20, grams: 20 }) }], 7);
     expect(store.dayEntries('2026-10-20')[0].quantity).toBe(20);
+  });
+
+  it('takes the server copy of a synced row even when the local clock ran ahead', () => {
+    // The browser clock is 10 minutes fast: the server stored least(client updated_at, now()).
+    now = new Date('2026-10-20T09:10:00.000Z');
+    const e = entry();
+    e.updated_at = now.toISOString();
+    store.saveLogEntry(e);
+    store.ackPush(store.outboxBatch(10), [{ table: 'log_entries', id: e.id, status: 'applied', server_seq: 5 }]);
+    const clamped = '2026-10-20T09:00:00.000Z';
+    store.applyPullPage([{ table: 'log_entries', row: serverRow({ ...e, updated_at: clamped }, { server_seq: 5 }) }], 5);
+    expect(store.dayEntries('2026-10-20')[0].updated_at).toBe(clamped);
+
+    // Another device edits it at 09:05, between the server value and the old local value.
+    const other = '2026-10-20T09:05:00.000Z';
+    store.applyPullPage([{ table: 'log_entries', row: serverRow({ ...e, updated_at: other }, { quantity: 30, grams: 30, server_seq: 6 }) }], 6);
+    expect(store.dayEntries('2026-10-20')[0]).toMatchObject({ quantity: 30, updated_at: other, server_seq: 6 });
+  });
+
+  it('takes an older server copy of a row with nothing waiting to push', () => {
+    const e = entry();
+    store.saveLogEntry(e);
+    store.ackPush(store.outboxBatch(10), [{ table: 'log_entries', id: e.id, status: 'applied', server_seq: 5 }]);
+    const earlier = new Date(Date.parse(e.updated_at) - 60_000).toISOString();
+    store.applyPullPage([{ table: 'log_entries', row: serverRow({ ...e, updated_at: earlier }, { deleted_at: earlier, server_seq: 6 }) }], 6);
+    expect(store.dayEntries('2026-10-20')).toEqual([]);
   });
 
   it('applies a tombstone from the server', () => {

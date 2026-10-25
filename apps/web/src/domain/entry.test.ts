@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../data/products';
+import { validateMiss } from '../../../../supabase/functions/submit-miss/validate';
 import { buildCustomFood, buildLogEntry, buildMissPayload, buildWeightEntry, parseAmount, unitsFor } from './entry';
 
 const skyr: Product = {
@@ -131,6 +132,22 @@ describe('buildMissPayload (submit-miss v1, log-schema.md Miss payload)', () => 
   it('sends a scanned code in canonical form', () => {
     const f = buildCustomFood({ name: 'X', brand: '', ean: '', serving_g: '', per_100_unit: 'g', nutrients: {} }, at);
     expect(buildMissPayload(f, { type: 'scan_not_found', query_text: null, ean: '0 7038010012345', db_version: null, app_version: 'w' }).ean).toBe('7038010012345');
+  });
+
+  it('is accepted by the submit-miss validator in this repo with every nutrient kept', () => {
+    // The app and submit-miss must change together (log-schema.md): an old validator would drop
+    // the _g keys silently and the miss would be stored with kcal only.
+    const f = buildCustomFood(
+      { name: 'Brød', brand: 'B', ean: '', serving_g: '40', per_100_unit: 'g', nutrients: { kcal: '250', protein_g: '9', fat_g: '3', carbs_g: '45', fibre_g: '6', sat_fat_g: '0.5', sugars_g: '2', salt_g: '1.1' } },
+      at,
+    );
+    const body = { id: crypto.randomUUID(), ...buildMissPayload(f, { type: 'scan_not_found', query_text: null, ean: '7038010012345', db_version: '2026.10.25', app_version: 'web-0.1.0' }) };
+    const r = validateMiss(body);
+    expect(r.ok, JSON.stringify(r)).toBe(true);
+    if (!r.ok) return;
+    expect((r.row.custom_food as { per100: Record<string, number | null> }).per100).toEqual({
+      kcal: 250, protein_g: 9, fat_g: 3, sat_fat_g: 0.5, carbs_g: 45, sugars_g: 2, fibre_g: 6, salt_g: 1.1,
+    });
   });
 });
 

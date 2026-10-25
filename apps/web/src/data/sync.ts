@@ -102,7 +102,12 @@ export class SyncScheduler {
     } = {},
   ) {}
 
+  /** Listen for reconnects, start the timer and run now. Starting again while started only runs now. */
   start(): void {
+    if (this.timer) {
+      void this.runNow();
+      return;
+    }
     const target = this.opts.target ?? globalThis;
     target.addEventListener('online', this.onOnline);
     target.addEventListener('offline', this.onOffline);
@@ -118,6 +123,10 @@ export class SyncScheduler {
     if (this.debounce) clearTimeout(this.debounce);
     this.timer = null;
     this.debounce = null;
+  }
+
+  isStarted(): boolean {
+    return this.timer !== null;
   }
 
   /** Ask for a sync soon (after a local save). Calls close together become one run. */

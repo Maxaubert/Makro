@@ -278,7 +278,13 @@ export class LogStore {
     return v ? Number(v.value) : 0;
   }
 
-  /** One sync_pull page and its cursor, in one transaction (SYNC.md). Server wins ties. */
+  /**
+   * One sync_pull page and its cursor, in one transaction (SYNC.md). The server copy wins unless
+   * this row has a change waiting in the outbox and the local copy is later (server wins ties).
+   * A row with nothing to push always takes the server copy: the server clamps updated_at to its
+   * own clock, so comparing against a local updated_at from a fast clock would skip later edits
+   * for good once the cursor moves past them.
+   */
   applyPullPage(rows: PulledRow[], cursor: number): void {
     this.sql.tx(() => {
       for (const { table, row } of rows) {
@@ -286,8 +292,12 @@ export class LogStore {
         const cols = columnsOf(table);
         const incoming = cols.map((c) => toLocal(c, row[c.name]));
         const updatedAt = incoming[cols.findIndex((c) => c.name === 'updated_at')] as string;
-        const local = this.sql.get<{ updated_at: string }>(`select updated_at from ${table} where id = ?`, [row.id]);
-        if (local && local.updated_at > updatedAt) continue;
+        const local = this.sql.get<{ updated_at: string; pending: number }>(
+          `select t.updated_at, exists (select 1 from outbox o where o.table_name = ? and o.row_id = t.id) as pending
+             from ${table} t where t.id = ?`,
+          [table, row.id],
+        );
+        if (local && Number(local.pending) === 1 && local.updated_at > updatedAt) continue;
         this.sql.run(
           `insert or replace into ${table} (${cols.map((c) => c.name).join(', ')}, server_seq) values (${cols.map(() => '?').join(', ')}, ?)`,
           [...incoming, row.server_seq === undefined || row.server_seq === null ? null : Number(row.server_seq)],

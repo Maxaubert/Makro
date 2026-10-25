@@ -203,6 +203,30 @@ describe('SyncScheduler', () => {
     expect(run).toHaveBeenCalledTimes(3);
   });
 
+  it('starts again after a stop (sign out, then sign in), and a second start only runs once more', async () => {
+    const run = vi.fn(async () => undefined);
+    const e = env();
+    const s = new SyncScheduler(run, { intervalMs: 60_000, target: e.target, isOnline: () => true });
+    s.start();
+    await vi.advanceTimersByTimeAsync(0);
+    s.stop();
+    expect(s.isStarted()).toBe(false);
+    s.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(run).toHaveBeenCalledTimes(2);
+    s.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(run).toHaveBeenCalledTimes(3);
+    e.listeners.online();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(run).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(run).toHaveBeenCalledTimes(5);
+    s.stop();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(run).toHaveBeenCalledTimes(5);
+  });
+
   it('never runs two syncs at once, and runs once more when asked during a run', async () => {
     let release!: () => void;
     const run = vi.fn(() => new Promise<void>((r) => (release = r)));
