@@ -87,7 +87,7 @@ Returns the caller's rows with `server_seq > since`, across all tables, ordered 
 
 ## Sign-in
 
-Email one-time code (decision 34). Sign-up is off in `supabase/config.toml` (`[auth]` and `[auth.email]`) and must also be turned off on the hosted project before day one; Max invites Nima from the dashboard. Locally, create test users with the admin API or SQL, not by signing up.
+Email one-time code (decision 34). Sign-up is off in `supabase/config.toml` (`[auth] enable_signup = false`; `[auth.email] enable_signup` must stay `true`, because in the CLI it switches the whole email provider, one-time codes included) and must also be turned off on the hosted project before day one (Authentication, "Allow new users to sign up" off, Email provider on); Max invites Nima from the dashboard. Locally, create test users with the admin API or SQL, not by signing up.
 
 ## When #34 is done
 
