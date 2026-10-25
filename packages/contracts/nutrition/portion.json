@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "description": "Per-100 g values to the values for a portion in grams: value * grams / 100. null stays null.",
+  "nutrients": [
+    "kcal",
+    "protein_g",
+    "fat_g",
+    "carbs_g",
+    "fibre_g"
+  ],
+  "cases": [
+    {
+      "id": "portion-basic",
+      "input": {
+        "per100g": {
+          "kcal": 250,
+          "protein_g": 10,
+          "fat_g": 8,
+          "carbs_g": 30,
+          "fibre_g": 4
+        },
+        "grams": 150
+      },
+      "expected": {
+        "kcal": 375,
+        "protein_g": 15,
+        "fat_g": 12,
+        "carbs_g": 45,
+        "fibre_g": 6
+      }
+    },
+    {
+      "id": "portion-unknown-stays-null",
+      "input": {
+        "per100g": {
+          "kcal": 250,
+          "protein_g": null,
+          "fat_g": 8,
+          "carbs_g": 30,
+          "fibre_g": null
+        },
+        "grams": 150
+      },
+      "expected": {
+        "kcal": 375,
+        "protein_g": null,
+        "fat_g": 12,
+        "carbs_g": 45,
+        "fibre_g": null
+      },
+      "note": "Missing means unknown, never zero."
+    },
+    {
+      "id": "portion-real-zero-stays-zero",
+      "input": {
+        "per100g": {
+          "kcal": 250,
+          "protein_g": 0,
+          "fat_g": 0,
+          "carbs_g": 30,
+          "fibre_g": 0
+        },
+        "grams": 150
+      },
+      "expected": {
+        "kcal": 375,
+        "protein_g": 0,
+        "fat_g": 0,
+        "carbs_g": 45,
+        "fibre_g": 0
+      },
+      "note": "A known zero is not unknown."
+    },
+    {
+      "id": "portion-zero-grams",
+      "input": {
+        "per100g": {
+          "kcal": 250,
+          "protein_g": null,
+          "fat_g": 8,
+          "carbs_g": 30,
+          "fibre_g": 4
+        },
+        "grams": 0
+      },
+      "expected": {
+        "kcal": 0,
+        "protein_g": null,
+        "fat_g": 0,
+        "carbs_g": 0,
+        "fibre_g": 0
+      },
+      "note": "Zero grams gives zero for known values; unknown stays unknown."
+    },
+    {
+      "id": "portion-small-fraction",
+      "input": {
+        "per100g": {
+          "kcal": 0.4,
+          "protein_g": 0.4,
+          "fat_g": 0.4,
+          "carbs_g": 0.4,
+          "fibre_g": 0.4
+        },
+        "grams": 30
+      },
+      "expected": {
+        "kcal": 0.12,
+        "protein_g": 0.12,
+        "fat_g": 0.12,
+        "carbs_g": 0.12,
+        "fibre_g": 0.12
+      }
+    },
+    {
+      "id": "portion-over-100-grams",
+      "input": {
+        "per100g": {
+          "kcal": 52,
+          "protein_g": 0.3,
+          "fat_g": 0.2,
+          "carbs_g": 14,
+          "fibre_g": 2.4
+        },
+        "grams": 250
+      },
+      "expected": {
+        "kcal": 130,
+        "protein_g": 0.75,
+        "fat_g": 0.5,
+        "carbs_g": 35,
+        "fibre_g": 6
+      }
+    }
+  ]
+}

@@ -6,6 +6,8 @@ Every test suite in the repo: what it guards, where it lives, how to run it. Ext
 |---|---|---|---|---|
 | Database (pgTAP) | RLS is on for every public table; the anon key can't reach the miss tables; the function role can insert and upsert a miss but not read it; the products bucket is private and read-only for signed-in users | `supabase/tests/database/` | `npx supabase@2.121.0 test db` | GitHub Actions on PRs touching `supabase/` |
 | Edge Functions (Deno) | `submit-miss` payload validation | `supabase/functions/**/*_test.ts` | `deno test supabase/functions/` | GitHub Actions on PRs touching `supabase/` |
+| Web unit and golden files (Vitest) | Search normalisation, portion maths, display rounding, totals with unknowns and grams per unit against `packages/contracts/` (`search/normalise.json`, `nutrition/portion.json`, `display.json`, `totals.json`, `grams.json`); UUIDv7; `local_date` and `tz` | `apps/web/src/**/*.test.ts` | `npm test` in `apps/web` | GitHub Actions on PRs touching `apps/web/` or `packages/contracts/` |
+| Web smoke (Playwright) | App shell loads; the full local-Supabase flow arrives in B5 | `apps/web/tests/e2e/` | `npm run test:e2e` in `apps/web` | local only for now |
 
 ## Planned
 

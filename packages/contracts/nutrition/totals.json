@@ -1,0 +1,340 @@
+{
+  "version": 1,
+  "description": "Totals over log entries. Each nutrient total has value (sum of the known values, or null if none are known), covered (entries with a known value) and count (all entries). Unknown is never counted as zero.",
+  "nutrients": [
+    "kcal",
+    "protein_g",
+    "fat_g",
+    "carbs_g",
+    "fibre_g"
+  ],
+  "cases": [
+    {
+      "id": "totals-all-known",
+      "input": {
+        "items": [
+          {
+            "kcal": 375,
+            "protein_g": 15,
+            "fat_g": 12,
+            "carbs_g": 45,
+            "fibre_g": 6
+          },
+          {
+            "kcal": 200,
+            "protein_g": 20,
+            "fat_g": 5,
+            "carbs_g": 10,
+            "fibre_g": 1
+          }
+        ]
+      },
+      "expected": {
+        "kcal": {
+          "value": 575,
+          "covered": 2,
+          "count": 2
+        },
+        "protein_g": {
+          "value": 35,
+          "covered": 2,
+          "count": 2
+        },
+        "fat_g": {
+          "value": 17,
+          "covered": 2,
+          "count": 2
+        },
+        "carbs_g": {
+          "value": 55,
+          "covered": 2,
+          "count": 2
+        },
+        "fibre_g": {
+          "value": 7,
+          "covered": 2,
+          "count": 2
+        }
+      }
+    },
+    {
+      "id": "totals-one-unknown",
+      "input": {
+        "items": [
+          {
+            "kcal": 375,
+            "protein_g": 15,
+            "fat_g": 12,
+            "carbs_g": 45,
+            "fibre_g": 6
+          },
+          {
+            "kcal": 200,
+            "protein_g": null,
+            "fat_g": 5,
+            "carbs_g": 10,
+            "fibre_g": null
+          }
+        ]
+      },
+      "expected": {
+        "kcal": {
+          "value": 575,
+          "covered": 2,
+          "count": 2
+        },
+        "protein_g": {
+          "value": 15,
+          "covered": 1,
+          "count": 2
+        },
+        "fat_g": {
+          "value": 17,
+          "covered": 2,
+          "count": 2
+        },
+        "carbs_g": {
+          "value": 55,
+          "covered": 2,
+          "count": 2
+        },
+        "fibre_g": {
+          "value": 6,
+          "covered": 1,
+          "count": 2
+        }
+      },
+      "note": "Total covers 1 of 2 entries for protein and fibre."
+    },
+    {
+      "id": "totals-all-unknown",
+      "input": {
+        "items": [
+          {
+            "kcal": 100,
+            "protein_g": null,
+            "fat_g": null,
+            "carbs_g": null,
+            "fibre_g": null
+          },
+          {
+            "kcal": 50,
+            "protein_g": null,
+            "fat_g": null,
+            "carbs_g": null,
+            "fibre_g": null
+          }
+        ]
+      },
+      "expected": {
+        "kcal": {
+          "value": 150,
+          "covered": 2,
+          "count": 2
+        },
+        "protein_g": {
+          "value": null,
+          "covered": 0,
+          "count": 2
+        },
+        "fat_g": {
+          "value": null,
+          "covered": 0,
+          "count": 2
+        },
+        "carbs_g": {
+          "value": null,
+          "covered": 0,
+          "count": 2
+        },
+        "fibre_g": {
+          "value": null,
+          "covered": 0,
+          "count": 2
+        }
+      },
+      "note": "Total is null, not 0."
+    },
+    {
+      "id": "totals-empty",
+      "input": {
+        "items": []
+      },
+      "expected": {
+        "kcal": {
+          "value": null,
+          "covered": 0,
+          "count": 0
+        },
+        "protein_g": {
+          "value": null,
+          "covered": 0,
+          "count": 0
+        },
+        "fat_g": {
+          "value": null,
+          "covered": 0,
+          "count": 0
+        },
+        "carbs_g": {
+          "value": null,
+          "covered": 0,
+          "count": 0
+        },
+        "fibre_g": {
+          "value": null,
+          "covered": 0,
+          "count": 0
+        }
+      },
+      "note": "No entries: every value null, covered 0, count 0."
+    },
+    {
+      "id": "totals-real-zero-counts-as-known",
+      "input": {
+        "items": [
+          {
+            "kcal": 0,
+            "protein_g": 0,
+            "fat_g": 0,
+            "carbs_g": 0,
+            "fibre_g": 0
+          },
+          {
+            "kcal": 100,
+            "protein_g": 5,
+            "fat_g": 2,
+            "carbs_g": 10,
+            "fibre_g": 1
+          }
+        ]
+      },
+      "expected": {
+        "kcal": {
+          "value": 100,
+          "covered": 2,
+          "count": 2
+        },
+        "protein_g": {
+          "value": 5,
+          "covered": 2,
+          "count": 2
+        },
+        "fat_g": {
+          "value": 2,
+          "covered": 2,
+          "count": 2
+        },
+        "carbs_g": {
+          "value": 10,
+          "covered": 2,
+          "count": 2
+        },
+        "fibre_g": {
+          "value": 1,
+          "covered": 2,
+          "count": 2
+        }
+      },
+      "note": "A known zero is covered."
+    },
+    {
+      "id": "totals-zero-and-unknown",
+      "input": {
+        "items": [
+          {
+            "kcal": 0,
+            "protein_g": 0,
+            "fat_g": 0,
+            "carbs_g": 0,
+            "fibre_g": 0
+          },
+          {
+            "kcal": null,
+            "protein_g": null,
+            "fat_g": null,
+            "carbs_g": null,
+            "fibre_g": null
+          }
+        ]
+      },
+      "expected": {
+        "kcal": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        },
+        "protein_g": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        },
+        "fat_g": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        },
+        "carbs_g": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        },
+        "fibre_g": {
+          "value": 0,
+          "covered": 1,
+          "count": 2
+        }
+      },
+      "note": "Sum is 0 with covered 1 of 2: a known zero is a value, not unknown. Catches `sum == 0 ? nil : sum`."
+    },
+    {
+      "id": "totals-zero-and-zero",
+      "input": {
+        "items": [
+          {
+            "kcal": 0,
+            "protein_g": 0,
+            "fat_g": 0,
+            "carbs_g": 0,
+            "fibre_g": 0
+          },
+          {
+            "kcal": 0,
+            "protein_g": 0,
+            "fat_g": 0,
+            "carbs_g": 0,
+            "fibre_g": 0
+          }
+        ]
+      },
+      "expected": {
+        "kcal": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        },
+        "protein_g": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        },
+        "fat_g": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        },
+        "carbs_g": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        },
+        "fibre_g": {
+          "value": 0,
+          "covered": 2,
+          "count": 2
+        }
+      },
+      "note": "Sum is 0 with covered 2 of 2."
+    }
+  ]
+}
