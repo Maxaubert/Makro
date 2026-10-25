@@ -4,7 +4,7 @@
 import type { CustomFoodRow, LogEntryRow, Meal, WeightEntryRow } from '../domain/entry';
 import { MEALS } from '../domain/entry';
 import type { Nutrient } from '../domain/nutrients';
-import { columnsOf, isTableName, localSchemaSql, LOCAL_SCHEMA_VERSION, type Column, type TableName } from './logSchema';
+import { columnsOf, isTableName, localSchemaSql, LOCAL_SCHEMA_VERSION, TABLE_NAMES, type Column, type TableName } from './logSchema';
 import type { Sql, SqlValue } from './sql';
 
 export type LocalLogEntry = LogEntryRow & { server_seq: number | null } & Record<`${Nutrient}_total`, number | null>;
@@ -244,6 +244,32 @@ export class LogStore {
         // Clear only if nothing changed since this version was read.
         this.sql.run('delete from outbox where table_name = ? and row_id = ? and version = ?', [item.table, item.id, item.version]);
       }
+    });
+  }
+
+  /**
+   * One local log belongs to one account. A different account may take over only a log with
+   * nothing left to sync; the old rows are then cleared (they are safe on the server).
+   */
+  claimOwner(userId: string): 'claimed' | 'same' | 'switched' {
+    return this.sql.tx(() => {
+      const owner = this.sql.get<{ value: string }>("select value from sync_state where key = 'owner'")?.value;
+      if (owner === userId) return 'same';
+      if (owner !== undefined && this.pendingCount() > 0) {
+        throw new Error(
+          'This browser holds changes from another account that are not synced yet. Sign in with that account first.',
+        );
+      }
+      if (owner !== undefined) {
+        for (const t of TABLE_NAMES) this.sql.run(`delete from ${t}`);
+        this.sql.run('delete from outbox_rejected');
+        this.sql.run("delete from sync_state where key = 'pull_cursor'");
+      }
+      this.sql.run(
+        "insert into sync_state (key, value) values ('owner', ?) on conflict (key) do update set value = excluded.value",
+        [userId],
+      );
+      return owner === undefined ? 'claimed' : 'switched';
     });
   }
 

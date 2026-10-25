@@ -30,7 +30,7 @@ export default defineConfig([
   },
   {
     name: 'makro/node',
-    files: ['tests/**/*.ts', 'src/**/*.test.ts', 'vite.config.ts', 'playwright.config.ts', 'eslint.config.js'],
+    files: ['tests/**/*.ts', 'scripts/**/*.mjs', 'src/**/*.test.ts', 'src/data/testing.ts', 'vite.config.ts', 'playwright.config.ts', 'eslint.config.js'],
     languageOptions: { globals: { ...globals.node } },
   },
 ]);

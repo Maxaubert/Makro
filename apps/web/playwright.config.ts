@@ -1,15 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// The smoke test against the local Supabase arrives in B5. For now this only
-// checks that the app shell loads.
+// Browser tests against the LOCAL Supabase stack (`npx supabase@2.121.0 start` from the repo
+// root) and the fixture product file. The dev server gets the local URL and anon key from
+// scripts/local-env.mjs. Nothing here talks to the hosted project.
 export default defineConfig({
   testDir: 'tests/e2e',
-  timeout: 60_000,
+  timeout: 90_000,
   retries: 0,
-  use: { baseURL: 'http://localhost:5174', trace: 'on-first-retry' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  workers: 1,
+  use: { baseURL: 'http://localhost:5174', trace: 'retain-on-failure' },
+  projects: [{ name: 'chromium', use: { ...devices['Pixel 7'] } }],
   webServer: {
-    command: 'npm run dev',
+    command: 'node scripts/local-env.mjs && npm run dev',
     url: 'http://localhost:5174',
     reuseExistingServer: true,
     timeout: 120_000,

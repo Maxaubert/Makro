@@ -14,6 +14,12 @@
   --color-accent: #ff4c00;
   --color-accent-soft: #ff7a40;
   --color-accent-tint: rgb(255 76 0 / 0.16);
+  /* Lighter orange tints used for the macro rings and small accents on the canvas. */
+  --color-accent-2: #ff8a57;
+  --color-accent-3: #ffb38f;
+  --color-raised: #1f1f22;
+  --color-muted: #7a7a80;
+  --color-danger: #d93f00;
   --radius-card: 20px;
   --border-card: 1px solid var(--color-border);
   --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
@@ -30,6 +36,11 @@
   --color-accent: var(--color-accent);
   --color-accent-soft: var(--color-accent-soft);
   --color-accent-tint: var(--color-accent-tint);
+  --color-accent-2: var(--color-accent-2);
+  --color-accent-3: var(--color-accent-3);
+  --color-raised: var(--color-raised);
+  --color-muted: var(--color-muted);
+  --color-danger: var(--color-danger);
   --radius-card: var(--radius-card);
   --font-sans: var(--font-sans);
 }
@@ -48,4 +59,63 @@ body {
   background: var(--color-card);
   border: var(--border-card);
   border-radius: var(--radius-card);
+}
+
+/* Browser surfaces carry the palette too. */
+::selection {
+  background: rgb(255 76 0 / 0.35);
+  color: var(--color-text);
+}
+input,
+textarea {
+  caret-color: var(--color-accent);
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent-2);
+  outline-offset: 2px;
+}
+/* Text inputs show focus through their own border or container instead of a ring. */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+.tap {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), background-color 120ms;
+}
+.tap:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.field {
+  width: 100%;
+  height: 52px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  padding: 0 16px;
+  font: inherit;
+  font-size: 16px;
+}
+.field::placeholder {
+  color: #6a6a70;
+}
+.field:focus {
+  outline: none;
+  border-color: var(--color-accent-2);
+}
+/* The gauge fills once when Today opens. */
+@media (prefers-reduced-motion: no-preference) {
+  .gauge-arc {
+    animation: gauge-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+@keyframes gauge-in {
+  from {
+    stroke-dashoffset: 120;
+    opacity: 0.4;
+  }
 }

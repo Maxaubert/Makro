@@ -207,3 +207,27 @@ describe('applying a pull page', () => {
     expect(store.goalFor('2026-09-30')).toBeNull();
   });
 });
+
+describe('one account per local log', () => {
+  it('claims an empty log for the first user', () => {
+    expect(store.claimOwner('user-a')).toBe('claimed');
+    expect(store.claimOwner('user-a')).toBe('same');
+  });
+
+  it('clears a fully synced log when another user signs in', () => {
+    store.claimOwner('user-a');
+    store.applyPullPage([], 12);
+    store.saveLogEntry(entry());
+    store.ackPush(store.outboxBatch(10), [{ table: 'log_entries', id: store.outboxBatch(10)[0].id, status: 'applied', server_seq: 1 }]);
+    expect(store.claimOwner('user-b')).toBe('switched');
+    expect(store.dayEntries('2026-10-20')).toEqual([]);
+    expect(store.cursor()).toBe(0);
+  });
+
+  it('refuses to hand unsynced changes to another user', () => {
+    store.claimOwner('user-a');
+    store.saveLogEntry(entry());
+    expect(() => store.claimOwner('user-b')).toThrow(/not synced/);
+    expect(store.pendingCount()).toBe(1);
+  });
+});
