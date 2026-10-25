@@ -1,5 +1,6 @@
 // App shell: sign-in gate and hash routes. Every screen has its design on the B Night canvas.
 import { useApp, useAppState, useRoute } from './lib/hooks';
+import { ownerReady } from './lib/owner';
 import { Account } from './screens/Account';
 import { AddFood } from './screens/AddFood';
 import { CustomFood } from './screens/CustomFood';
@@ -14,7 +15,7 @@ import { Notice, Page, SecondaryButton } from './ui/kit';
 
 export function App() {
   const app = useApp();
-  const { session, authReady, fatal } = useAppState();
+  const { session, authReady, fatal, owner } = useAppState();
   const [screen, a, b] = useRoute();
 
   if (!authReady) return <Page><div className="flex-1" aria-busy="true" /></Page>;
@@ -28,6 +29,8 @@ export function App() {
       </Page>
     );
   }
+  // Until the local log is claimed for this user, show nothing from it.
+  if (!ownerReady(session.user.id, owner)) return <Page><div className="flex-1" aria-busy="true" /></Page>;
 
   switch (screen) {
     case 'diary':

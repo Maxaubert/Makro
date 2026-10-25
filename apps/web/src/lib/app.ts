@@ -6,6 +6,7 @@ import type { ProductMeta } from '../data/products';
 import { SyncScheduler, syncOnce, type SyncStatus } from '../data/sync';
 import { buildMissPayload, type CustomFoodRow, type MissType } from '../domain/entry';
 import { createDb, type Db } from './db';
+import { guardOwner, ownerReady } from './owner';
 
 export const APP_VERSION = `web-${__APP_VERSION__}`;
 
@@ -17,6 +18,8 @@ export type ProductState =
 export interface AppState {
   session: Session | null;
   authReady: boolean;
+  /** The user the local log is claimed for. Data screens and syncs wait until it equals the session user. */
+  owner: string | null;
   products: ProductState;
   sync: SyncStatus;
   pending: number;
@@ -52,6 +55,7 @@ export class App {
     this.state = {
       session: null,
       authReady: false,
+      owner: null,
       products: { status: 'loading', message: 'Opening your log' },
       sync: this.scheduler.getStatus(),
       pending: 0,
@@ -61,9 +65,11 @@ export class App {
     this.scheduler.subscribe((sync) => this.set({ sync }));
     this.supabase.auth.onAuthStateChange((_event, session) => {
       const was = this.state.session?.user.id;
-      this.set({ session, authReady: true });
-      if (session && session.user.id !== was) void this.afterSignIn();
+      const changedUser = session?.user.id !== was;
+      // A different (or no) user: forget the claim first, so no screen or sync uses the old log.
+      this.set(changedUser ? { session, authReady: true, owner: null } : { session, authReady: true });
       if (!session) this.scheduler.stop();
+      else if (changedUser) void this.afterSignIn();
     });
   }
 
@@ -90,11 +96,13 @@ export class App {
       const userId = this.state.session?.user.id;
       if (!userId) return;
       await this.db.claimOwner(userId);
+      // The user may have changed while the claim ran; that sign-in starts its own claim.
+      if (this.state.session?.user.id !== userId) return;
+      this.set({ fatal: null, owner: userId, dataVersion: this.state.dataVersion + 1 });
     } catch (e) {
       this.set({ fatal: e instanceof Error ? e.message : String(e) });
       return;
     }
-    this.set({ fatal: null });
     await this.refreshPending();
     // After a sign-out the scheduler is stopped; start() brings back the timer and the
     // reconnect listener; when it is already running, start() just syncs now.
@@ -114,13 +122,16 @@ export class App {
   }
 
   private async syncNow(): Promise<void> {
-    if (!this.state.session) return;
+    const runOwner = this.state.owner;
+    if (!runOwner || !ownerReady(this.state.session?.user.id ?? null, runOwner)) return;
     await this.openDb();
-    const report = await syncOnce(this.db, async (fn, args) => {
+    const current = () => ({ session: this.state.session?.user.id ?? null, owner: this.state.owner });
+    // Every RPC, and every result, is checked against the user this run started for.
+    const report = await syncOnce(this.db, guardOwner(current, runOwner, async (fn: string, args: Record<string, unknown>) => {
       const { data, error } = await this.supabase.rpc(fn, args);
       if (error) throw new Error(`${fn}: ${error.message}`);
       return data;
-    });
+    }));
     await this.refreshPending();
     if (report.pulled > 0 || report.pushed > 0) this.set({ dataVersion: this.state.dataVersion + 1 });
     await this.flushMisses();
