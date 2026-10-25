@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+
+/*
+ * B Night design tokens (CLAUDE.md, canvas https://claude.ai/artifact/K6QcNcoePkCkXds6arS4fo).
+ * The canvas is the visual authority. Dark only in v1 (light mode is out of scope).
+ * These become generated from packages/design/tokens.json once that is agreed with Nima.
+ */
+:root {
+  --color-ground: #0d0d0e;
+  --color-card: #18181a;
+  --color-border: #2a2a2d;
+  --color-text: #f4f4f5;
+  --color-text-secondary: #9a9aa0;
+  --color-accent: #ff4c00;
+  --color-accent-soft: #ff7a40;
+  --color-accent-tint: rgb(255 76 0 / 0.16);
+  --radius-card: 20px;
+  --border-card: 1px solid var(--color-border);
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+/* Expose the tokens to Tailwind utilities: bg-ground, bg-card, text-secondary, rounded-card and so on. */
+@theme inline {
+  --color-ground: var(--color-ground);
+  --color-card: var(--color-card);
+  --color-border: var(--color-border);
+  --color-text: var(--color-text);
+  --color-secondary: var(--color-text-secondary);
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-accent-tint: var(--color-accent-tint);
+  --radius-card: var(--radius-card);
+  --font-sans: var(--font-sans);
+}
+
+html,
+body {
+  background: var(--color-ground);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  margin: 0;
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  background: var(--color-card);
+  border: var(--border-card);
+  border-radius: var(--radius-card);
+}
