@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "description": "Barcode canonical form (see packages/contracts/products-db.md, Barcodes). Input is what the scanner or the user typed; expected is the canonical string, or null when it is not a barcode. Used by the app, the web app and the nutrition-data builder when it writes product_eans.",
+  "cases": [
+    {
+      "id": "barcode-ean13",
+      "input": "7038010000010",
+      "expected": "7038010000010",
+      "note": "EAN-13 stays as it is."
+    },
+    {
+      "id": "barcode-ean8",
+      "input": "96385074",
+      "expected": "0000096385074",
+      "note": "EAN-8 is left-padded to 13."
+    },
+    {
+      "id": "barcode-upca",
+      "input": "012345678905",
+      "expected": "0012345678905",
+      "note": "UPC-A (12 digits) is left-padded to 13."
+    },
+    {
+      "id": "barcode-gtin14-leading-zero",
+      "input": "04012345678901",
+      "expected": "4012345678901",
+      "note": "A 14-digit code with a leading 0 drops it."
+    },
+    {
+      "id": "barcode-gtin14-kept",
+      "input": "14012345678908",
+      "expected": "14012345678908",
+      "note": "A 14-digit code that does not start with 0 stays 14 digits."
+    },
+    {
+      "id": "barcode-separators",
+      "input": "7038 0100-00010",
+      "expected": "7038010000010",
+      "note": "Anything that is not a digit is removed first."
+    },
+    {
+      "id": "barcode-no-digits",
+      "input": "abc",
+      "expected": null,
+      "note": "No digits means not a barcode."
+    },
+    {
+      "id": "barcode-empty",
+      "input": "",
+      "expected": null,
+      "note": "Empty means not a barcode."
+    },
+    {
+      "id": "barcode-too-long",
+      "input": "123456789012345",
+      "expected": null,
+      "note": "More than 14 digits is not a barcode."
+    }
+  ]
+}
