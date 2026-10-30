@@ -63,7 +63,7 @@ Do not run Mac-only commands (Xcode, `xcodebuild`, simulators) on Windows or Lin
 
 - One issue per PR. Write "Part of #N" for slice issues: a slice is done only after the TestFlight check and demo note, so it is closed by hand, not by the merge.
 - Fill in the PR template (definition of done and accuracy rules).
-- The other person reviews before merge.
+- The other person reviews before merge. Suspended by decision 35 while Max holds Nima's review role.
 - Never commit secrets, `.env` files, `Secrets.xcconfig` or database files.
 - Changing a decision means a new entry in `DECISIONS.md` that supersedes the old one.
 
