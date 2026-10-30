@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "description": "Display rounding. Method, pinned for every runner: (x * 10^digits) rounded half away from zero, divided by 10^digits. In Swift: (x * pow(10, d)).rounded(.toNearestOrAwayFromZero) / pow(10, d), then format. Expected values are rounded numbers, not strings.",
+  "cases": [
+    {
+      "id": "display-01",
+      "input": {
+        "value": 2.5,
+        "rounding": {
+          "digits": 0,
+          "mode": "half-away-from-zero"
+        }
+      },
+      "expected": 3
+    },
+    {
+      "id": "display-02",
+      "input": {
+        "value": 0.125,
+        "rounding": {
+          "digits": 2,
+          "mode": "half-away-from-zero"
+        }
+      },
+      "expected": 0.13
+    },
+    {
+      "id": "display-03",
+      "input": {
+        "value": 2.675,
+        "rounding": {
+          "digits": 2,
+          "mode": "half-away-from-zero"
+        }
+      },
+      "expected": 2.68,
+      "note": "2.675*100 is exactly 267.5 in a double, so the pinned method gives 2.68."
+    },
+    {
+      "id": "display-04",
+      "input": {
+        "value": -2.5,
+        "rounding": {
+          "digits": 0,
+          "mode": "half-away-from-zero"
+        }
+      },
+      "expected": -3,
+      "note": "Half away from zero, so negatives go to -3."
+    },
+    {
+      "id": "display-05",
+      "input": {
+        "value": 1.005,
+        "rounding": {
+          "digits": 2,
+          "mode": "half-away-from-zero"
+        }
+      },
+      "expected": 1.0,
+      "note": "1.005*100 is 100.49999999999999 in a double, so the pinned method gives 1.0. The method is pinned on purpose; do not 'fix' it per runner."
+    },
+    {
+      "id": "display-06",
+      "input": {
+        "value": 374.96,
+        "rounding": {
+          "digits": 0,
+          "mode": "half-away-from-zero"
+        }
+      },
+      "expected": 375
+    },
+    {
+      "id": "display-07",
+      "input": {
+        "value": 0.12,
+        "rounding": {
+          "digits": 1,
+          "mode": "half-away-from-zero"
+        }
+      },
+      "expected": 0.1
+    }
+  ]
+}
