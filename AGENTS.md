@@ -7,6 +7,7 @@ Rules for anyone writing code here, people and coding agents alike. `CLAUDE.md` 
 | Path | What | Owner | Runs on |
 |---|---|---|---|
 | `apps/ios/` | SwiftUI iPhone app (created in slice 1, #21) | Nima | Mac only (Xcode) |
+| `apps/web/` | Web app, a second sync client (#46, decision 34) | Max | anywhere |
 | `supabase/` | Backend: migrations, Edge Functions, pgTAP tests | Max | Mac, Windows, Linux (Docker needed) |
 | `packages/contracts/` | Shared contracts and golden files (#32, #40) | both | anywhere |
 | `eval/` | Voice test set and scoring (#35) | Max | anywhere |
@@ -24,7 +25,7 @@ From `docs/MVP.md` and decision 6. Every PR must keep them true.
 4. Every product shows its source and whether it is verified.
 5. Logging never blocks: a missing product becomes a custom food immediately, and the miss is recorded anonymously.
 
-Goal and nutrition maths live in Swift only. Do not reimplement them in SQL, Python or an Edge Function.
+Goal maths live in Swift only. Portion maths, display rounding and search normalisation exist in Swift and in the web app's TypeScript, and both must pass the same golden files in `packages/contracts/` (decision 34). Do not reimplement any of it in SQL, Python or an Edge Function.
 
 ## Tests
 
@@ -62,7 +63,7 @@ Do not run Mac-only commands (Xcode, `xcodebuild`, simulators) on Windows or Lin
 
 - One issue per PR. Write "Part of #N" for slice issues: a slice is done only after the TestFlight check and demo note, so it is closed by hand, not by the merge.
 - Fill in the PR template (definition of done and accuracy rules).
-- The other person reviews before merge.
+- The other person reviews before merge. Suspended by decision 35 while Max holds Nima's review role.
 - Never commit secrets, `.env` files, `Secrets.xcconfig` or database files.
 - Changing a decision means a new entry in `DECISIONS.md` that supersedes the old one.
 
