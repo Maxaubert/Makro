@@ -141,3 +141,8 @@ Two Makro PRs (#34, then #46) and one nutrition-data PR. Each Makro PR waits for
 - **AGENTS.md vs generated columns:** the total columns are SQL maths. #50 asks Nima to accept this one formula, and the plan assumes he does.
 - **`portion.json` covers per-100 × grams, but not quantity × `serving_g`.** Grams-resolution cases are added to the golden files in the same PR.
 - **Hosting on Vercel** (a US company, static files only). The alternative is Cloudflare Pages. The data never leaves Supabase Frankfurt either way.
+
+## Hosted setup done (2026-11-08)
+- Hosted Auth: public sign-up is off. Max's user (aubert@post.com) was created by hand in the dashboard and is confirmed. Nima is not invited yet (Max's call).
+- Email templates cannot be edited without a custom SMTP server, so the built-in "Magic link or OTP" mail has a sign-in link and no 6-digit code. The web client (#60) only verifies a code today. Before the first real sign-in: either set the project's Site URL to the Vercel address so the link signs in (supabase-js reads the session from the URL), or set up SMTP and add `{{ .Token }}` to the template.
+- Product file v1 is in the bucket: `db-2026.11.08` (schema_version 2, 116,033 products, sha256 of products.sqlite `460fcb12…81cd9`). It was built and uploaded locally with the release-db steps because the loftspace org had used its included Actions minutes for November ($12 of $12). The secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set in loftspace/nutrition-data, so the workflow works again once Actions can run.
