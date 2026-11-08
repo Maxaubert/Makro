@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "description": "Grams resolution: the amount the user entered (quantity + unit) to the grams stored on a log entry (packages/contracts/log-schema.md, log_entries.grams). Rule per unit: g = quantity as entered; ml = quantity, 1 ml = 1 g, and approximate is true so the UI marks it as approximate; piece and serving = quantity * serving_g. When serving_g is null, piece and serving cannot be resolved: grams is null, the app must ask for a weight instead and never guess a serving size. serving_g is ignored for g and ml. Unrounded results, compared with the README tolerance. Any other unit is an error, not a case.",
+  "cases": [
+    {
+      "id": "grams-g-as-entered",
+      "input": { "quantity": 150, "unit": "g", "serving_g": null },
+      "expected": { "grams": 150, "approximate": false }
+    },
+    {
+      "id": "grams-g-ignores-serving",
+      "input": { "quantity": 150, "unit": "g", "serving_g": 30 },
+      "expected": { "grams": 150, "approximate": false },
+      "note": "A weight in grams is already grams; the serving size does not apply."
+    },
+    {
+      "id": "grams-ml-one-to-one",
+      "input": { "quantity": 330, "unit": "ml", "serving_g": null },
+      "expected": { "grams": 330, "approximate": true },
+      "note": "1 ml = 1 g (decision on drinks), shown as approximate."
+    },
+    {
+      "id": "grams-ml-ignores-serving",
+      "input": { "quantity": 250, "unit": "ml", "serving_g": 500 },
+      "expected": { "grams": 250, "approximate": true }
+    },
+    {
+      "id": "grams-piece",
+      "input": { "quantity": 2, "unit": "piece", "serving_g": 60 },
+      "expected": { "grams": 120, "approximate": false }
+    },
+    {
+      "id": "grams-serving",
+      "input": { "quantity": 1, "unit": "serving", "serving_g": 45 },
+      "expected": { "grams": 45, "approximate": false }
+    },
+    {
+      "id": "grams-half-serving",
+      "input": { "quantity": 0.5, "unit": "serving", "serving_g": 45 },
+      "expected": { "grams": 22.5, "approximate": false }
+    },
+    {
+      "id": "grams-fractional-piece",
+      "input": { "quantity": 1.5, "unit": "piece", "serving_g": 33.3 },
+      "expected": { "grams": 49.95, "approximate": false },
+      "note": "Unrounded; 1.5 * 33.3 is not exactly 49.95 in a double, so runners use the README tolerance."
+    },
+    {
+      "id": "grams-piece-without-serving-is-unknown",
+      "input": { "quantity": 2, "unit": "piece", "serving_g": null },
+      "expected": { "grams": null, "approximate": false },
+      "note": "No serving size: cannot be resolved. Never guess and never use 0."
+    },
+    {
+      "id": "grams-serving-without-serving-is-unknown",
+      "input": { "quantity": 1, "unit": "serving", "serving_g": null },
+      "expected": { "grams": null, "approximate": false }
+    },
+    {
+      "id": "grams-zero-quantity",
+      "input": { "quantity": 0, "unit": "piece", "serving_g": 60 },
+      "expected": { "grams": 0, "approximate": false },
+      "note": "A real zero amount is zero grams, not unknown."
+    },
+    {
+      "id": "grams-zero-g",
+      "input": { "quantity": 0, "unit": "g", "serving_g": null },
+      "expected": { "grams": 0, "approximate": false }
+    }
+  ]
+}
