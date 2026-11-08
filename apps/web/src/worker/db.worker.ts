@@ -10,6 +10,7 @@ import { LogStore } from '../data/logStore';
 import {
   getProduct,
   lookupBarcode,
+  productAliases,
   readProductMeta,
   searchProducts,
   type ProductMeta,
@@ -90,6 +91,7 @@ const api = {
   logEntry: (id: string) => log.logEntry(id),
   recentFoods: (n: number) => log.recentFoods(n),
   lastPortion: (...a: Parameters<LogStore['lastPortion']>) => log.lastPortion(...a),
+  productAliases: (id: string) => productAliases(requireProducts(), id),
   customFood: (id: string) => log.customFood(id),
   customFoods: () => log.customFoods(),
   weights: (n: number) => log.weights(n),
