@@ -32,7 +32,7 @@ One row per visible product. A product is in the file only if it is Norway-relev
 | `status` | text | yes | `from_source` or `derived` |
 | `data_quality` | text | yes | JSON array of flag codes (see Data quality) |
 | `kcal`, `protein_g`, `fat_g`, `sat_fat_g`, `carbs_g`, `sugars_g`, `fibre_g`, `salt_g` | real | yes | Per 100 `per_100_unit`. **NULL means unknown. Never read NULL as 0** (accuracy rule 2). In SQL and Swift these are 8-byte doubles. |
-| `search_text` | text | no | Normalised name, brand and flavour. For search only. |
+| `search_text` | text | no | Normalised name, brand and flavour, plus the names and flavours of a family's other listings (see Families). For search only. |
 
 Only macros are in the slim database. Vitamins, minerals and the per-source rows stay in `nutrition-data`.
 
@@ -130,6 +130,16 @@ Still to settle with the data: what `per_serving_only` (6,761 products) does to 
 ## Zero kcal
 
 1,353 visible products have `kcal = 0` exactly, mostly missing data written as 0 (Kalkun Lårfilet, Rustikk Havrebrød). v1 rule: when kcal, protein, fat and carbs are all 0, the builder writes NULL and adds `no_nutrition`, except for an allowlist (water, sweeteners, salt). A CI test counts the remaining all-zero products and fails above a set number. This is a data-side beta blocker, not a contract blocker.
+
+## Families and display names (added 2026-11-08, Max)
+
+The same product sold in several flavours, pack sizes or shops is one row, for example `YT Proteinpudding` for Mango, Vanilje, Sjokolade and the multipacks.
+- **Which listings form a family:** they share the first two name words (sizes ignored) and `per_100_unit`, and their brands agree. Every nutrient that both listings know is within 5% (at least 0.5 g or 0.5 kcal), checked for every pair. When the names differ by more than size or case, Jev checked that they really are one product line; zero, light, lactose-free and organic versions stay apart. The accepted families are committed in `nutrition-data` as `data/families.json`.
+- **Which listing the row comes from:** the family row is its best listing (verified first, then a non-shop source, then the most known nutrients), with that listing's id, source and numbers. Numbers are never averaged (accuracy rule 1).
+- **The family name:** the words every listing shares (`YT Proteinpudding`). `pack_size` and `flavour` are NULL when the listings disagree.
+- **What still works:** the other listings' ids are in `redirects`, their barcodes are in `product_eans` on the family row, and their names and flavours are in its `search_text`, so `proteinpudding mango` still finds it.
+
+Display names: ALL-CAPS names and brands become Title Case, and trademark signs and a repeated "- BRAND" tail are dropped (`YT® PROTEINYOGHURT VANILJE - YT®` becomes `YT Proteinyoghurt Vanilje`). Mixed-case names stay as the source wrote them.
 
 ## Variants
 
