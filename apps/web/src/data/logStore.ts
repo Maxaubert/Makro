@@ -3,6 +3,7 @@
 // The sync loop (sync.ts) drains the outbox through sync_push and applies sync_pull pages.
 import type { CustomFoodRow, LogEntryRow, Meal, WeightEntryRow } from '../domain/entry';
 import { MEALS } from '../domain/entry';
+import type { AmountUnit } from '../domain/grams';
 import type { Nutrient } from '../domain/nutrients';
 import { columnsOf, isTableName, localSchemaSql, LOCAL_SCHEMA_VERSION, TABLE_NAMES, type Column, type TableName } from './logSchema';
 import type { Sql, SqlValue } from './sql';
@@ -168,6 +169,17 @@ export class LogStore {
                  from log_entries where deleted_at is null)
         where n = 1 order by eaten_at desc limit ?`,
       [limit],
+    );
+  }
+
+  /** The amount and unit of the newest live entry for a food, so the portion screen can start there. */
+  lastPortion(kind: 'product' | 'custom', id: string): { quantity: number; unit: AmountUnit } | null {
+    const col = kind === 'product' ? 'product_id' : 'custom_food_id';
+    return (
+      this.sql.get<{ quantity: number; unit: AmountUnit }>(
+        `select quantity, unit from log_entries where ${col} = ? and deleted_at is null order by eaten_at desc, id desc limit 1`,
+        [id],
+      ) ?? null
     );
   }
 

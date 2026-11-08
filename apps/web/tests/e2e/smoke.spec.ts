@@ -49,8 +49,15 @@ test('sign in, log skyr, totals, offline logging and sync', async ({ page, conte
   // Offline: logging still works locally and waits in the outbox.
   await context.setOffline(true);
   await expect(page.getByTestId('sync-status')).toContainText('Offline');
+  // The search screen lists recent foods before you type, and the amount starts at last time's.
+  await page.getByRole('link', { name: 'Search food' }).click();
+  await page.getByTestId('food-row').filter({ hasText: 'Skyr Naturell' }).click();
+  await expect(page.getByLabel('Amount')).toHaveValue('150');
+  await page.goBack();
+  await page.goBack();
   await logSkyr(page, '100');
   await expect(page.getByTestId('kcal-eaten')).toHaveText('155');
+  await expect(page.getByTestId('foods-logged')).toHaveText('2');
   await expect(page.getByTestId('sync-status')).toHaveText('Offline · 1 to sync');
   expect((await serverRows(userId)).length).toBe(1);
 

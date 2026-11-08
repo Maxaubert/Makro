@@ -13,7 +13,7 @@ import { href, navigate, useApp, useAppState, useData } from '../lib/hooks';
 import { Card, Chip, Header, Icon, Notice, Page, PrimaryButton, SecondaryButton, SourceBadge } from '../ui/kit';
 import { MEAL_LABEL, mealForNow } from './day';
 
-type Food = { ref: FoodRef; per: Product | CustomFoodRow; sourceName: string; verified: boolean | null; values: Record<string, number | null> };
+type Food = { ref: FoodRef; per: Product | CustomFoodRow; sourceName: string; verified: boolean | null; values: Record<string, number | null>; last: { quantity: number; unit: AmountUnit } | null };
 
 export function Portion({ kind, id }: { kind: string; id: string }) {
   const app = useApp();
@@ -24,12 +24,14 @@ export function Portion({ kind, id }: { kind: string; id: string }) {
     if (kind === 'custom') {
       const f = await app.db.customFood(id);
       if (!f) return { missing: 'This custom food is not on this device yet. Try again after syncing.' };
-      return { ref: { kind: 'custom', food: f }, per: f, sourceName: 'Your own food', verified: null, values: Object.fromEntries(NUTRIENTS.map((n) => [n, f[n]])) };
+      const last = await app.db.lastPortion('custom', id);
+      return { ref: { kind: 'custom', food: f }, per: f, sourceName: 'Your own food', verified: null, values: Object.fromEntries(NUTRIENTS.map((n) => [n, f[n]])), last };
     }
     if (!ready) return { missing: 'The food database is still loading.' };
     const r = await app.db.product(id);
     if (r.status === 'removed') return { missing: 'This product is no longer in the food database.' };
-    return { ref: { kind: 'product', product: r.product, db_version: dbVersion }, per: r.product, sourceName: r.product.source_name, verified: r.product.verified, values: r.product.nutrients };
+    const last = await app.db.lastPortion('product', r.product.id);
+    return { ref: { kind: 'product', product: r.product, db_version: dbVersion }, per: r.product, sourceName: r.product.source_name, verified: r.product.verified, values: r.product.nutrients, last };
   }, [kind, id, ready]);
 
   if (!data) {
@@ -54,8 +56,10 @@ export function Portion({ kind, id }: { kind: string; id: string }) {
 function PortionForm({ food }: { food: Food }) {
   const app = useApp();
   const units = unitsFor(food.per);
-  const [unit, setUnit] = useState<AmountUnit>(units[0]);
-  const [qty, setQty] = useState(units[0] === 'g' || units[0] === 'ml' ? '100' : '1');
+  // Start from the amount you logged last time for this food, if its unit is still offered.
+  const last = food.last && units.includes(food.last.unit) ? food.last : null;
+  const [unit, setUnit] = useState<AmountUnit>(last?.unit ?? units[0]);
+  const [qty, setQty] = useState(last ? String(last.quantity) : units[0] === 'g' || units[0] === 'ml' ? '100' : '1');
   const [meal, setMeal] = useState<Meal>(mealForNow());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

@@ -98,6 +98,15 @@ describe('saving writes locally first and queues the change', () => {
     expect(recents).toHaveLength(1);
     expect(recents[0]).toMatchObject({ product_id: 'tine:skyr-naturell', source: 'tine', verified: 1 });
   });
+
+  it('remembers the amount and unit last logged for a food', () => {
+    expect(store.lastPortion('product', 'tine:skyr-naturell')).toBeNull();
+    store.saveLogEntry(entry(100, new Date('2026-10-19T08:00:00.000Z')));
+    store.saveLogEntry(entry(180, new Date('2026-10-20T08:00:00.000Z')));
+    expect(store.lastPortion('product', 'tine:skyr-naturell')).toEqual({ quantity: 180, unit: 'g' });
+    store.tombstone('log_entries', store.dayEntries('2026-10-20')[0].id);
+    expect(store.lastPortion('product', 'tine:skyr-naturell')).toEqual({ quantity: 100, unit: 'g' });
+  });
 });
 
 describe('outbox for push', () => {

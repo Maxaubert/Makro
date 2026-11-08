@@ -30,7 +30,6 @@ export function Today() {
   const kcal = formatTotal(totals.kcal, 0);
   const eaten = totals.kcal.value ?? 0;
   const left = goal ? goal.kcal_target - eaten : null;
-  const meals = new Set(entries.map((e) => e.meal)).size;
 
   return (
     <Page nav>
@@ -70,7 +69,7 @@ export function Today() {
             <UnknownNote count={kcal.unknown} />
           </span>
           <span>
-            Meals logged <b className="text-text">{meals}</b>
+            Foods logged <b className="text-text" data-testid="foods-logged">{entries.length}</b>
           </span>
         </div>
       </Card>

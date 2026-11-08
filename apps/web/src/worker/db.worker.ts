@@ -89,6 +89,7 @@ const api = {
   dayEntries: (d: string) => log.dayEntries(d),
   logEntry: (id: string) => log.logEntry(id),
   recentFoods: (n: number) => log.recentFoods(n),
+  lastPortion: (...a: Parameters<LogStore['lastPortion']>) => log.lastPortion(...a),
   customFood: (id: string) => log.customFood(id),
   customFoods: () => log.customFoods(),
   weights: (n: number) => log.weights(n),

@@ -46,16 +46,8 @@ export function AddFood() {
   const { data: recents } = useData(() => app.db.recentFoods(20), []);
   const { data: mine } = useData(() => app.db.customFoods(), []);
 
-  let rows: Row[] = [];
-  if (tab === 'all') {
-    const nq = normalise(q.trim());
-    const myMatches = (mine ?? []).filter((f) => nq && normalise(`${f.name} ${f.brand ?? ''}`).includes(nq));
-    rows = [
-      ...myMatches.map((f) => ({ key: f.id, to: href('portion', 'custom', f.id), name: f.name, sub: f.brand, sourceName: 'Your own food', verified: null, kcal: f.kcal, unit: f.per_100_unit })),
-      ...(results ?? []).map(productRow),
-    ];
-  } else if (tab === 'recent') {
-    rows = (recents ?? []).map((r) => ({
+  const recentRows = (): Row[] =>
+    (recents ?? []).map((r) => ({
       key: r.product_id ?? `c:${r.custom_food_id}`,
       to: r.product_id ? href('portion', 'product', r.product_id) : href('portion', 'custom', r.custom_food_id as string),
       name: r.name,
@@ -65,6 +57,20 @@ export function AddFood() {
       kcal: r.kcal,
       unit: r.per_100_unit,
     }));
+
+  let rows: Row[] = [];
+  if (tab === 'all' && !q.trim()) {
+    // Nothing typed yet: the foods you log most recently are the likeliest picks.
+    rows = recentRows();
+  } else if (tab === 'all') {
+    const nq = normalise(q.trim());
+    const myMatches = (mine ?? []).filter((f) => nq && normalise(`${f.name} ${f.brand ?? ''}`).includes(nq));
+    rows = [
+      ...myMatches.map((f) => ({ key: f.id, to: href('portion', 'custom', f.id), name: f.name, sub: f.brand, sourceName: 'Your own food', verified: null, kcal: f.kcal, unit: f.per_100_unit })),
+      ...(results ?? []).map(productRow),
+    ];
+  } else if (tab === 'recent') {
+    rows = recentRows();
   } else {
     rows = (mine ?? []).map((f) => ({ key: f.id, to: href('portion', 'custom', f.id), name: f.name, sub: f.brand, sourceName: 'Your own food', verified: null, kcal: f.kcal, unit: f.per_100_unit }));
   }
