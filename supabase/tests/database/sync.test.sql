@@ -1,7 +1,7 @@
 -- Sync backend (#34): the 7 synced tables, the write trigger, sync_push and sync_pull.
 -- The rules under test are in docs/SYNC.md and packages/contracts/log-schema.md (v1).
 begin;
-select plan(75);
+select plan(88);
 
 -- ---------------------------------------------------------------------------
 -- Helpers (rolled back with the test)
@@ -122,6 +122,14 @@ select is(tests.push('log_entries', tests.row('log_entries', tests.v7(2), '2026-
   'rejected', 'a row that breaks a check is rejected, not raised');
 select is(tests.push('log_entries', tests.row('log_entries', tests.v7(3), '2026-10-20T08:00:00.000Z', '{"product_id": null}')) ->> 'status',
   'rejected', 'a log entry needs exactly one of product_id and custom_food_id');
+-- updated_at must be the contract format (ISO 8601 UTC with Z) and finite.
+select is(tests.push('custom_foods', tests.row('custom_foods', tests.v7(4), 'epoch')) ->> 'status', 'rejected', 'updated_at ''epoch'' is rejected');
+select is(tests.push('custom_foods', tests.row('custom_foods', tests.v7(5), '-infinity')) ->> 'status', 'rejected', 'updated_at ''-infinity'' is rejected');
+select is(tests.push('custom_foods', tests.row('custom_foods', tests.v7(6), 'now')) ->> 'status', 'rejected', 'updated_at ''now'' is rejected');
+select is(tests.push('custom_foods', tests.row('custom_foods', tests.v7(7), '2026-10-20 08:00:00')) ->> 'status', 'rejected', 'an updated_at without a Z (no zone) is rejected');
+select throws_ok($$insert into public.custom_foods (id, created_at, updated_at, name, per_100_unit)
+  values ('01900000-0000-7000-8000-000000000008', now(), '-infinity', 'x', 'g')$$,
+  '22023', null, 'the trigger refuses a non-finite updated_at on a direct write');
 
 -- ---------------------------------------------------------------------------
 -- Server fields from a client are ignored
@@ -237,7 +245,18 @@ select is((select array_agg(kcal_target) from public.goals where effective_from 
 select tests.put('weight_entries', tests.row('weight_entries', tests.v7(65), '2026-10-20T08:00:00.000Z', '{"source": "apple_health", "external_id": "hk-1"}'));
 select tests.put('weight_entries', tests.row('weight_entries', tests.v7(66), '2026-10-20T07:00:00.000Z', '{"source": "apple_health", "external_id": "hk-1"}'));
 select is((select array_agg(id::text) from public.weight_entries where external_id = 'hk-1' and deleted_at is null), array[tests.v7(65)], 'weight: one live row per source and external_id, the later wins');
-select is((select count(*) from public.weight_entries where external_id is null or external_id = 'hk-1'), 2::bigint, 'weight entries without an external id are not deduplicated');
+select tests.put('weight_entries', tests.row('weight_entries', tests.v7(67), '2026-10-20T08:00:00.000Z'));
+select tests.put('weight_entries', tests.row('weight_entries', tests.v7(68), '2026-10-20T09:00:00.000Z'));
+select is((select count(*) from public.weight_entries where id in (tests.v7(67)::uuid, tests.v7(68)::uuid) and external_id is null and deleted_at is null),
+  2::bigint, 'weight entries without an external id are not deduplicated');
+select tests.put('favourites', tests.row('favourites', tests.v7(160), '2026-10-20T08:00:00.000Z', jsonb_build_object('product_id', null, 'custom_food_id', tests.v7(20))));
+select tests.put('favourites', tests.row('favourites', tests.v7(161), '2026-10-20T09:00:00.000Z', jsonb_build_object('product_id', null, 'custom_food_id', tests.v7(20))));
+select is((select array_agg(id::text) from public.favourites where custom_food_id = tests.v7(20)::uuid and deleted_at is null), array[tests.v7(161)],
+  'favourites: one live row per custom_food_id, the later wins');
+-- Reviving the tombstoned goal (63) with a newer edit tombstones the live goal (64) with the same key.
+select tests.put('goals', tests.row('goals', tests.v7(63), '2026-10-20T10:00:00.000Z'));
+select is((select array_agg(id::text) from public.goals where effective_from = '2026-10-20' and deleted_at is null), array[tests.v7(63)],
+  'reviving a tombstoned row tombstones the live row it collides with');
 
 -- ---------------------------------------------------------------------------
 -- Two users: B sees and changes nothing of A's (A has rows in all 7 tables)
@@ -314,6 +333,25 @@ select is(
      (select jsonb_array_length(p -> 'rows') from p3))),
   '3/5/5|true/false/false|0', 'paging with max returns pages in order, with no gaps, until more is false');
 select throws_ok($$select public.sync_pull(1, 0, 0)$$, '22023', null, 'pull refuses max below 1');
+
+-- ---------------------------------------------------------------------------
+-- Wire format: pulled timestamps are ISO 8601 UTC with milliseconds and Z, whatever the session time zone
+-- ---------------------------------------------------------------------------
+set local timezone = 'Europe/Oslo';
+select tests.put('log_entries', tests.row('log_entries', tests.v7(95), '2026-10-20T08:15:30.120Z',
+  '{"created_at": "2026-10-20T08:15:30.12Z", "eaten_at": "2026-10-20T08:15:30.12Z", "deleted_at": "2026-10-20T08:15:30.120Z"}'));
+create temp table c_wire on commit drop as select r -> 'row' as w from jsonb_array_elements(public.sync_pull(1, 0, 1000) -> 'rows') r;
+select is((select format('%s|%s|%s', w ->> 'created_at', w ->> 'updated_at', w ->> 'eaten_at') from c_wire where w ->> 'id' = tests.v7(90)),
+  '2026-10-20T08:00:00.000Z|2026-10-20T09:00:00.000Z|2026-10-20T08:00:00.000Z', 'whole-second timestamps keep .000 and Z, not +00:00 or +02:00');
+select is((select format('%s|%s|%s', w ->> 'created_at', w ->> 'updated_at', w ->> 'deleted_at') from c_wire where w ->> 'id' = tests.v7(95)),
+  '2026-10-20T08:15:30.120Z|2026-10-20T08:15:30.120Z|2026-10-20T08:15:30.120Z', 'trailing zeros in milliseconds are kept');
+select is((select w ->> 'measured_at' from c_wire where w ->> 'id' = tests.v7(92)), '2026-10-20T07:00:00.000Z', 'measured_at uses the wire format');
+select is((select count(*) from c_wire, unnest(array['created_at', 'updated_at', 'deleted_at', 'eaten_at', 'measured_at']) k
+  where jsonb_typeof(w -> k) = 'string' and w ->> k !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$'),
+  0::bigint, 'every pulled timestamp matches YYYY-MM-DDTHH:MM:SS.mmmZ');
+select is((select w ->> 'deleted_at' is not null from c_wire where w ->> 'id' = tests.v7(95)), true, 'a pull includes tombstones');
+select is((select (w -> 'kcal_total')::text || '|' || jsonb_typeof(w -> 'fibre_g_total') from c_wire where w ->> 'id' = tests.v7(90)),
+  '6|null', 'a pull includes the generated totals, NULL when unknown');
 
 select * from finish();
 rollback;

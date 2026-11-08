@@ -51,7 +51,7 @@ Returns `{"protocol": 1, "results": [ ... ]}` with one result per row, in the or
 |---|---|---|
 | `applied` | Stored. `server_seq` is its new cursor position. `tombstoned: true` means it lost a natural-key collision and was stored as deleted. | Drop it from the outbox |
 | `stale` | The server already has a copy at least as new (this includes a retry of a row already applied). The server copy was kept. | Drop it from the outbox; the next pull brings the server copy |
-| `rejected` | The row breaks a rule (`reason` says which): not a UUIDv7, missing `updated_at`, a failed `CHECK` or `NOT NULL`, or an id that belongs to another user. | Drop it and surface the reason; retrying will not help |
+| `rejected` | The row breaks a rule (`reason` says which): not a UUIDv7, a missing `updated_at` or one not in the format above (zone-less text, `epoch`, `now` and infinity are refused), a failed `CHECK` or `NOT NULL`, or an id that belongs to another user. | Drop it and surface the reason; retrying will not help |
 
 **Idempotent by id.** Retrying a push after a dropped connection is safe: rows that landed come back `stale`, the rest are applied. No row is ever duplicated.
 
@@ -77,9 +77,10 @@ Returns the caller's rows with `server_seq > since`, across all tables, ordered 
 
 - `since` is 0 for a first pull, then the `cursor` of the previous page. `max` is at least 1 and is capped at 1000.
 - Each row appears once, at its latest version. Rows include tombstones, `server_seq` and the generated totals, never `user_id`.
+- Every timestamp comes back as ISO 8601 UTC with milliseconds and `Z` (`2026-10-20T08:00:00.000Z`, never `+00:00` or a trimmed fraction), whatever the server's time zone, so clients can compare `updated_at` as text.
 - `more: true` means call again with the new `cursor`. When no rows are returned, `cursor` equals `since`.
 - Apply one page and its cursor in one local transaction. A child can arrive before its parent (there are no foreign keys on reference columns).
-- When applying a pulled row, the server copy wins and its `server_seq` is stored. The only exception: the row has a change waiting in the local outbox and the local `updated_at` is later than the pulled one (on a tie the server copy wins). Do not compare against the local `updated_at` of a row with nothing to push: the server stores `least(client updated_at, now())`, so after a push from a fast clock the local value is later than the server's, and later edits from another device would be skipped for good once the cursor moves past them.
+- When applying a pulled row, keep it if its `updated_at` is later than or equal to the local copy's (on a tie the server copy wins), and store `server_seq`.
 
 ## Protocol version
 
@@ -87,7 +88,7 @@ Returns the caller's rows with `server_seq > since`, across all tables, ordered 
 
 ## Sign-in
 
-Email one-time code (decision 34). Sign-up is off in `supabase/config.toml` (`[auth] enable_signup = false`; `[auth.email] enable_signup` must stay `true`, because in the CLI it switches the whole email provider, one-time codes included) and must also be turned off on the hosted project before day one (Authentication, "Allow new users to sign up" off, Email provider on); Max invites Nima from the dashboard. Locally, create test users with the admin API or SQL, not by signing up.
+Email one-time code (decision 34). Sign-up is off in `supabase/config.toml` (`[auth]` and `[auth.email]`) and must also be turned off on the hosted project before day one; Max invites Nima from the dashboard. Locally, create test users with the admin API or SQL, not by signing up.
 
 ## When #34 is done
 

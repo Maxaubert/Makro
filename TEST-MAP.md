@@ -16,6 +16,6 @@ Every test suite in the repo: what it guards, where it lives, how to run it. Ext
 | Suite | Guards | Issue |
 |---|---|---|
 | Swift package tests (Swift Testing, `swift test`) | Domain logic, maths, search normalisation, persistence | #21 |
-| Golden files | Portion maths, totals with unknowns, goal maths, Norwegian search results | #32 |
+| Golden files | Portion maths, totals with unknowns, display rounding, goal maths (Swift only); search normalisation (Swift and Python); search results (Swift) | #32 |
 | Voice test set | Product and quantity accuracy of voice logging (90% gate) | #35 |
 | App UI tests | Core flows on the simulator | #21 |

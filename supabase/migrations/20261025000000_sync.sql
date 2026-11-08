@@ -220,6 +220,9 @@ begin
   if new.updated_at is null then
     raise exception 'sync: updated_at is required' using errcode = '23502';
   end if;
+  if not isfinite(new.updated_at) then
+    raise exception 'sync: updated_at must be a finite timestamp' using errcode = '22023';
+  end if;
   new.updated_at := date_trunc('milliseconds', least(new.updated_at, now()));
 
   -- Last-write-wins: an update that is not strictly newer is skipped (tie: the stored copy stays).
@@ -340,13 +343,21 @@ begin
     return jsonb_build_object('table', tbl, 'id', r -> 'id', 'status', 'rejected', 'reason', 'id must be a UUIDv7');
   end if;
 
+  -- The contract format only (ISO 8601 UTC with Z). This also refuses 'epoch', 'now', infinity
+  -- and zone-less text, which Postgres would otherwise read in the session time zone.
+  if jsonb_typeof(r -> 'updated_at') is distinct from 'string'
+     or (r ->> 'updated_at') !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$' then
+    return jsonb_build_object('table', tbl, 'id', rid, 'status', 'rejected',
+      'reason', 'updated_at must be ISO 8601 UTC with a Z, like 2026-10-20T08:15:30.123Z');
+  end if;
   begin
     ts := (r ->> 'updated_at')::timestamptz;
   exception when data_exception then
     ts := null;
   end;
   if ts is null then
-    return jsonb_build_object('table', tbl, 'id', rid, 'status', 'rejected', 'reason', 'updated_at must be an ISO 8601 timestamp');
+    return jsonb_build_object('table', tbl, 'id', rid, 'status', 'rejected',
+      'reason', 'updated_at must be ISO 8601 UTC with a Z, like 2026-10-20T08:15:30.123Z');
   end if;
   -- The same clamp the trigger applies, so the comparisons below match what gets stored.
   ts := date_trunc('milliseconds', least(ts, now()));
@@ -415,12 +426,30 @@ begin
 end;
 $$;
 
+-- Rewrites every timestamptz key of a row into the wire format of log-schema.md v1:
+-- ISO 8601 UTC with milliseconds and Z ('2026-10-20T08:15:30.123Z'), whatever the session
+-- time zone. to_jsonb alone would give '2026-10-20T10:15:30.12+02:00', which does not sort
+-- as text against the phone's stored values.
+create function private.sync_wire(r jsonb)
+returns jsonb
+language sql
+stable
+set search_path = ''
+as $$
+  select r || coalesce(jsonb_object_agg(k,
+      to_char((r ->> k)::timestamptz at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')), '{}'::jsonb)
+  from unnest(array['created_at', 'updated_at', 'deleted_at', 'eaten_at', 'measured_at']) k
+  where jsonb_typeof(r -> k) = 'string'
+$$;
+
 revoke all on function private.sync_check_protocol(int) from public;
 revoke all on function private.sync_lock_user() from public;
 revoke all on function private.sync_apply_row(text, jsonb) from public;
 grant execute on function private.sync_check_protocol(int) to authenticated;
 grant execute on function private.sync_lock_user() to authenticated;
 grant execute on function private.sync_apply_row(text, jsonb) to authenticated;
+revoke all on function private.sync_wire(jsonb) from public;
+grant execute on function private.sync_wire(jsonb) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- RPC: sync_push(protocol, changes)
@@ -481,6 +510,7 @@ $$;
 -- RPC: sync_pull(protocol, since, max)
 -- Returns {"rows": [{"table": t, "row": {...}}], "cursor": n, "more": bool}, ordered by server_seq.
 -- Rows carry server_seq and the generated totals, never user_id. Tombstones are included.
+-- Timestamps are in the wire format (private.sync_wire).
 -- ---------------------------------------------------------------------------
 create function public.sync_pull(protocol int, since bigint, max int)
 returns jsonb
@@ -507,19 +537,19 @@ begin
   page_limit := least(max, 1000);
 
   with changed as (
-    select 'log_entries' as tbl, t.server_seq, to_jsonb(t) - 'user_id' as row from public.log_entries t where t.user_id = uid and t.server_seq > since
+    select 'log_entries' as tbl, t.server_seq, private.sync_wire(to_jsonb(t) - 'user_id') as row from public.log_entries t where t.user_id = uid and t.server_seq > since
     union all
-    select 'custom_foods', t.server_seq, to_jsonb(t) - 'user_id' from public.custom_foods t where t.user_id = uid and t.server_seq > since
+    select 'custom_foods', t.server_seq, private.sync_wire(to_jsonb(t) - 'user_id') from public.custom_foods t where t.user_id = uid and t.server_seq > since
     union all
-    select 'saved_meals', t.server_seq, to_jsonb(t) - 'user_id' from public.saved_meals t where t.user_id = uid and t.server_seq > since
+    select 'saved_meals', t.server_seq, private.sync_wire(to_jsonb(t) - 'user_id') from public.saved_meals t where t.user_id = uid and t.server_seq > since
     union all
-    select 'saved_meal_items', t.server_seq, to_jsonb(t) - 'user_id' from public.saved_meal_items t where t.user_id = uid and t.server_seq > since
+    select 'saved_meal_items', t.server_seq, private.sync_wire(to_jsonb(t) - 'user_id') from public.saved_meal_items t where t.user_id = uid and t.server_seq > since
     union all
-    select 'favourites', t.server_seq, to_jsonb(t) - 'user_id' from public.favourites t where t.user_id = uid and t.server_seq > since
+    select 'favourites', t.server_seq, private.sync_wire(to_jsonb(t) - 'user_id') from public.favourites t where t.user_id = uid and t.server_seq > since
     union all
-    select 'goals', t.server_seq, to_jsonb(t) - 'user_id' from public.goals t where t.user_id = uid and t.server_seq > since
+    select 'goals', t.server_seq, private.sync_wire(to_jsonb(t) - 'user_id') from public.goals t where t.user_id = uid and t.server_seq > since
     union all
-    select 'weight_entries', t.server_seq, to_jsonb(t) - 'user_id' from public.weight_entries t where t.user_id = uid and t.server_seq > since
+    select 'weight_entries', t.server_seq, private.sync_wire(to_jsonb(t) - 'user_id') from public.weight_entries t where t.user_id = uid and t.server_seq > since
   ),
   page as (
     select c.tbl, c.server_seq, c.row, row_number() over (order by c.server_seq) as n
