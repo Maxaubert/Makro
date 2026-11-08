@@ -100,12 +100,14 @@ describe('saving writes locally first and queues the change', () => {
   });
 
   it('remembers the amount and unit last logged for a food', () => {
-    expect(store.lastPortion('product', 'tine:skyr-naturell')).toBeNull();
+    expect(store.lastPortion('product', ['tine:skyr-naturell'])).toBeNull();
     store.saveLogEntry(entry(100, new Date('2026-10-19T08:00:00.000Z')));
     store.saveLogEntry(entry(180, new Date('2026-10-20T08:00:00.000Z')));
-    expect(store.lastPortion('product', 'tine:skyr-naturell')).toEqual({ quantity: 180, unit: 'g' });
+    expect(store.lastPortion('product', ['tine:skyr-naturell'])).toEqual({ quantity: 180, unit: 'g' });
+    // A product merged into another keeps its history: the old id still counts.
+    expect(store.lastPortion('product', ['new:skyr', 'tine:skyr-naturell'])).toEqual({ quantity: 180, unit: 'g' });
     store.tombstone('log_entries', store.dayEntries('2026-10-20')[0].id);
-    expect(store.lastPortion('product', 'tine:skyr-naturell')).toEqual({ quantity: 100, unit: 'g' });
+    expect(store.lastPortion('product', ['tine:skyr-naturell'])).toEqual({ quantity: 100, unit: 'g' });
   });
 });
 

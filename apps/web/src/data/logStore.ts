@@ -173,12 +173,13 @@ export class LogStore {
   }
 
   /** The amount and unit of the newest live entry for a food, so the portion screen can start there. */
-  lastPortion(kind: 'product' | 'custom', id: string): { quantity: number; unit: AmountUnit } | null {
+  lastPortion(kind: 'product' | 'custom', ids: string[]): { quantity: number; unit: AmountUnit } | null {
+    if (ids.length === 0) return null;
     const col = kind === 'product' ? 'product_id' : 'custom_food_id';
     return (
       this.sql.get<{ quantity: number; unit: AmountUnit }>(
-        `select quantity, unit from log_entries where ${col} = ? and deleted_at is null order by eaten_at desc, id desc limit 1`,
-        [id],
+        `select quantity, unit from log_entries where ${col} in (${ids.map(() => '?').join(', ')}) and deleted_at is null order by eaten_at desc, id desc limit 1`,
+        ids,
       ) ?? null
     );
   }

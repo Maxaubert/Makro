@@ -24,13 +24,14 @@ export function Portion({ kind, id }: { kind: string; id: string }) {
     if (kind === 'custom') {
       const f = await app.db.customFood(id);
       if (!f) return { missing: 'This custom food is not on this device yet. Try again after syncing.' };
-      const last = await app.db.lastPortion('custom', id);
+      const last = await app.db.lastPortion('custom', [id]);
       return { ref: { kind: 'custom', food: f }, per: f, sourceName: 'Your own food', verified: null, values: Object.fromEntries(NUTRIENTS.map((n) => [n, f[n]])), last };
     }
     if (!ready) return { missing: 'The food database is still loading.' };
     const r = await app.db.product(id);
     if (r.status === 'removed') return { missing: 'This product is no longer in the food database.' };
-    const last = await app.db.lastPortion('product', r.product.id);
+    // Old log entries may carry an id that now redirects here (a merged flavour), so ask for all of them.
+    const last = await app.db.lastPortion('product', await app.db.productAliases(r.product.id));
     return { ref: { kind: 'product', product: r.product, db_version: dbVersion }, per: r.product, sourceName: r.product.source_name, verified: r.product.verified, values: r.product.nutrients, last };
   }, [kind, id, ready]);
 

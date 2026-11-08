@@ -4,6 +4,7 @@ import {
   buildMatchQuery,
   getProduct,
   lookupBarcode,
+  productAliases,
   readProductMeta,
   searchProducts,
 } from './products';
@@ -82,6 +83,13 @@ describe('getProduct resolves ids in the contract order', () => {
   it('treats a removed id and an unknown id as removed', () => {
     expect(getProduct(db, 'tine:skyr-jordbaer')).toEqual({ status: 'removed' });
     expect(getProduct(db, 'nope:nothing')).toEqual({ status: 'removed' });
+  });
+});
+
+describe('productAliases', () => {
+  it('lists the id and every old id that redirects to it', () => {
+    expect(productAliases(db, 'tine:skyr-naturell')).toEqual(['tine:skyr-naturell', 'tine:skyr-naturell-old']);
+    expect(productAliases(db, 'tine:lettmelk')).toEqual(['tine:lettmelk']);
   });
 });
 

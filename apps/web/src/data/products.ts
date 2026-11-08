@@ -138,6 +138,12 @@ export function getProduct(sql: Sql, id: string): ProductLookup {
   return { status: 'removed' };
 }
 
+/** The id and every old id that redirects to it (a merged flavour or listing), for reading old log entries. */
+export function productAliases(sql: Sql, id: string): string[] {
+  const old = sql.all<{ old_id: string }>('select old_id from redirects where new_id = ? order by old_id', [id]);
+  return [id, ...old.map((r) => r.old_id)];
+}
+
 /** Canonicalise, then look up product_eans. null when not a barcode or not in the file. */
 export function lookupBarcode(sql: Sql, raw: string): Product | null {
   const ean = canonicalEan(raw);
