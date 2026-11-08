@@ -141,6 +141,8 @@ The same product sold in several flavours, pack sizes or shops is one row, for e
 
 Display names: ALL-CAPS names and brands become Title Case, and trademark signs and a repeated "- BRAND" tail are dropped (`YT® PROTEINYOGHURT VANILJE - YT®` becomes `YT Proteinyoghurt Vanilje`). Mixed-case names stay as the source wrote them.
 
+Added 2026-11-08 (Max): names never carry a pack size, promo word or article number (the size stays in `pack_size`). Unverified rows with no kcal, protein, fat or carbs are not in the file, and neither are unverified rows of a brand and product line that has a verified row. Duplicates read by a model (Haiku, unsure groups checked by Sonnet) are folded too, guarded by the same brand, variant words and kcal and protein within 15%.
+
 ## Variants
 
 The open variant has 24 products whose values were filled from non-open sources. In v1 the builder drops those values (sets them to NULL) in the open file. `full` or `open` for the friend beta is still Max's licence decision; the app is built to work with either. The open file has only 34% of the 70-prefix (Norwegian) barcodes.
