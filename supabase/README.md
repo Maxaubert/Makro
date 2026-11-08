@@ -4,6 +4,7 @@ Makro's backend (decision #20: Supabase free plan, Frankfurt, project ref `qhzyt
 
 - `migrations/`: schema, in order. Tables are private by default: RLS on, no grants to `anon` or `authenticated` unless a migration says so.
 - `functions/submit-miss/`: anonymous, insert-only product misses (#13, #33). No user id; callers are hashed only to rate-limit.
+- Sync (#34): the 7 per-user tables and the `sync_push` / `sync_pull` RPCs. Protocol and rules: `docs/SYNC.md`.
 - `tests/database/`: pgTAP. Fails if any public table has RLS off, if the anon key can reach the miss tables, or if the products bucket is not private.
 
 Read the most-missed products in the SQL editor: `select * from public.miss_summary limit 50;` (debug builds are left out).

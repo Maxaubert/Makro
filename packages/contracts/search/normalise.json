@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "description": "Search normalisation, applied to product text when the index is built and to the query when searching. Rule: lowercase, then ø->o, æ->ae, å->a (also ä->a, ö->o, ü->u, ß->ss), then strip other accents (NFKD, remove combining marks). Tokens: split the normalised text on anything that is not a Unicode letter or number (what FTS5 unicode61 does), dropping empties. Letters such as ł are kept as they are. Source of truth for the rule today: normalise() in loftspace/nutrition-data tools/build_slim.py. Expected values were generated from it.",
+  "cases": [
+    {
+      "id": "normalise-01",
+      "input": "Skyr",
+      "expected": {
+        "normalised": "skyr",
+        "tokens": [
+          "skyr"
+        ]
+      }
+    },
+    {
+      "id": "normalise-02",
+      "input": "Brød",
+      "expected": {
+        "normalised": "brod",
+        "tokens": [
+          "brod"
+        ]
+      }
+    },
+    {
+      "id": "normalise-03",
+      "input": "Blåbær",
+      "expected": {
+        "normalised": "blabaer",
+        "tokens": [
+          "blabaer"
+        ]
+      }
+    },
+    {
+      "id": "normalise-04",
+      "input": "Grøt",
+      "expected": {
+        "normalised": "grot",
+        "tokens": [
+          "grot"
+        ]
+      }
+    },
+    {
+      "id": "normalise-05",
+      "input": "Mælk",
+      "expected": {
+        "normalised": "maelk",
+        "tokens": [
+          "maelk"
+        ]
+      }
+    },
+    {
+      "id": "normalise-06",
+      "input": "Åpen",
+      "expected": {
+        "normalised": "apen",
+        "tokens": [
+          "apen"
+        ]
+      }
+    },
+    {
+      "id": "normalise-07",
+      "input": "SKYR Mango",
+      "expected": {
+        "normalised": "skyr mango",
+        "tokens": [
+          "skyr",
+          "mango"
+        ]
+      }
+    },
+    {
+      "id": "normalise-08",
+      "input": "Crème fraîche",
+      "expected": {
+        "normalised": "creme fraiche",
+        "tokens": [
+          "creme",
+          "fraiche"
+        ]
+      }
+    },
+    {
+      "id": "normalise-09",
+      "input": "Müsli",
+      "expected": {
+        "normalised": "musli",
+        "tokens": [
+          "musli"
+        ]
+      }
+    },
+    {
+      "id": "normalise-10",
+      "input": "Straße",
+      "expected": {
+        "normalised": "strasse",
+        "tokens": [
+          "strasse"
+        ]
+      }
+    },
+    {
+      "id": "normalise-11",
+      "input": "Jarlsberg® 27%",
+      "expected": {
+        "normalised": "jarlsberg® 27%",
+        "tokens": [
+          "jarlsberg",
+          "27"
+        ]
+      }
+    },
+    {
+      "id": "normalise-12",
+      "input": "Café au lait",
+      "expected": {
+        "normalised": "cafe au lait",
+        "tokens": [
+          "cafe",
+          "au",
+          "lait"
+        ]
+      }
+    },
+    {
+      "id": "normalise-13",
+      "input": "Æble",
+      "expected": {
+        "normalised": "aeble",
+        "tokens": [
+          "aeble"
+        ]
+      }
+    },
+    {
+      "id": "normalise-14",
+      "input": "Smør",
+      "expected": {
+        "normalised": "smor",
+        "tokens": [
+          "smor"
+        ]
+      }
+    },
+    {
+      "id": "normalise-15",
+      "input": "protein-bar  (vanilje)",
+      "expected": {
+        "normalised": "protein-bar  (vanilje)",
+        "tokens": [
+          "protein",
+          "bar",
+          "vanilje"
+        ]
+      }
+    },
+    {
+      "id": "normalise-16",
+      "input": "Ærter",
+      "expected": {
+        "normalised": "aerter",
+        "tokens": [
+          "aerter"
+        ]
+      }
+    },
+    {
+      "id": "normalise-17",
+      "input": "Øl",
+      "expected": {
+        "normalised": "ol",
+        "tokens": [
+          "ol"
+        ]
+      }
+    },
+    {
+      "id": "normalise-18",
+      "input": "Cafe Noir",
+      "expected": {
+        "normalised": "cafe noir",
+        "tokens": [
+          "cafe",
+          "noir"
+        ]
+      }
+    },
+    {
+      "id": "normalise-19",
+      "input": "",
+      "expected": {
+        "normalised": "",
+        "tokens": []
+      }
+    },
+    {
+      "id": "normalise-20",
+      "input": "  ",
+      "expected": {
+        "normalised": "  ",
+        "tokens": []
+      }
+    },
+    {
+      "id": "normalise-21",
+      "input": "Łosoś",
+      "expected": {
+        "normalised": "łosos",
+        "tokens": [
+          "łosos"
+        ]
+      }
+    },
+    {
+      "id": "normalise-22",
+      "input": "D-vita 50μg",
+      "expected": {
+        "normalised": "d-vita 50μg",
+        "tokens": [
+          "d",
+          "vita",
+          "50μg"
+        ]
+      }
+    }
+  ]
+}
