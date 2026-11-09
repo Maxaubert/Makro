@@ -163,3 +163,5 @@ Two Makro PRs (#34, then #46) and one nutrition-data PR. Each Makro PR waits for
 **2026-11-09, evening:** merged and deployed #75 to #81: missed-product CORS, edit goals, weight chart and trend, favourites, saved meals, repeat yesterday, search typos, barcode camera, weekly average and guidance. Not tried on a real phone; the camera has never read a real barcode. #27 still needs the end-of-day screen (where a confirmed day is stored is undecided). #74 awaits a decision.
 
 **2026-11-09, night:** #82 (Weight matches the boards) and #83 (end-of-day) merged and deployed. Curated names for meat, ready meals, snacks and drinks in `db-2026.11.09-4` (nutrition-data #17). A confirmed day is stored on the device only (`sync_state`, `day_complete:<date>`), and there is no undo yet.
+
+**2026-11-09, late:** desktop layout live (#85, #84): boards D1 to D8 from 1024 px up. Portion, entry, scan, code, custom food, end-of-day, privacy, onboarding and the goal editing pages still use the centred column; no board covers them.
