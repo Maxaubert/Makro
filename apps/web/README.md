@@ -59,8 +59,7 @@ Never put a service role key in a `VITE_` variable: everything `VITE_` ends up i
 
 ## Layout
 
-- `src/domain/`: pure TypeScript. Normalisation, portion maths, display rounding, grams per unit, day totals, guidance (weekly average, what is left, suggestions, end-of-day status), UUIDv7, `local_date`, entry snapshots, miss payload. Golden-file runners load `packages/contracts/`.
-- `src/domain/`: pure TypeScript. Normalisation, search typo correction, portion maths, display rounding, grams per unit, day totals, UUIDv7, `local_date`, entry snapshots, miss payload. Golden-file runners load `packages/contracts/`.
+- `src/domain/`: pure TypeScript. Normalisation, search typo correction, portion maths, display rounding, grams per unit, day totals, guidance (weekly average, what is left, suggestions, end-of-day status), UUIDv7, `local_date`, entry snapshots, miss payload. Golden-file runners load `packages/contracts/`.
 - `src/data/`: product file checks, product search and barcode lookup, the local log schema, the log store with its outbox, the sync loop.
 - `src/worker/`, `src/lib/`: the database worker, its client, app services and hooks.
 - `src/screens/`, `src/ui/`: the screens and shared pieces of the B Night look (the canvas is the visual authority).
