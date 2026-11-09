@@ -232,6 +232,73 @@ describe('saving writes locally first and queues the change', () => {
     expect(store.pendingCount()).toBe(2);
   });
 
+  describe('weights', () => {
+    const measured = new Date('2026-10-19T06:30:00.000Z');
+    const saved = (kg = 81.5, at = measured) => {
+      const w = buildWeightEntry({ weight_kg: kg, at, tz: 'Europe/Oslo', now });
+      store.saveWeight(w);
+      return w;
+    };
+
+    it('lists the whole history oldest first, without deleted rows', () => {
+      const later = saved(82, new Date('2026-10-20T06:30:00.000Z'));
+      const first = saved(81);
+      const gone = saved(90, new Date('2026-10-18T06:30:00.000Z'));
+      store.tombstone('weight_entries', gone.id);
+      expect(store.weightHistory().map((w) => w.id)).toEqual([first.id, later.id]);
+    });
+
+    it('edits the value, keeps the day and queues the row with a newer updated_at', () => {
+      const w = saved();
+      now = new Date(now.getTime() + 60_000);
+      store.updateWeight(w.id, { weight_kg: 80.9 });
+      const [row] = store.weightHistory();
+      expect(row).toMatchObject({ weight_kg: 80.9, measured_at: w.measured_at, local_date: '2026-10-19', tz: 'Europe/Oslo' });
+      expect(row.updated_at).toBe(now.toISOString());
+      expect(store.outboxBatch(10)[0].row.weight_kg).toBe(80.9);
+    });
+
+    it('re-stamps the day only when the user moves the measurement', () => {
+      const w = saved();
+      const moved = new Date('2026-10-16T23:30:00.000Z');
+      store.updateWeight(w.id, { moved: { at: moved, tz: 'Europe/Oslo' } });
+      expect(store.weightHistory()[0]).toMatchObject({ weight_kg: 81.5, measured_at: moved.toISOString(), local_date: '2026-10-17', tz: 'Europe/Oslo' });
+    });
+
+    it('does not touch the row for an edit that changes nothing', () => {
+      const w = saved();
+      now = new Date(now.getTime() + 60_000);
+      store.updateWeight(w.id, {});
+      expect(store.weightHistory()[0].updated_at).toBe(w.updated_at);
+      expect(store.outboxBatch(10)[0].version).toBe(1);
+    });
+
+    it('refuses a bad value, and a row that is gone', () => {
+      const w = saved();
+      expect(() => store.updateWeight(w.id, { weight_kg: 0 })).toThrow();
+      expect(() => store.updateWeight(w.id, { weight_kg: Number.NaN })).toThrow();
+      expect(() => store.updateWeight('missing', { weight_kg: 80 })).toThrow();
+      store.tombstone('weight_entries', w.id);
+      expect(() => store.updateWeight(w.id, { weight_kg: 80 })).toThrow();
+    });
+
+    it('deletes by tombstone, and the tombstone is what gets pushed', () => {
+      const w = saved();
+      now = new Date(now.getTime() + 60_000);
+      store.tombstone('weight_entries', w.id);
+      expect(store.weightHistory()).toEqual([]);
+      expect(store.outboxBatch(10)[0].row.deleted_at).toBe(now.toISOString());
+    });
+
+    it('gives the goal target and type for the distance to goal', () => {
+      store.saveGoal(buildGoal({
+        targets: { kcal_target: 2000, protein_g_target: 160, carbs_g_target: 200, fat_g_target: 70, fibre_g_target: 30 },
+        goal_type: 'lose', target_weight_kg: 78, pace_kg_per_week: 0.5, sex: 'male', birth_year: 1996, height_cm: 182, activity_level: 'active', weight_kg: 81.5, at: t0, tz: 'UTC',
+      }));
+      expect(store.goalFor('2026-10-20')).toMatchObject({ target_weight_kg: 78, goal_type: 'lose' });
+    });
+  });
+
   it('lists recent foods, newest first, one row per food', () => {
     store.saveLogEntry(entry(100, new Date('2026-10-19T08:00:00.000Z')));
     store.saveLogEntry(entry(150, new Date('2026-10-20T08:00:00.000Z')));

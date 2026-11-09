@@ -4,6 +4,7 @@
 import type { CustomFoodRow, GoalWriteRow, LogEntryRow, Meal, StoredGoal, WeightEntryRow } from '../domain/entry';
 import { MEALS } from '../domain/entry';
 import type { AmountUnit } from '../domain/grams';
+import { stampLocalDay } from '../domain/localDate';
 import type { Nutrient } from '../domain/nutrients';
 import { columnsOf, isTableName, localSchemaSql, LOCAL_SCHEMA_VERSION, TABLE_NAMES, type Column, type TableName } from './logSchema';
 import type { Sql, SqlValue } from './sql';
@@ -63,6 +64,8 @@ export interface GoalRow {
   carbs_g_target: number;
   fat_g_target: number;
   fibre_g_target: number;
+  target_weight_kg: number | null;
+  goal_type: GoalWriteRow['goal_type'];
 }
 
 export class LogStore {
@@ -181,6 +184,28 @@ export class LogStore {
     });
   }
 
+  /** Edit a weight. local_date stays fixed unless the user moves the measurement to another time. */
+  updateWeight(id: string, patch: { weight_kg?: number; moved?: { at: Date; tz: string } }): void {
+    this.sql.tx(() => {
+      const row = this.sql.get<Record<string, unknown>>('select * from weight_entries where id = ?', [id]);
+      if (!row || row.deleted_at) throw new Error(`no weight ${id}`);
+      if (patch.weight_kg === undefined && !patch.moved) return;
+      const next: Record<string, unknown> = { ...row };
+      if (patch.weight_kg !== undefined) {
+        if (!Number.isFinite(patch.weight_kg) || patch.weight_kg <= 0) throw new Error('weight must be above 0 kg');
+        next.weight_kg = patch.weight_kg;
+      }
+      if (patch.moved) {
+        const day = stampLocalDay(patch.moved.at, patch.moved.tz);
+        next.measured_at = patch.moved.at.toISOString();
+        next.tz = day.tz;
+        next.local_date = day.local_date;
+      }
+      next.updated_at = this.nextUpdatedAt(String(row.updated_at));
+      this.save('weight_entries', next);
+    });
+  }
+
   /** Delete by tombstone: set deleted_at (rows are never removed, log-schema.md). */
   tombstone(table: TableName, id: string): void {
     this.sql.tx(() => {
@@ -279,6 +304,11 @@ export class LogStore {
     return this.sql.all('select * from weight_entries where deleted_at is null order by measured_at desc, id desc limit ?', [limit]);
   }
 
+  /** Every live weight, oldest first: the trend needs the days before the visible range too. */
+  weightHistory(): (WeightEntryRow & { server_seq: number | null })[] {
+    return this.sql.all('select * from weight_entries where deleted_at is null order by measured_at, id');
+  }
+
   /** The newest live goal row with its inputs, to prefill the editing screens. */
   latestGoal(): StoredGoal | null {
     return this.sql.get<StoredGoal>('select * from goals where deleted_at is null order by effective_from desc, updated_at desc, id desc limit 1') ?? null;
@@ -288,7 +318,7 @@ export class LogStore {
   goalFor(localDate: string): GoalRow | null {
     return (
       this.sql.get<GoalRow>(
-        `select effective_from, kcal_target, protein_g_target, carbs_g_target, fat_g_target, fibre_g_target
+        `select effective_from, kcal_target, protein_g_target, carbs_g_target, fat_g_target, fibre_g_target, target_weight_kg, goal_type
            from goals where deleted_at is null and effective_from <= ? order by effective_from desc limit 1`,
         [localDate],
       ) ?? null

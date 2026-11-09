@@ -218,11 +218,12 @@ export function buildGoal(input: {
   return { ...syncFields(at), effective_from: stampLocalDay(at, tz).local_date, ...targets, ...rest };
 }
 
-export function buildWeightEntry(input: { weight_kg: number; at: Date; tz: string }): WeightEntryRow {
+/** `at` is when it was measured; `now` (default `at`) is when the row is written, for a back-dated weight. */
+export function buildWeightEntry(input: { weight_kg: number; at: Date; tz: string; now?: Date }): WeightEntryRow {
   if (!Number.isFinite(input.weight_kg) || input.weight_kg <= 0) throw new Error('weight must be above 0 kg');
   const day = stampLocalDay(input.at, input.tz);
   return {
-    ...syncFields(input.at),
+    ...syncFields(input.now ?? input.at),
     measured_at: input.at.toISOString(),
     tz: day.tz,
     local_date: day.local_date,
