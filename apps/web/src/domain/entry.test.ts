@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Product } from '../data/products';
 import { handle } from '../../../../supabase/functions/submit-miss/handler';
 import { validateMiss } from '../../../../supabase/functions/submit-miss/validate';
-import { buildCustomFood, buildFavourite, buildLogEntry, buildMissPayload, buildRepeatedEntry, buildSavedMeal, buildWeightEntry, parseAmount, unitsFor } from './entry';
+import { buildCustomFood, buildFavourite, buildLogEntry, buildMissPayload, buildRepeatedEntry, buildSavedMeal, buildWeightEntry, mealTimeOn, parseAmount, unitsFor } from './entry';
 
 const skyr: Product = {
   id: 'tine:skyr-naturell',
@@ -22,6 +22,26 @@ const skyr: Product = {
 };
 const at = new Date('2026-10-20T23:30:00.000Z');
 const V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+describe('adding food to an earlier day', () => {
+  const food = { kind: 'product', product: skyr, db_version: '2026.10.25' } as const;
+  const savedAt = new Date('2026-11-09T07:00:00.000Z');
+
+  it('counts toward that day at a time that fits the meal', () => {
+    const e = buildLogEntry({ food, quantity: 100, unit: 'g', meal: 'dinner', at: mealTimeOn('2026-11-08', 'dinner', 'Europe/Oslo'), tz: 'Europe/Oslo', saved_at: savedAt });
+    expect(e).toMatchObject({ local_date: '2026-11-08', eaten_at: '2026-11-08T17:30:00.000Z', meal: 'dinner', kcal: 62 });
+  });
+  it('is stamped as saved now, so sync sees a new change', () => {
+    const e = buildLogEntry({ food, quantity: 100, unit: 'g', meal: 'lunch', at: mealTimeOn('2026-11-08', 'lunch', 'UTC'), tz: 'UTC', saved_at: savedAt });
+    expect(e.created_at).toBe('2026-11-09T07:00:00.000Z');
+    expect(e.updated_at).toBe('2026-11-09T07:00:00.000Z');
+  });
+  it('keeps every meal time inside the day', () => {
+    for (const meal of ['breakfast', 'lunch', 'dinner', 'snack'] as const) {
+      expect(buildLogEntry({ food, quantity: 1, unit: 'g', meal, at: mealTimeOn('2026-03-29', meal, 'Europe/Oslo'), tz: 'Europe/Oslo' }).local_date).toBe('2026-03-29');
+    }
+  });
+});
 
 describe('buildLogEntry', () => {
   it('snapshots the product, resolves grams and stamps the local day', () => {

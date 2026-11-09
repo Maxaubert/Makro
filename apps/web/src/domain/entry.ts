@@ -6,7 +6,7 @@ import { canonicalEan } from '../data/barcode';
 import type { Per100Unit, Product } from '../data/products';
 import type { ActivityLevel, GoalType, Sex } from './goals';
 import { resolveGrams, type AmountUnit } from './grams';
-import { stampLocalDay } from './localDate';
+import { instantOn, stampLocalDay } from './localDate';
 import { NUTRIENTS, type Nutrient } from './nutrients';
 import { uuidv7 } from './uuid';
 
@@ -96,6 +96,13 @@ export function unitsFor(food: { per_100_unit: Per100Unit; serving_g: number | n
   return units;
 }
 
+/** Food added to an earlier day has no real clock time, so it gets one that fits its meal. */
+const MEAL_MINUTES: Record<Meal, number> = { breakfast: 480, lunch: 750, snack: 930, dinner: 1110 };
+
+export function mealTimeOn(localDate: string, meal: Meal, tz: string): Date {
+  return instantOn(localDate, MEAL_MINUTES[meal], tz);
+}
+
 export function buildLogEntry(input: {
   food: FoodRef;
   quantity: number;
@@ -103,6 +110,8 @@ export function buildLogEntry(input: {
   meal: Meal;
   at: Date;
   tz: string;
+  /** When the row is written, if that differs from when it was eaten (adding to an earlier day). */
+  saved_at?: Date;
 }): LogEntryRow {
   if (!MEALS.includes(input.meal)) throw new Error(`unknown meal: ${input.meal}`);
   const f = input.food;
@@ -116,7 +125,7 @@ export function buildLogEntry(input: {
   }
   const day = stampLocalDay(input.at, input.tz);
   return {
-    ...syncFields(input.at),
+    ...syncFields(input.saved_at ?? input.at),
     eaten_at: input.at.toISOString(),
     tz: day.tz,
     local_date: day.local_date,

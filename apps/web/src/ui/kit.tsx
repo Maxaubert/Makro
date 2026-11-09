@@ -40,6 +40,12 @@ const paths = {
       <circle cx="12" cy="12" r="9" />
     </>
   ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8h.01" />
+    </>
+  ),
   next: <path d="M9 5l7 7-7 7" />,
   heart: <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />,
   repeat: <path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" />,

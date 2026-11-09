@@ -224,6 +224,15 @@ export class LogStore {
     this.sql.run("insert into sync_state (key, value) values ('setup_done_for', ?) on conflict (key) do update set value = excluded.value", [userId]);
   }
 
+  /** "The day is complete as logged" (#27). Local to this device for now, keyed by date. */
+  isDayComplete(localDate: string): boolean {
+    return this.sql.get<{ value: string }>('select value from sync_state where key = ?', [`day_complete:${localDate}`]) !== undefined;
+  }
+
+  markDayComplete(localDate: string): void {
+    this.sql.run("insert into sync_state (key, value) values (?, '1') on conflict (key) do update set value = excluded.value", [`day_complete:${localDate}`]);
+  }
+
   /** Edit the amount or meal of an entry. grams follows the amount; the snapshot stays. */
   updateLogEntry(id: string, patch: { quantity?: number; meal?: Meal }): void {
     this.sql.tx(() => {
@@ -516,7 +525,7 @@ export class LogStore {
       if (owner !== undefined) {
         for (const t of TABLE_NAMES) this.sql.run(`delete from ${t}`);
         this.sql.run('delete from outbox_rejected');
-        this.sql.run("delete from sync_state where key = 'pull_cursor'");
+        this.sql.run("delete from sync_state where key = 'pull_cursor' or key like 'day\\_complete:%' escape '\\'");
       }
       this.sql.run(
         "insert into sync_state (key, value) values ('owner', ?) on conflict (key) do update set value = excluded.value",

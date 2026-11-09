@@ -476,3 +476,39 @@ describe('one account per local log', () => {
     expect(store.pendingCount()).toBe(1);
   });
 });
+
+describe('a day confirmed as complete (#27, device only)', () => {
+  it('is not complete until confirmed, and only that day is', () => {
+    expect(store.isDayComplete('2026-10-20')).toBe(false);
+    store.markDayComplete('2026-10-20');
+    expect(store.isDayComplete('2026-10-20')).toBe(true);
+    expect(store.isDayComplete('2026-10-21')).toBe(false);
+  });
+  it('can be confirmed twice', () => {
+    store.markDayComplete('2026-10-20');
+    store.markDayComplete('2026-10-20');
+    expect(store.isDayComplete('2026-10-20')).toBe(true);
+  });
+  it('never reaches the outbox', () => {
+    store.markDayComplete('2026-10-20');
+    expect(store.pendingCount()).toBe(0);
+    expect(store.outboxBatch(10)).toEqual([]);
+  });
+  it('is forgotten when another account takes over this device', () => {
+    store.claimOwner('user-1');
+    store.markDayComplete('2026-10-20');
+    store.claimOwner('user-2');
+    expect(store.isDayComplete('2026-10-20')).toBe(false);
+  });
+  it('stays for the same account', () => {
+    store.claimOwner('user-1');
+    store.markDayComplete('2026-10-20');
+    store.claimOwner('user-1');
+    expect(store.isDayComplete('2026-10-20')).toBe(true);
+  });
+  it('is wiped with everything else on the device', () => {
+    store.markDayComplete('2026-10-20');
+    store.wipe();
+    expect(store.isDayComplete('2026-10-20')).toBe(false);
+  });
+});

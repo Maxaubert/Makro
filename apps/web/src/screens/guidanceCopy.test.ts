@@ -3,8 +3,11 @@ import type { DayStatus, WeeklyAverage, WeeklyMeasure } from '../domain/guidance
 import {
   VERDICT_LABEL,
   coverageNote,
+  dayEndTitle,
   dayLine,
   dayStatusLine,
+  differenceText,
+  incompleteText,
   leftOutNote,
   remainingText,
   weekRange,
@@ -123,6 +126,74 @@ describe('dayStatusLine', () => {
   });
   it('has no line without a target', () => {
     expect(dayStatusLine(status({ status: 'no_target', may_be_incomplete: true }))).toBeNull();
+  });
+  it('drops the warning once the day is confirmed complete', () => {
+    expect(dayStatusLine(status({ may_be_incomplete: true, reasons: ['few_entries'] }), true)).toBe('Under target');
+  });
+});
+
+describe('the end-of-day screen', () => {
+  const status = (over: Partial<DayStatus>): DayStatus => ({
+    status: 'under',
+    eaten: 1310,
+    covered: 5,
+    count: 5,
+    difference: -1090,
+    may_be_incomplete: true,
+    reasons: ['ended_early'],
+    ...over,
+  });
+  const sentence = 'A day with missing entries is never counted as fasting, so the totals above show only what was logged.';
+
+  it('names every status, and an unlogged day is not under', () => {
+    expect(dayEndTitle('on_target')).toBe('On target');
+    expect(dayEndTitle('under')).toBe('Under target');
+    expect(dayEndTitle('over')).toBe('Over target');
+    expect(dayEndTitle('unknown')).toBe('Calories unknown');
+    expect(dayEndTitle('no_target')).toBe('No goal set');
+    expect(dayEndTitle('not_logged')).toBe('Nothing logged');
+  });
+
+  it('matches the canvas for the difference', () => {
+    expect(differenceText(status({}))).toBe('1,090 kcal under');
+    expect(differenceText(status({ status: 'over', difference: 240 }))).toBe('240 kcal over');
+  });
+  it('marks the difference as a bound when an entry has no value', () => {
+    expect(differenceText(status({ covered: 4 }))).toBe('≤ 1,090 kcal under');
+    expect(differenceText(status({ status: 'over', difference: 240, covered: 4 }))).toBe('≥ 240 kcal over');
+  });
+  it('has no difference when it cannot be known or is nothing', () => {
+    expect(differenceText(status({ status: 'unknown', eaten: null, difference: null }))).toBe('');
+    expect(differenceText(status({ status: 'on_target', difference: 0.2 }))).toBe('');
+  });
+
+  it('matches the canvas for the warning', () => {
+    expect(incompleteText({ status: status({}), meals: ['lunch', 'breakfast'], lastMinutes: 790 })).toBe(
+      `Breakfast and lunch are logged, nothing after 13:10, and there is no dinner. ${sentence}`,
+    );
+  });
+  it('uses the singular for one meal', () => {
+    expect(incompleteText({ status: status({ count: 1, covered: 1, reasons: ['few_entries'] }), meals: ['lunch'], lastMinutes: 780 })).toBe(
+      `Lunch is logged, and there is no dinner. ${sentence}`,
+    );
+  });
+  it('says how few entries there are when dinner is there', () => {
+    expect(incompleteText({ status: status({ count: 2, covered: 2, reasons: ['few_entries'] }), meals: ['lunch', 'dinner'], lastMinutes: 1110 })).toBe(
+      `Only 2 entries are logged. ${sentence}`,
+    );
+  });
+  it('mentions a long gap', () => {
+    expect(incompleteText({ status: status({ reasons: ['long_gap'] }), meals: ['breakfast', 'dinner', 'snack'], lastMinutes: 1200 })).toBe(
+      `Breakfast, dinner and snacks are logged, and there is a long gap between entries. ${sentence}`,
+    );
+  });
+  it('counts entries without a calorie value, and never as 0', () => {
+    expect(incompleteText({ status: status({ status: 'over', covered: 4, reasons: ['missing_values'] }), meals: ['breakfast', 'dinner'], lastMinutes: 1200 })).toBe(
+      `1 of 5 entries has no calorie value. ${sentence}`,
+    );
+    expect(incompleteText({ status: status({ status: 'over', covered: 3, reasons: ['missing_values'] }), meals: ['breakfast', 'dinner'], lastMinutes: 1200 })).toBe(
+      `2 of 5 entries have no calorie value. ${sentence}`,
+    );
   });
 });
 

@@ -1,7 +1,7 @@
 // Today's guidance cards (#27, #53) in a real browser: the yesterday row, what is left with
 // suggestions, and the weekly average. The clock is fixed so "this week" has earlier days.
 import { expect, test, type Page } from '@playwright/test';
-import { inviteUser, readOtp } from './local';
+import { inviteUser, pgRows, readOtp } from './local';
 
 const SHOTS = process.env.SHOTS_DIR;
 const shot = async (page: Page, name: string) => {
@@ -34,6 +34,70 @@ async function logSkyr(page: Page, grams: string) {
   await page.getByRole('button', { name: /^Add to / }).click();
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 }
+
+test('end of day: warning, add to that day, confirm complete, unlogged day', async ({ page }) => {
+  const email = `dayend-${Date.now()}@example.test`;
+  const uid = await inviteUser(email);
+  await onboard(page, email);
+
+  // One meal at noon on Monday, then look back at it from Tuesday.
+  await page.clock.setFixedTime(new Date(2026, 10, 9, 12, 0, 0));
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+  await logSkyr(page, '100');
+  await page.clock.setFixedTime(new Date(2026, 10, 10, 12, 0, 0));
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+
+  await page.getByTestId('yesterday-row').click();
+  await expect(page.getByRole('heading', { name: 'Mon 9 Nov' })).toBeVisible();
+  await expect(page.getByTestId('day-end-status')).toHaveText('Under target');
+  await expect(page.getByTestId('day-end-eaten')).toContainText('62 of');
+  await expect(page.getByTestId('day-end-protein_g')).toContainText('11 g');
+  const warning = page.getByTestId('day-end-warning');
+  await expect(warning).toContainText('This day may be incomplete');
+  await expect(warning).toContainText('Lunch is logged, nothing after 12:00, and there is no dinner.');
+  await expect(warning).toContainText('never counted as fasting');
+  await shot(page, 'day-end-incomplete');
+
+  // Adding from here lands on that day, as dinner, and comes back here.
+  await page.getByRole('link', { name: 'Add food to Mon 9 Nov' }).click();
+  await expect(page.getByTestId('adding-to-day')).toContainText('Mon 9 Nov');
+  await expect(page.getByRole('link', { name: /barcode/ })).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'Search foods' }).fill('skyr');
+  await page.getByTestId('food-row').filter({ hasText: 'Skyr Naturell' }).click();
+  await expect(page.getByTestId('adding-to-day')).toContainText('Mon 9 Nov');
+  await page.getByLabel('Amount').fill('100');
+  await page.getByRole('button', { name: 'Add to Dinner' }).click();
+  await expect(page.getByTestId('day-end-eaten')).toContainText('124 of');
+  await expect(warning).toContainText('Only 2 entries are logged.');
+
+  // The entry syncs with the day it belongs to, and today stays empty.
+  await expect
+    .poll(() => pgRows<{ local_date: string }>(`select local_date from public.log_entries where user_id = '${uid}' and meal = 'dinner'`).map((r) => r.local_date.slice(0, 10)), { timeout: 15_000 })
+    .toEqual(['2026-11-09']);
+
+  // Confirming removes the warning here and on Today, and survives a reload.
+  await page.getByRole('button', { name: 'The day is complete as logged' }).click();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+  await expect(page.getByTestId('foods-logged')).toHaveText('0');
+  await expect(page.getByTestId('yesterday-row')).toContainText('Under target');
+  await expect(page.getByTestId('yesterday-row')).not.toContainText('incomplete');
+  await page.reload();
+  await page.getByTestId('yesterday-row').click();
+  await expect(page.getByTestId('day-end-complete')).toHaveText('Complete as logged');
+  await expect(warning).toHaveCount(0);
+  await shot(page, 'day-end-confirmed');
+
+  // A day with nothing logged has no status against the goal and is not a fast.
+  await page.goto('/#/day-end/2026-11-08');
+  await expect(page.getByRole('heading', { name: 'Sun 8 Nov' })).toBeVisible();
+  await expect(page.getByTestId('day-end-status')).toHaveText('Nothing logged');
+  await expect(page.getByText('never counted as fasting')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'The day is complete as logged' })).toHaveCount(0);
+  await expect(page.getByTestId('day-end-eaten')).toHaveCount(0);
+  await shot(page, 'day-end-unlogged');
+});
 
 test('weekly average, what is left and the yesterday row', async ({ page }) => {
   const email = `guidance-${Date.now()}@example.test`;
