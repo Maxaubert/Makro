@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "description": "Profile and goal to daily targets. BMR is Mifflin-St Jeor; kcal = BMR * activity, minus or plus pace * kcal_per_kg / 7, rounded to the nearest 10, and never below the floor for that sex. protein = round(weight * protein_g_per_kg); fat = round(kcal * fat fraction / 9); carbs = round((kcal - protein*4 - fat*9) / 4), at least 0.",
+  "cases": [
+    {
+      "id": "male-maintain",
+      "input": { "sex": "male", "age": 30, "height_cm": 182, "weight_kg": 81.5, "activity_level": "active", "goal_type": "maintain", "pace_kg_per_week": 0 },
+      "expected": { "kcal_target": 2800, "protein_g_target": 163, "fat_g_target": 78, "carbs_g_target": 362, "fibre_g_target": 30, "floored": false }
+    },
+    {
+      "id": "male-lose-half-kg",
+      "input": { "sex": "male", "age": 30, "height_cm": 182, "weight_kg": 81.5, "activity_level": "active", "goal_type": "lose", "pace_kg_per_week": 0.5 },
+      "expected": { "kcal_target": 2250, "protein_g_target": 163, "fat_g_target": 63, "carbs_g_target": 258, "fibre_g_target": 30, "floored": false }
+    },
+    {
+      "id": "female-gain",
+      "input": { "sex": "female", "age": 28, "height_cm": 168, "weight_kg": 62, "activity_level": "very_active", "goal_type": "gain", "pace_kg_per_week": 0.25 },
+      "expected": { "kcal_target": 2640, "protein_g_target": 124, "fat_g_target": 73, "carbs_g_target": 372, "fibre_g_target": 30, "floored": false }
+    },
+    {
+      "id": "female-held-at-floor",
+      "input": { "sex": "female", "age": 40, "height_cm": 160, "weight_kg": 55, "activity_level": "sedentary", "goal_type": "lose", "pace_kg_per_week": 1 },
+      "expected": { "kcal_target": 1200, "protein_g_target": 110, "fat_g_target": 33, "carbs_g_target": 116, "fibre_g_target": 30, "floored": true }
+    },
+    {
+      "id": "male-held-at-floor",
+      "input": { "sex": "male", "age": 25, "height_cm": 170, "weight_kg": 60, "activity_level": "sedentary", "goal_type": "lose", "pace_kg_per_week": 1 },
+      "expected": { "kcal_target": 1500, "protein_g_target": 120, "fat_g_target": 42, "carbs_g_target": 161, "fibre_g_target": 30, "floored": true }
+    },
+    {
+      "id": "large-body-lose",
+      "input": { "sex": "male", "age": 25, "height_cm": 190, "weight_kg": 150, "activity_level": "sedentary", "goal_type": "lose", "pace_kg_per_week": 1 },
+      "expected": { "kcal_target": 1980, "protein_g_target": 300, "fat_g_target": 55, "carbs_g_target": 71, "fibre_g_target": 30, "floored": false }
+    }
+  ]
+}

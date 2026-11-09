@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "description": "Whether a goal may be saved, for calculated and hand-edited goals. problem is null when allowed, below_floor when kcal is under the floor for that sex, pace_too_fast when a loss is above the weekly maximum.",
+  "cases": [
+    { "id": "female-at-floor", "input": { "sex": "female", "goal_type": "lose", "kcal_target": 1200, "pace_kg_per_week": 0.5 }, "expected": { "problem": null } },
+    { "id": "female-under-floor", "input": { "sex": "female", "goal_type": "lose", "kcal_target": 1199, "pace_kg_per_week": 0.5 }, "expected": { "problem": "below_floor" } },
+    { "id": "male-under-floor", "input": { "sex": "male", "goal_type": "maintain", "kcal_target": 1400, "pace_kg_per_week": 0 }, "expected": { "problem": "below_floor" } },
+    { "id": "male-at-floor", "input": { "sex": "male", "goal_type": "lose", "kcal_target": 1500, "pace_kg_per_week": 1 }, "expected": { "problem": null } },
+    { "id": "loss-too-fast", "input": { "sex": "male", "goal_type": "lose", "kcal_target": 2000, "pace_kg_per_week": 1.1 }, "expected": { "problem": "pace_too_fast" } },
+    { "id": "gain-pace-not-capped", "input": { "sex": "male", "goal_type": "gain", "kcal_target": 3000, "pace_kg_per_week": 1.5 }, "expected": { "problem": null } }
+  ]
+}

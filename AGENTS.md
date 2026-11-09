@@ -25,7 +25,7 @@ From `docs/MVP.md` and decision 6. Every PR must keep them true.
 4. Every product shows its source and whether it is verified.
 5. Logging never blocks: a missing product becomes a custom food immediately, and the miss is recorded anonymously.
 
-Goal maths live in Swift only. Portion maths, display rounding and search normalisation exist in Swift and in the web app's TypeScript, and both must pass the same golden files in `packages/contracts/` (decision 34). Do not reimplement any of it in SQL, Python or an Edge Function.
+Goal maths, portion maths, display rounding and search normalisation exist in Swift and in the web app's TypeScript (goal maths on the web since decision 38), and both must pass the same golden files in `packages/contracts/` (decision 34). Do not reimplement any of it in SQL, Python or an Edge Function.
 
 ## Tests
 

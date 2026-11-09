@@ -128,7 +128,7 @@ Each pick is scored against our requirements:
 | Product catalogue (126k products) | Master in `loftspace/nutrition-data`; a full copy bundled on every phone | The server does not hold the catalogue in the MVP. When the public API comes, the slim catalogue (roughly 30 to 80 MB) goes into the same Postgres. |
 | Logs, goals, weight | Every client (phone, web) writes the same rows and syncs them through Supabase, last-write-wins (decision 34). The phone stays offline-first. | Each log entry carries its own nutrition snapshot, so the server and Dashboard-react can sum calories without the catalogue |
 | Product misses | An anonymous, insert-only Supabase function with no user id | Feeds the resolver (nutrition-data #3) |
-| Goal and nutrition maths | Goal maths: Swift only. Portion, display and search normalisation: Swift and TypeScript (web), both checked by the same golden files (decision 34) | Synced as data |
+| Goal and nutrition maths | Goal maths, portion, display and search normalisation: Swift and TypeScript (web), all checked by the same golden files (decisions 34 and 38) | Synced as data |
 
 ### Required before the friend beta
 
