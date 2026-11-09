@@ -27,7 +27,7 @@ test('a mistyped word still finds the food, a good query is untouched', async ({
   await page.getByLabel('Weight').fill('81,5');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Start logging' }).click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 
   await page.getByRole('link', { name: 'Search food' }).click();
   const box = page.getByRole('textbox', { name: 'Search foods' });

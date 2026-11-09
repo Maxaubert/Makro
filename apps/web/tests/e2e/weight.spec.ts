@@ -26,7 +26,7 @@ async function signInAndOnboard(page: Page, email: string) {
   await page.getByLabel('Weight').fill('81,5');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Start logging' }).click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 }
 
 async function logWeight(page: Page, kg: string, daysAgo = 0) {

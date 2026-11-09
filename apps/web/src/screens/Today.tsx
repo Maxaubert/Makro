@@ -5,6 +5,7 @@ import { href, useApp, useAppState, useData } from '../lib/hooks';
 import { canTryScan } from '../lib/scanner';
 import { Card, HalfGauge, Icon, Page, Ring, SyncPill, UnknownNote } from '../ui/kit';
 import { dayLabel, today, totalsOf } from './day';
+import { GuidanceCards } from './TodayGuidance';
 
 const MACROS = [
   { key: 'protein_g', label: 'Protein', color: 'var(--color-accent)', goal: 'protein_g_target' },
@@ -104,6 +105,8 @@ export function Today() {
           {canTryScan() ? 'Scan a code' : 'Type a code'}
         </a>
       </div>
+
+      <GuidanceCards date={date} entries={entries} goal={goal} />
 
       <a href={href('weight')} className="card tap mt-3 flex items-baseline justify-between px-4 py-3.5">
         <span className="text-[13px] text-secondary">Weight</span>

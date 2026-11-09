@@ -26,7 +26,7 @@ async function signInAndOnboard(page: Page) {
   await page.getByLabel('Weight').fill('81,5');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Start logging' }).click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 }
 
 async function typeCode(page: Page, code: string) {
@@ -113,7 +113,7 @@ test('camera scan with a fake detector, and the camera stops when leaving', asyn
 
   // Leaving the screen turns the camera off.
   await page.getByRole('link', { name: 'Close scanner' }).click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
   await expect.poll(() => live(page)).toBe(0);
 
   // A code that reads twice leads to the product, and the camera is off then too.

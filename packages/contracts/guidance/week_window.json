@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "description": "The weekly-average window (#53): Monday of the week of `today` up to the day before `today`. Today itself never counts, and on a Monday the window is empty.",
+  "cases": [
+    { "id": "saturday", "input": { "today": "2026-10-17" }, "expected": { "dates": ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16"] } },
+    { "id": "monday-is-empty", "input": { "today": "2026-10-12" }, "expected": { "dates": [] } },
+    { "id": "tuesday-is-one-day", "input": { "today": "2026-10-13" }, "expected": { "dates": ["2026-10-12"] } },
+    { "id": "sunday-is-six-days", "input": { "today": "2026-10-18" }, "expected": { "dates": ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17"] } },
+    { "id": "crosses-a-month", "input": { "today": "2026-10-01" }, "expected": { "dates": ["2026-09-28", "2026-09-29", "2026-09-30"] } },
+    { "id": "crosses-a-year", "input": { "today": "2027-01-01" }, "expected": { "dates": ["2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31"] } },
+    { "id": "leap-day", "input": { "today": "2028-03-01" }, "expected": { "dates": ["2028-02-28", "2028-02-29"] } }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "description": "The weekly verdict from an average and a target. Below 75% well_under, below 90% a_bit_under, 90% to 110% inclusive on_target, above that above_target. No average or no usable target means no verdict. Unknown is never compared as 0.",
+  "cases": [
+    { "id": "just-below-well-under-line", "input": { "average": 74.9, "target": 100 }, "expected": { "verdict": "well_under" } },
+    { "id": "on-well-under-line", "input": { "average": 75, "target": 100 }, "expected": { "verdict": "a_bit_under" } },
+    { "id": "just-below-on-target", "input": { "average": 89.9, "target": 100 }, "expected": { "verdict": "a_bit_under" } },
+    { "id": "on-target-low-edge", "input": { "average": 90, "target": 100 }, "expected": { "verdict": "on_target" } },
+    { "id": "exactly-target", "input": { "average": 100, "target": 100 }, "expected": { "verdict": "on_target" } },
+    { "id": "on-target-high-edge", "input": { "average": 110, "target": 100 }, "expected": { "verdict": "on_target" } },
+    { "id": "just-above-on-target", "input": { "average": 110.1, "target": 100 }, "expected": { "verdict": "above_target" } },
+    { "id": "real-zero-average", "input": { "average": 0, "target": 100 }, "expected": { "verdict": "well_under" }, "note": "A known 0 is a value. Only null is unknown." },
+    { "id": "unknown-average", "input": { "average": null, "target": 100 }, "expected": { "verdict": null } },
+    { "id": "no-target", "input": { "average": 100, "target": null }, "expected": { "verdict": null } },
+    { "id": "zero-target", "input": { "average": 100, "target": 0 }, "expected": { "verdict": null } }
+  ]
+}

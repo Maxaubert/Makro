@@ -24,7 +24,7 @@ async function onboard(page: Page, email: string) {
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByLabel('Daily calories')).toHaveValue('2800');
   await page.getByRole('button', { name: 'Start logging' }).click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 }
 
 const goalRows = (userId: string) =>

@@ -25,7 +25,7 @@ async function signInAndOnboard(page: Page, email: string) {
   await page.getByLabel('Weight').fill('81,5');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Start logging' }).click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 }
 
 async function logFood(page: Page, query: string, name: string, grams: string, meal: string) {
@@ -36,7 +36,7 @@ async function logFood(page: Page, query: string, name: string, grams: string, m
   await page.getByLabel('Amount').fill(grams);
   await page.getByRole('button', { name: meal, exact: true }).click();
   await page.getByRole('button', { name: /^Add to / }).click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 }
 
 type Row = { meal: string; grams: number; kcal_total: number | null; source: string; name: string };
@@ -115,7 +115,7 @@ test('favourites, saved meals and repeat yesterday write normal log entries', as
   await page.getByRole('button', { name: 'My foods' }).click();
   await shot(page, '07-my-foods-saved-meals');
   await page.getByTestId('saved-meal').click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 
   // Postgres: ordinary rows, numbers copied from the snapshot, and the saved meal itself synced.
   await expect.poll(async () => (await serverRows(userId)).length, { timeout: 15_000 }).toBe(4);

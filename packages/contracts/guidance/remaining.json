@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "description": "What is left today: target minus the known sum eaten. left goes negative when over. exact is false when some entries have no value, because left is then only an upper bound. When every logged entry is unknown, or there is no target, left is null, never the target or 0.",
+  "nutrients": ["kcal", "protein_g"],
+  "cases": [
+    { "id": "nothing-logged-yet", "input": { "totals": { "kcal": { "value": null, "covered": 0, "count": 0 }, "protein_g": { "value": null, "covered": 0, "count": 0 } }, "targets": { "kcal": 2400, "protein_g": 180 } }, "expected": { "kcal": { "left": 2400, "exact": true }, "protein_g": { "left": 180, "exact": true } } },
+    { "id": "canvas-example", "input": { "totals": { "kcal": { "value": 1560, "covered": 3, "count": 3 }, "protein_g": { "value": 122, "covered": 3, "count": 3 } }, "targets": { "kcal": 2400, "protein_g": 180 } }, "expected": { "kcal": { "left": 840, "exact": true }, "protein_g": { "left": 58, "exact": true } } },
+    { "id": "over-target-goes-negative", "input": { "totals": { "kcal": { "value": 2500, "covered": 4, "count": 4 }, "protein_g": { "value": 180, "covered": 4, "count": 4 } }, "targets": { "kcal": 2400, "protein_g": 180 } }, "expected": { "kcal": { "left": -100, "exact": true }, "protein_g": { "left": 0, "exact": true } } },
+    { "id": "some-entries-unknown", "input": { "totals": { "kcal": { "value": 1000, "covered": 3, "count": 3 }, "protein_g": { "value": 40, "covered": 2, "count": 3 } }, "targets": { "kcal": 2400, "protein_g": 180 } }, "expected": { "kcal": { "left": 1400, "exact": true }, "protein_g": { "left": 140, "exact": false } } },
+    { "id": "all-logged-entries-unknown", "input": { "totals": { "kcal": { "value": 500, "covered": 2, "count": 2 }, "protein_g": { "value": null, "covered": 0, "count": 2 } }, "targets": { "kcal": 2400, "protein_g": 180 } }, "expected": { "kcal": { "left": 1900, "exact": true }, "protein_g": { "left": null, "exact": false } }, "note": "Two entries with unknown protein: the amount eaten is unknown, so the amount left is too." },
+    { "id": "real-zero-eaten", "input": { "totals": { "kcal": { "value": 0, "covered": 1, "count": 1 }, "protein_g": { "value": 0, "covered": 1, "count": 1 } }, "targets": { "kcal": 2400, "protein_g": 180 } }, "expected": { "kcal": { "left": 2400, "exact": true }, "protein_g": { "left": 180, "exact": true } } },
+    { "id": "no-target", "input": { "totals": { "kcal": { "value": 500, "covered": 1, "count": 1 }, "protein_g": { "value": 40, "covered": 1, "count": 1 } }, "targets": { "kcal": null, "protein_g": null } }, "expected": { "kcal": { "left": null, "exact": false }, "protein_g": { "left": null, "exact": false } } }
+  ]
+}

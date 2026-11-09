@@ -57,6 +57,24 @@ export interface RecentFood {
   last_eaten_at: string;
 }
 
+export interface FoodHistoryRow {
+  product_id: string | null;
+  custom_food_id: string | null;
+  name: string;
+  brand: string | null;
+  source: string;
+  verified: 0 | 1 | null;
+  quantity: number;
+  unit: AmountUnit;
+  grams: number;
+  kcal_total: number | null;
+  protein_g_total: number | null;
+  carbs_g_total: number | null;
+  fat_g_total: number | null;
+  uses: number;
+  last_eaten_at: string;
+}
+
 export interface GoalRow {
   effective_from: string;
   kcal_target: number;
@@ -282,6 +300,27 @@ export class LogStore {
     return this.sql.all<LocalLogEntry>(
       'select * from log_entries where local_date = ? and deleted_at is null order by eaten_at, id',
       [localDate],
+    );
+  }
+
+  /** Live entries from one local date to another, both included, for the weekly average. */
+  entriesBetween(from: string, to: string): LocalLogEntry[] {
+    return this.sql.all<LocalLogEntry>(
+      'select * from log_entries where local_date >= ? and local_date <= ? and deleted_at is null order by local_date, eaten_at, id',
+      [from, to],
+    );
+  }
+
+  /** Each food once: its newest portion and snapshot, and how many live entries it has. */
+  foodHistory(limit: number): FoodHistoryRow[] {
+    return this.sql.all<FoodHistoryRow>(
+      `select product_id, custom_food_id, name, brand, source, verified, quantity, unit, grams,
+              kcal_total, protein_g_total, carbs_g_total, fat_g_total, uses, eaten_at as last_eaten_at
+         from (select *, row_number() over w as n, count(*) over (partition by coalesce(product_id, 'c:' || custom_food_id)) as uses
+                 from log_entries where deleted_at is null
+               window w as (partition by coalesce(product_id, 'c:' || custom_food_id) order by eaten_at desc, id desc))
+        where n = 1 order by eaten_at desc limit ?`,
+      [limit],
     );
   }
 

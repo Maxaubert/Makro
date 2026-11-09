@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "description": "Weekly average (#53). Only days of the window with at least one entry count. For each measure, a day's value is the sum of its known values (null when none is known); the average is the sum of day values over the days that have a value. covered and count add up the entries of the counted days. Values are unrounded.",
+  "nutrients": ["kcal", "fibre_g"],
+  "cases": [
+    {
+      "id": "canvas-week-with-a-gap-and-unknown-fibre",
+      "note": "Wednesday has no entries and is left out, not counted as 0. Today and last Sunday are outside the window. Thursday has entries but no fibre value, so it has no fibre day value.",
+      "input": {
+        "today": "2026-10-17",
+        "targets": { "kcal": 2400, "fibre_g": 30 },
+        "days": [
+          { "local_date": "2026-10-11", "items": [{ "kcal": 900, "fibre_g": 1 }] },
+          { "local_date": "2026-10-12", "items": [{ "kcal": 1500, "fibre_g": 10 }, { "kcal": 500, "fibre_g": null }] },
+          { "local_date": "2026-10-13", "items": [{ "kcal": 2200, "fibre_g": 20 }] },
+          { "local_date": "2026-10-15", "items": [{ "kcal": 1800, "fibre_g": null }] },
+          { "local_date": "2026-10-16", "items": [{ "kcal": 1200, "fibre_g": 12 }, { "kcal": 800, "fibre_g": 8 }] },
+          { "local_date": "2026-10-17", "items": [{ "kcal": 500, "fibre_g": 2 }] }
+        ]
+      },
+      "expected": {
+        "dates": ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16"],
+        "counted_days": 4,
+        "left_out": ["2026-10-14"],
+        "measures": {
+          "kcal": {
+            "average": 2000, "days_with_value": 4, "covered": 6, "count": 6, "verdict": "a_bit_under",
+            "days": [
+              { "local_date": "2026-10-12", "logged": true, "value": 2000, "covered": 2, "count": 2 },
+              { "local_date": "2026-10-13", "logged": true, "value": 2200, "covered": 1, "count": 1 },
+              { "local_date": "2026-10-14", "logged": false, "value": null, "covered": 0, "count": 0 },
+              { "local_date": "2026-10-15", "logged": true, "value": 1800, "covered": 1, "count": 1 },
+              { "local_date": "2026-10-16", "logged": true, "value": 2000, "covered": 2, "count": 2 }
+            ]
+          },
+          "fibre_g": {
+            "average": 16.666666666666668, "days_with_value": 3, "covered": 4, "count": 6, "verdict": "well_under",
+            "days": [
+              { "local_date": "2026-10-12", "logged": true, "value": 10, "covered": 1, "count": 2 },
+              { "local_date": "2026-10-13", "logged": true, "value": 20, "covered": 1, "count": 1 },
+              { "local_date": "2026-10-14", "logged": false, "value": null, "covered": 0, "count": 0 },
+              { "local_date": "2026-10-15", "logged": true, "value": null, "covered": 0, "count": 1 },
+              { "local_date": "2026-10-16", "logged": true, "value": 20, "covered": 2, "count": 2 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "monday-has-no-earlier-days",
+      "input": {
+        "today": "2026-10-12",
+        "targets": { "kcal": 2400, "fibre_g": 30 },
+        "days": [
+          { "local_date": "2026-10-11", "items": [{ "kcal": 2400, "fibre_g": 30 }] },
+          { "local_date": "2026-10-12", "items": [{ "kcal": 2400, "fibre_g": 30 }] }
+        ]
+      },
+      "expected": {
+        "dates": [],
+        "counted_days": 0,
+        "left_out": [],
+        "measures": {
+          "kcal": { "average": null, "days_with_value": 0, "covered": 0, "count": 0, "verdict": null, "days": [] },
+          "fibre_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 0, "verdict": null, "days": [] }
+        }
+      }
+    },
+    {
+      "id": "unlogged-days-do-not-pull-the-average-down",
+      "input": {
+        "today": "2026-10-14",
+        "targets": { "kcal": 2400, "fibre_g": 30 },
+        "days": [{ "local_date": "2026-10-12", "items": [{ "kcal": 2400, "fibre_g": 30 }] }]
+      },
+      "expected": {
+        "dates": ["2026-10-12", "2026-10-13"],
+        "counted_days": 1,
+        "left_out": ["2026-10-13"],
+        "measures": {
+          "kcal": {
+            "average": 2400, "days_with_value": 1, "covered": 1, "count": 1, "verdict": "on_target",
+            "days": [
+              { "local_date": "2026-10-12", "logged": true, "value": 2400, "covered": 1, "count": 1 },
+              { "local_date": "2026-10-13", "logged": false, "value": null, "covered": 0, "count": 0 }
+            ]
+          },
+          "fibre_g": {
+            "average": 30, "days_with_value": 1, "covered": 1, "count": 1, "verdict": "on_target",
+            "days": [
+              { "local_date": "2026-10-12", "logged": true, "value": 30, "covered": 1, "count": 1 },
+              { "local_date": "2026-10-13", "logged": false, "value": null, "covered": 0, "count": 0 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "nothing-logged-in-the-window",
+      "input": { "today": "2026-10-13", "targets": { "kcal": 2400, "fibre_g": 30 }, "days": [] },
+      "expected": {
+        "dates": ["2026-10-12"],
+        "counted_days": 0,
+        "left_out": ["2026-10-12"],
+        "measures": {
+          "kcal": { "average": null, "days_with_value": 0, "covered": 0, "count": 0, "verdict": null, "days": [{ "local_date": "2026-10-12", "logged": false, "value": null, "covered": 0, "count": 0 }] },
+          "fibre_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 0, "verdict": null, "days": [{ "local_date": "2026-10-12", "logged": false, "value": null, "covered": 0, "count": 0 }] }
+        }
+      }
+    },
+    {
+      "id": "measure-unknown-all-week-stays-unknown",
+      "input": {
+        "today": "2026-10-14",
+        "targets": { "kcal": 2400, "fibre_g": 30 },
+        "days": [
+          { "local_date": "2026-10-12", "items": [{ "kcal": 2400, "fibre_g": null }] },
+          { "local_date": "2026-10-13", "items": [{ "kcal": 2400, "fibre_g": null }, { "kcal": null, "fibre_g": null }] }
+        ]
+      },
+      "expected": {
+        "dates": ["2026-10-12", "2026-10-13"],
+        "counted_days": 2,
+        "left_out": [],
+        "measures": {
+          "kcal": {
+            "average": 2400, "days_with_value": 2, "covered": 2, "count": 3, "verdict": "on_target",
+            "days": [
+              { "local_date": "2026-10-12", "logged": true, "value": 2400, "covered": 1, "count": 1 },
+              { "local_date": "2026-10-13", "logged": true, "value": 2400, "covered": 1, "count": 2 }
+            ]
+          },
+          "fibre_g": {
+            "average": null, "days_with_value": 0, "covered": 0, "count": 3, "verdict": null,
+            "days": [
+              { "local_date": "2026-10-12", "logged": true, "value": null, "covered": 0, "count": 1 },
+              { "local_date": "2026-10-13", "logged": true, "value": null, "covered": 0, "count": 2 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "real-zero-is-a-value",
+      "note": "A known 0 counts as 0. Only null is unknown.",
+      "input": {
+        "today": "2026-10-14",
+        "targets": { "kcal": null, "fibre_g": 30 },
+        "days": [
+          { "local_date": "2026-10-12", "items": [{ "kcal": 1000, "fibre_g": 0 }] },
+          { "local_date": "2026-10-13", "items": [{ "kcal": 2000, "fibre_g": 10 }] }
+        ]
+      },
+      "expected": {
+        "dates": ["2026-10-12", "2026-10-13"],
+        "counted_days": 2,
+        "left_out": [],
+        "measures": {
+          "kcal": {
+            "average": 1500, "days_with_value": 2, "covered": 2, "count": 2, "verdict": null,
+            "days": [
+              { "local_date": "2026-10-12", "logged": true, "value": 1000, "covered": 1, "count": 1 },
+              { "local_date": "2026-10-13", "logged": true, "value": 2000, "covered": 1, "count": 1 }
+            ]
+          },
+          "fibre_g": {
+            "average": 5, "days_with_value": 2, "covered": 2, "count": 2, "verdict": "well_under",
+            "days": [
+              { "local_date": "2026-10-12", "logged": true, "value": 0, "covered": 1, "count": 1 },
+              { "local_date": "2026-10-13", "logged": true, "value": 10, "covered": 1, "count": 1 }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

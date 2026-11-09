@@ -243,6 +243,13 @@ export function searchProducts(sql: Sql, query: string, limit = 20, popularity?:
   return found.slice(0, limit).map(toProduct);
 }
 
+/** Verified products with a known kcal, best protein first, for the daily suggestions. */
+export function verifiedProducts(sql: Sql, limit: number): Product[] {
+  return sql
+    .all<ProductRow>(`${SELECT} where p.verified = 1 and p.kcal is not null order by p.protein_g is null, p.protein_g desc, p.id limit ?`, [limit])
+    .map(toProduct);
+}
+
 export type ProductLookup =
   | { status: 'found'; product: Product }
   | { status: 'redirected'; product: Product }
