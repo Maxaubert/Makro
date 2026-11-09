@@ -117,7 +117,7 @@ export function DesktopHeader({ subtitle, title }: { subtitle: string; title: st
 /** `active` marks the sidebar entry, or the user card for 'account'. */
 export function DesktopShell({ active, subtitle, title, children }: { active?: DesktopNavItem; subtitle: string; title: string; children?: ReactNode }) {
   return (
-    <div className="flex h-dvh overflow-hidden bg-ground [line-height:normal]">
+    <div className="desktop-shell flex h-dvh overflow-hidden bg-ground [line-height:normal]">
       <DesktopSidebar active={active} />
       <main className="flex min-w-0 flex-1 flex-col">
         <DesktopHeader subtitle={subtitle} title={title} />

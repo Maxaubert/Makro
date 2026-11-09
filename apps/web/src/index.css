@@ -89,6 +89,10 @@ textarea:focus-visible {
 .num {
   font-variant-numeric: tabular-nums;
 }
+/* The D Night boards use Space Grotesk's default figures. Its tabular "1" has a foot that the boards do not show. */
+.desktop-shell .num {
+  font-variant-numeric: normal;
+}
 .field {
   width: 100%;
   height: 52px;
