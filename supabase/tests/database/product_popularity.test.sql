@@ -1,6 +1,6 @@
 -- product_popularity(): how many people log each product, for search ranking (decision 36).
 begin;
-select plan(7);
+select plan(9);
 
 create schema tests;
 grant usage on schema tests to authenticated, anon;
@@ -26,24 +26,37 @@ grant execute on all functions in schema tests to authenticated, anon;
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-000000000001', 'a@example.test'),
-  ('00000000-0000-4000-8000-000000000002', 'b@example.test');
+  ('00000000-0000-4000-8000-000000000002', 'b@example.test'),
+  ('00000000-0000-4000-8000-000000000003', 'c@example.test');
 
 set local role authenticated;
 select tests.as_user('00000000-0000-4000-8000-000000000001');
 select public.sync_push(1, jsonb_build_object('log_entries', jsonb_build_array(
   tests.log_row(1, 'p:shared'), tests.log_row(2, 'p:shared'),
   tests.log_row(3, 'p:alone'),
-  tests.log_row(4, 'p:deleted-later'))));
+  tests.log_row(4, 'p:pair'),
+  tests.log_row(5, 'p:deleted-later'),
+  tests.log_row(6, repeat('x', 1025)))));
 
 select tests.as_user('00000000-0000-4000-8000-000000000002');
 select public.sync_push(1, jsonb_build_object('log_entries', jsonb_build_array(
-  tests.log_row(5, 'p:shared'),
-  tests.log_row(6, 'p:deleted-later', '2026-10-20T08:00:00.000Z'))));
+  tests.log_row(7, 'p:shared'),
+  tests.log_row(8, 'p:pair'),
+  tests.log_row(9, 'p:deleted-later', '2026-10-20T08:00:00.000Z'),
+  tests.log_row(10, repeat('x', 1025)))));
 
-select is((select users from public.product_popularity() where product_id = 'p:shared'), 2, 'counts distinct people');
-select is((select logs from public.product_popularity() where product_id = 'p:shared'), 3, 'counts every log of the product');
+select tests.as_user('00000000-0000-4000-8000-000000000003');
+select public.sync_push(1, jsonb_build_object('log_entries', jsonb_build_array(
+  tests.log_row(11, 'p:shared'),
+  tests.log_row(12, repeat('x', 1025)))));
+
+select tests.as_user('00000000-0000-4000-8000-000000000001');
+select is((select users from public.product_popularity() where product_id = 'p:shared'), 3, 'counts distinct people');
+select is((select logs from public.product_popularity() where product_id = 'p:shared'), 4, 'counts every log of the product');
 select is((select count(*) from public.product_popularity() where product_id = 'p:alone'), 0::bigint, 'a product only one person logs stays private');
+select is((select count(*) from public.product_popularity() where product_id = 'p:pair'), 0::bigint, 'your own logs do not count toward the floor, so you cannot test what one other person ate');
 select is((select count(*) from public.product_popularity() where product_id = 'p:deleted-later'), 0::bigint, 'deleted entries do not count');
+select is((select count(*) from public.product_popularity() where char_length(product_id) > 1024), 0::bigint, 'over-long product ids are left out');
 select is(pg_get_function_result('public.product_popularity()'::regprocedure),
   'TABLE(product_id text, users integer, logs integer)', 'returns only the product and two counts, never who logged it');
 

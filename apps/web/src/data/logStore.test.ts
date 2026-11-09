@@ -31,6 +31,19 @@ describe('popularity', () => {
     store.tombstone('log_entries', gone.id);
     expect(store.productCounts()).toEqual([{ product_id: skyr.id, n: 2 }]);
   });
+  it('stores only well-formed global counts, at most 1000', () => {
+    const good = { product_id: 'a', users: 2, logs: 5 };
+    store.savePopularity([
+      good,
+      { product_id: 'x'.repeat(1025), users: 2, logs: 5 },
+      { product_id: 'b', users: -1, logs: 5 },
+      { product_id: 'c', users: 2, logs: Number.NaN },
+      { product_id: 7 as unknown as string, users: 2, logs: 5 },
+    ]);
+    expect(store.popularity()).toEqual([good]);
+    store.savePopularity(Array.from({ length: 1500 }, (_, i) => ({ product_id: String(i), users: 2, logs: 1 })));
+    expect(store.popularity()).toHaveLength(1000);
+  });
   it('keeps the global counts and knows how old they are', () => {
     expect(store.popularity()).toEqual([]);
     expect(store.popularityStale(1000)).toBe(true);

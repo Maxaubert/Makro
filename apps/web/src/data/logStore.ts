@@ -17,6 +17,12 @@ export interface PopularityRow {
   logs: number;
 }
 
+const MAX_POPULARITY_ROWS = 1000;
+const isCount = (n: unknown): boolean => Number.isInteger(n) && (n as number) >= 0;
+/** Counts come from other people's logs, so only well-formed rows are kept. */
+const validPopularity = (r: PopularityRow): boolean =>
+  typeof r.product_id === 'string' && r.product_id.length > 0 && r.product_id.length <= 1024 && isCount(r.users) && isCount(r.logs);
+
 export interface OutboxItem {
   table: TableName;
   id: string;
@@ -199,7 +205,7 @@ export class LogStore {
   savePopularity(rows: PopularityRow[]): void {
     const put = "insert into sync_state (key, value) values (?, ?) on conflict (key) do update set value = excluded.value";
     this.sql.tx(() => {
-      this.sql.run(put, ['popularity', JSON.stringify(rows)]);
+      this.sql.run(put, ['popularity', JSON.stringify(rows.filter(validPopularity).slice(0, MAX_POPULARITY_ROWS))]);
       this.sql.run(put, ['popularity_at', String(this.clock().getTime())]);
     });
   }
