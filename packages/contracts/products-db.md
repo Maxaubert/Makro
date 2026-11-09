@@ -84,9 +84,13 @@ order by bm25(products_fts), length(p.search_text), p.id limit 500;
 5. **Rank** the candidates (up to 500) in code with this total order, so tied rows never come back in an undefined order:
    1. number of query tokens that equal a whole token of `search_text`, descending (a whole-word match beats a prefix match: `melk` ranks "Lettmelk" and "Melk" above "Melkesjokolade");
    2. products with a `kcal` value before products without one (products with no nutrition are shown, with a badge, ranked below those that have values, and stay loggable);
-   3. `bm25`, ascending;
-   4. `length(search_text)`, ascending;
-   5. `id`, ascending.
+   3. how many of your own live log entries are this product, descending;
+   4. how many people log it, descending, then how many logs in total, descending (`product_popularity()`, decision 36);
+   5. `bm25`, ascending;
+   6. `length(search_text)`, ascending;
+   7. `id`, ascending.
+
+   Logs of a merged listing count for the product it became (follow `redirects`). Popular products that match the query but fall outside the 500 are added to the candidates (at most 800 are looked for), so a much-logged food is never cut by a common word.
 
    Return the first 20 (or as many as the screen needs).
 
@@ -94,7 +98,7 @@ The FTS table is `products_fts(search_text)` with the `unicode61` tokenizer and 
 
 What `search_text` contains: normalised name, brand and flavour. It does not contain `pack_size` or the category, so `tine melk 1l` returns nothing.
 
-Known limitation, compounds: Norwegian compounds are one token. `melk` finds 1 of the 112 lettmelk/helmelk products and `kjottdeig` misses `kyllingkjottdeig`. The cheap fix is builder work (appending the tail of long compound words to `search_text`); until then the app should not promise it.
+Compounds: Norwegian compounds are one token, so the builder appends known food words at the end of a longer word to `search_text` (`lettmelk` also gets `melk`, `kyllingkjottdeig` gets `kjottdeig` and `deig`). The word list and the exceptions are in `build_slim.py` in nutrition-data. A compound not on the list still needs its first letters typed.
 
 Rule examples (the first are in `packages/contracts/search/normalise.json`, see #32): `Kjøttdeig` → `kjottdeig`, `Bæreposer` → `baereposer`, `Håndkjøpt Å` → `handkjopt a`, `Crème fraîche` → `creme fraiche`, `Łosoś` → `łosos`.
 
@@ -156,10 +160,10 @@ The open variant has 24 products whose values were filled from non-open sources.
 - [ ] Zero kcal rule with the allowlist and the CI count test.
 - [ ] Open variant: no values filled from non-open sources.
 - [ ] Release workflow passes `--previous` for both variants.
-- [ ] Compound tails in `search_text` (optional, after the rest).
+- [x] Compound tails in `search_text`.
 
 ## Open questions (not decided)
 
 1. **Which variant the friend beta ships:** `full` or `open`. Max's licence call (#15, decision 30).
-2. **Compounds:** do we add compound tails to `search_text` for the MVP, or accept the limitation?
+2. **Compounds:** decided 2026-11-09, added in the builder (#63).
 3. **`per_serving_only`:** are the per-100 values derived? Needs a look in `nutrition-data`.

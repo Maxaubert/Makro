@@ -6,6 +6,7 @@ import {
   lookupBarcode,
   productAliases,
   readProductMeta,
+  resolvePopularity,
   searchProducts,
 } from './products';
 import type { Sql } from './sql';
@@ -63,6 +64,37 @@ describe('searchProducts', () => {
   it('returns nothing for an empty query instead of an FTS syntax error', () => {
     expect(searchProducts(db, '')).toEqual([]);
     expect(searchProducts(db, '%%')).toEqual([]);
+  });
+  it('ranks the foods you log above equal matches (decision 36)', () => {
+    const pop = resolvePopularity(db, [{ product_id: 'tine:skyr-vanilje', n: 3 }], []);
+    expect(searchProducts(db, 'skyr', 20, pop).map((r) => r.id)[0]).toBe('tine:skyr-vanilje');
+  });
+  it('ranks foods many people log next, and your own habits above them', () => {
+    const global = resolvePopularity(db, [], [{ product_id: 'tine:skyr-vanilje', users: 4, logs: 9 }]);
+    expect(searchProducts(db, 'skyr', 20, global).map((r) => r.id)[0]).toBe('tine:skyr-vanilje');
+    const both = resolvePopularity(db, [{ product_id: 'tine:skyr-naturell', n: 1 }], [{ product_id: 'tine:skyr-vanilje', users: 4, logs: 9 }]);
+    expect(searchProducts(db, 'skyr', 20, both).map((r) => r.id)[0]).toBe('tine:skyr-naturell');
+  });
+  it('never lets popularity beat a whole-word match or lift a row without kcal above one with it', () => {
+    const pop = resolvePopularity(db, [{ product_id: 'openfoodfacts:7039010019999', n: 50 }], []);
+    expect(searchProducts(db, 'skyr', 20, pop).at(-1)?.id).toBe('openfoodfacts:7039010019999');
+  });
+  it('counts logs of a merged listing for the product it became', () => {
+    const pop = resolvePopularity(db, [{ product_id: 'tine:skyr-naturell-old', n: 2 }, { product_id: 'tine:skyr-naturell', n: 1 }], []);
+    expect(pop.get('tine:skyr-naturell')?.mine).toBe(3);
+    expect(pop.has('tine:skyr-naturell-old')).toBe(false);
+  });
+  it('still finds a popular food when more than 500 rows match better', async () => {
+    const big = await fixtureProducts();
+    const cols = big.all<{ name: string }>('pragma table_info(products)').map((c) => c.name);
+    const rest = cols.filter((c) => c !== 'id' && c !== 'search_text').join(', ');
+    for (let n = 0; n < 600; n++) {
+      big.run(`insert into products (id, search_text, ${rest}) select ?, 'skyr', ${rest} from products where id = 'tine:skyr-naturell'`, [`x:${n}`]);
+    }
+    big.run("insert into products_fts(products_fts) values('rebuild')");
+    expect(searchProducts(big, 'skyr', 20).map((r) => r.id)).not.toContain('tine:skyr-vanilje');
+    const pop = resolvePopularity(big, [{ product_id: 'tine:skyr-vanilje', n: 1 }], []);
+    expect(searchProducts(big, 'skyr', 20, pop)[0].id).toBe('tine:skyr-vanilje');
   });
   it('carries per_100_unit and a null serving_g as they are', () => {
     expect(searchProducts(db, 'lettmelk')[0].per_100_unit).toBe('ml');
