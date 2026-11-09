@@ -104,9 +104,18 @@ export function rangeStart(range: WeightRange, today: string, firstEntry: string
   return firstEntry !== null && firstEntry < today ? firstEntry : today;
 }
 
-// ---- chart geometry, in the canvas's 326 x 160 box -------------------------------------------
+/** A row's day as on the board: "Today", or "Fri 16 Oct" with no comma. */
+export function entryDayLabel(localDate: string, today: string): string {
+  if (localDate === today) return 'Today';
+  const [y, m, d] = localDate.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(',', '');
+}
 
-const BOX = { width: 326, baseline: 150, top: 8 };
+// ---- chart geometry, in the canvas's 326 x 116 box -------------------------------------------
+
+const BOX = { width: 326, baseline: 110, top: 4, edge: 4, barWidth: 6 };
+/** With no trend yet the chart gets a kg axis: room for its labels on the left and above the top line. */
+const AXIS = { top: 16, gutter: 30 };
 
 export interface ChartBar {
   date: string;
@@ -131,26 +140,36 @@ export interface ChartLayout {
   trend: { x: number; y: number }[][];
   /** One full-height slot per day, for hit targets. */
   slots: ChartSlot[];
+  /** Labelled kg lines, top first. Only while there is no trend line; the board's full chart has none. */
+  axis: { kg: number; y: number }[];
 }
 
 /**
- * Bars rise from a floor just below the lowest value, as on the canvas, so changes of a few
- * hundred grams stay visible. A day with no entry gets no bar and a null trend breaks the line.
+ * Every day of the range gets an evenly spaced slot, with 6 wide bars until the days get too tight.
+ * Bars rise from a floor just below the lowest value, as on the canvas, so changes of a few hundred
+ * grams stay visible. A day with no entry gets no bar and a null trend breaks the line.
+ *
+ * Until a trend exists there may be a single bar, so the floor and ceiling become whole kilos a
+ * step outside the values and are drawn as a labelled axis, which keeps it readable as a graph.
  */
 export function chartLayout(days: TrendDay[]): ChartLayout {
-  const step = days.length ? BOX.width / days.length : BOX.width;
-  const slots = days.map((d, i) => ({ date: d.date, x: i * step, width: step, weight_kg: d.weight_kg, trend_kg: d.trend_kg }));
   const values = days.flatMap((d) => [d.weight_kg, d.trend_kg]).filter((v): v is number => v !== null);
-  if (values.length === 0) return { bars: [], trend: [], slots };
+  const sparse = values.length > 0 && days.every((d) => d.trend_kg === null);
+  const left = sparse ? AXIS.gutter : BOX.edge;
+  const right = BOX.width - BOX.edge;
+  const step = days.length > 1 ? (right - left) / (days.length - 1) : BOX.width;
+  const center = (i: number) => (days.length > 1 ? left + i * step : BOX.width / 2);
+  const slots = days.map((d, i) => ({ date: d.date, x: center(i) - step / 2, width: step, weight_kg: d.weight_kg, trend_kg: d.trend_kg }));
+  if (values.length === 0) return { bars: [], trend: [], slots, axis: [] };
 
   const lo = Math.min(...values);
   const hi = Math.max(...values);
   const span = Math.max(hi - lo, 1);
-  const floor = lo - span * 0.35;
-  const ceiling = hi + span * 0.1;
-  const y = (v: number) => BOX.baseline - ((v - floor) / (ceiling - floor)) * (BOX.baseline - BOX.top);
-  const center = (i: number) => step * (i + 0.5);
-  const barWidth = Math.max(1, Math.min(step * 0.55, 16));
+  const floor = sparse ? Math.floor(lo) - 1 : lo - span * 0.35;
+  const ceiling = sparse ? Math.ceil(hi) + 1 : hi + span * 0.1;
+  const top = sparse ? AXIS.top : BOX.top;
+  const y = (v: number) => BOX.baseline - ((v - floor) / (ceiling - floor)) * (BOX.baseline - top);
+  const barWidth = Math.max(1, Math.min(step * 0.6, BOX.barWidth));
 
   let latestIndex = -1;
   days.forEach((d, i) => {
@@ -162,8 +181,8 @@ export function chartLayout(days: TrendDay[]): ChartLayout {
   let open = false;
   days.forEach((d, i) => {
     if (d.weight_kg !== null) {
-      const top = y(d.weight_kg);
-      bars.push({ date: d.date, x: center(i) - barWidth / 2, y: top, width: barWidth, height: BOX.baseline - top, latest: i === latestIndex });
+      const barTop = y(d.weight_kg);
+      bars.push({ date: d.date, x: center(i) - barWidth / 2, y: barTop, width: barWidth, height: BOX.baseline - barTop, latest: i === latestIndex });
     }
     if (d.trend_kg === null) {
       open = false;
@@ -173,5 +192,6 @@ export function chartLayout(days: TrendDay[]): ChartLayout {
     open = true;
     trend[trend.length - 1].push({ x: center(i), y: y(d.trend_kg) });
   });
-  return { bars, trend, slots };
+  const axis = sparse ? [ceiling, (ceiling + floor) / 2, floor].map((kg) => ({ kg, y: y(kg) })) : [];
+  return { bars, trend, slots, axis };
 }

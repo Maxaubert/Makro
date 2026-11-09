@@ -20,7 +20,7 @@ function whenLabel(at: Date | null): string {
   if (!at) return 'Pick a time';
   const time = `${pad(at.getHours())}:${pad(at.getMinutes())}`;
   if (localDateIn(at, browserTimeZone()) === today()) return `Today, ${time}`;
-  return `${at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}, ${time}`;
+  return `${at.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '')}, ${time}`;
 }
 
 function parseKg(text: string): number | null {
@@ -45,14 +45,14 @@ export function Sheet({ labelId, onClose, children }: { labelId: string; onClose
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-30">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/60" />
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/[0.62]" />
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
         tabIndex={-1}
-        className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[440px] rounded-t-[28px] border-t border-border bg-card px-4 pb-[max(env(safe-area-inset-bottom),40px)] pt-2.5 outline-none"
+        className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[440px] rounded-t-[28px] border-t border-border bg-card px-4 pb-[max(env(safe-area-inset-bottom),36px)] pt-2.5 outline-none"
       >
         <div className="mx-auto h-1 w-10 rounded-sm bg-[#3A3A3E]" />
         {children}
@@ -84,7 +84,7 @@ function Stepper({ label, icon, disabled, onClick }: { label: string; icon: 'plu
 export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntryRow | null; suggestedKg: number | null; onClose: () => void }) {
   const app = useApp();
   const [text, setText] = useState(() => {
-    if (entry) return String(entry.weight_kg);
+    if (entry) return Number.isInteger(entry.weight_kg) ? entry.weight_kg.toFixed(1) : String(entry.weight_kg);
     return suggestedKg === null ? '' : (roundForDisplay(suggestedKg, 1) as number).toFixed(1);
   });
   const [when, setWhen] = useState(() => toLocalInput(entry ? new Date(entry.measured_at) : new Date()));
@@ -96,6 +96,7 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
   const parsedAt = when ? new Date(when) : null;
   const at = parsedAt && !Number.isNaN(parsedAt.getTime()) ? parsedAt : null;
   const inFuture = at !== null && at.getTime() > Date.now();
+  const invalid = text.trim() !== '' && kg === null;
   const canSave = kg !== null && at !== null && !inFuture && !saving;
 
   function step(delta: number) {
@@ -164,7 +165,7 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
         </span>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-2">
+      <div className="mt-[22px] flex items-center justify-between gap-2">
         <Stepper label="Minus 0.1 kg" icon="minus" disabled={kg === null} onClick={() => step(-0.1)} />
         <div className="min-w-0 flex-1 text-center">
           <input
@@ -173,20 +174,17 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
             placeholder="--.-"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="num w-full rounded-xl bg-transparent text-center text-[72px] font-bold leading-none tracking-[-0.035em] outline-none placeholder:text-[#3A3A3E] focus:bg-ground"
+            className="mx-auto block w-[190px] max-w-full border-b-2 border-accent bg-transparent pb-0.5 text-center text-[72px] font-bold leading-none tracking-[-2.5px] outline-none placeholder:text-[#3A3A3E]"
           />
-          <div className="mt-1 text-base text-secondary">kg</div>
+          <div className="mt-1.5 text-base text-secondary">kg</div>
         </div>
         <Stepper label="Plus 0.1 kg" icon="plus" disabled={kg === null} onClick={() => step(0.1)} />
       </div>
 
-      {text.trim() !== '' && kg === null && (
-        <div className="mt-4">
-          <Notice>
-            Enter a weight from {WEIGHT_RANGE_KG.min} to {WEIGHT_RANGE_KG.max} kg.
-          </Notice>
-        </div>
-      )}
+      <div role="status" className={`mt-2.5 text-center text-[13px] ${invalid ? 'text-accent-2' : 'text-secondary'}`}>
+        {invalid ? `Enter a weight between ${WEIGHT_RANGE_KG.min} and ${WEIGHT_RANGE_KG.max} kg` : 'Type the number or use the steps'}
+      </div>
+
       {inFuture && (
         <div className="mt-4">
           <Notice>A weight can't be in the future.</Notice>
@@ -198,7 +196,14 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
         </div>
       )}
 
-      <div className="mt-6 flex gap-2">
+      {entry && (
+        <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-ground px-4 py-3 text-sm">
+          <span>Source</span>
+          <span className="text-secondary">{entry.source === 'apple_health' ? 'Apple Health' : 'Added by you'}</span>
+        </div>
+      )}
+
+      <div className="mt-5 flex gap-2">
         <button type="button" onClick={onClose} className="tap flex h-14 shrink-0 items-center rounded-full border border-border bg-raised px-[22px] text-[15px] font-semibold">
           Cancel
         </button>

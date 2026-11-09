@@ -84,10 +84,15 @@ export function Page({ children, nav = false }: { children: ReactNode; nav?: boo
   );
 }
 
-export function Header({ title, back, right }: { title: string; back?: string; right?: ReactNode }) {
+export function Header({ title, back, backLink, right }: { title: string; back?: string; backLink?: { to: string; label: string }; right?: ReactNode }) {
   const goBack = useBack(back ?? '/today');
   return (
     <header className="flex items-center gap-2 pt-2">
+      {backLink && (
+        <a href={href(backLink.to)} aria-label={backLink.label} className="tap -ml-2 flex h-11 w-11 items-center justify-center rounded-full">
+          <Icon name="back" stroke={2} />
+        </a>
+      )}
       {back !== undefined && (
         <button type="button" onClick={goBack} aria-label="Back" className="tap -ml-2 flex h-11 w-11 items-center justify-center rounded-full">
           <Icon name="back" stroke={2} />
@@ -166,13 +171,13 @@ export function SecondaryButton({ children, onClick, href: to }: { children: Rea
   );
 }
 
-export function Chip({ selected, children, onClick }: { selected: boolean; children: ReactNode; onClick: () => void }) {
+export function Chip({ selected, children, onClick, compact = false }: { selected: boolean; children: ReactNode; onClick: () => void; compact?: boolean }) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`tap flex h-[34px] shrink-0 items-center rounded-full px-3.5 text-[13px] ${
+      className={`tap flex shrink-0 items-center rounded-full ${compact ? 'h-[30px] px-3 text-[12px]' : 'h-[34px] px-3.5 text-[13px]'} ${
         selected ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-[#C8C8CC]'
       }`}
     >
