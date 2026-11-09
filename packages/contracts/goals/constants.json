@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "description": "Numbers behind goal calculation and goal limits. status says how far each is confirmed: provisional and unverified values must be replaced when a dietitian or primary source confirms them (decision 38, research/makro/2026-11-09-health-data-consent-and-goal-safety.md).",
+  "values": {
+    "kcal_floor_female": { "value": 1200, "status": "provisional", "source": "Industry convention, chosen by Max 2026-11-09. No authoritative minimum for unsupervised adults was found." },
+    "kcal_floor_male": { "value": 1500, "status": "provisional", "source": "Industry convention, chosen by Max 2026-11-09. No authoritative minimum for unsupervised adults was found." },
+    "max_loss_kg_per_week": { "value": 1, "status": "provisional", "source": "NHLBI booklet: 1 to 2 pounds per week (seen in a search snippet only). Chosen by Max 2026-11-09." },
+    "kcal_per_kg": { "value": 7700, "status": "unverified", "source": "Common convention for energy in 1 kg of body weight." },
+    "protein_g_per_kg": { "value": 2.0, "status": "product choice", "source": "docs/MVP.md: 1.6 to 2.2 g per kg." },
+    "fat_min_energy_fraction": { "value": 0.25, "status": "unverified", "source": "NNR 2023, total fat 25 to 40 E%, seen in a search summary only." },
+    "fibre_g": { "value": 30, "status": "unverified", "source": "Value on the B Night goals screen. docs/MVP.md asks for the Nordic recommendation." },
+    "activity_sedentary": { "value": 1.2, "status": "unverified", "source": "Common activity multiplier; no source retrieved." },
+    "activity_active": { "value": 1.55, "status": "unverified", "source": "Common activity multiplier; no source retrieved." },
+    "activity_very_active": { "value": 1.725, "status": "unverified", "source": "Common activity multiplier; no source retrieved." }
+  }
+}
