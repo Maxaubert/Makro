@@ -21,7 +21,7 @@ async function logSkyr(page: Page, grams: string) {
   await expect(page.getByTestId('portion-name')).toHaveText('Skyr Naturell');
   await page.getByLabel('Amount').fill(grams);
   await page.getByRole('button', { name: /^Add to / }).click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 }
 
 test('sign in, log skyr, totals, offline logging and sync', async ({ page, context }) => {
@@ -50,7 +50,7 @@ test('sign in, log skyr, totals, offline logging and sync', async ({ page, conte
   await expect(page.getByRole('button', { name: 'Start logging' })).toBeDisabled();
   await page.getByLabel('Daily calories').fill('2800');
   await page.getByRole('button', { name: 'Start logging' }).click();
-  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
   await expect(page.getByText('Goal 2,800 kcal')).toBeVisible();
   await expect.poll(() => pgRows<{ kcal_target: number }>(`select kcal_target from public.goals where user_id = '${userId}'`).length, { timeout: 15_000 }).toBe(1);
   expect(pgRows<{ kind: string }>(`select kind from public.consents where user_id = '${userId}'`).map((r) => r.kind)).toEqual(['health_data']);
