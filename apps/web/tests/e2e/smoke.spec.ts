@@ -33,7 +33,27 @@ test('sign in, log skyr, totals, offline logging and sync', async ({ page, conte
   await page.getByRole('button', { name: 'Email me a code' }).click();
   await page.getByLabel(/6-digit code/).fill(await readOtp(email));
   await page.getByRole('button', { name: 'Sign in' }).click();
+
+  // First run: consent is required, then about you, then goals calculated by code.
+  await page.getByRole('button', { name: 'Get started' }).click();
+  const proceed = page.getByRole('button', { name: 'Continue' });
+  await expect(proceed).toBeDisabled();
+  await page.getByRole('checkbox', { name: /Store my weight/ }).click();
+  await proceed.click();
+  await page.getByRole('button', { name: 'Male', exact: true }).click();
+  await page.getByLabel('Age').fill('30');
+  await page.getByLabel('Height').fill('182');
+  await page.getByLabel('Weight').fill('81,5');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByLabel('Daily calories')).toHaveValue('2800');
+  await page.getByLabel('Daily calories').fill('1000');
+  await expect(page.getByRole('button', { name: 'Start logging' })).toBeDisabled();
+  await page.getByLabel('Daily calories').fill('2800');
+  await page.getByRole('button', { name: 'Start logging' }).click();
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+  await expect(page.getByText('Goal 2,800 kcal')).toBeVisible();
+  await expect.poll(() => pgRows<{ kcal_target: number }>(`select kcal_target from public.goals where user_id = '${userId}'`).length, { timeout: 15_000 }).toBe(1);
+  expect(pgRows<{ kind: string }>(`select kind from public.consents where user_id = '${userId}'`).map((r) => r.kind)).toEqual(['health_data']);
 
   // 150 g of skyr at 62 kcal per 100 g; fibre is unknown in the fixture, so it shows ?.
   await logSkyr(page, '150');

@@ -4,6 +4,7 @@
 // Missing values stay null; nothing here ever turns unknown into 0 (rule 2).
 import { canonicalEan } from '../data/barcode';
 import type { Per100Unit, Product } from '../data/products';
+import type { ActivityLevel, GoalType, Sex } from './goals';
 import { resolveGrams, type AmountUnit } from './grams';
 import { stampLocalDay } from './localDate';
 import { NUTRIENTS, type Nutrient } from './nutrients';
@@ -55,6 +56,23 @@ export interface WeightEntryRow extends SyncFields {
   weight_kg: number;
   source: 'manual' | 'apple_health';
   external_id: string | null;
+}
+
+export interface GoalWriteRow extends SyncFields {
+  effective_from: string;
+  goal_type: GoalType;
+  kcal_target: number;
+  protein_g_target: number;
+  carbs_g_target: number;
+  fat_g_target: number;
+  fibre_g_target: number;
+  target_weight_kg: number | null;
+  pace_kg_per_week: number;
+  sex: Sex;
+  birth_year: number;
+  height_cm: number;
+  activity_level: ActivityLevel;
+  weight_kg: number;
 }
 
 export type FoodRef =
@@ -176,6 +194,23 @@ export function buildMissPayload(
       per100,
     },
   };
+}
+
+export function buildGoal(input: {
+  targets: Pick<GoalWriteRow, 'kcal_target' | 'protein_g_target' | 'carbs_g_target' | 'fat_g_target' | 'fibre_g_target'>;
+  goal_type: GoalType;
+  target_weight_kg: number | null;
+  pace_kg_per_week: number;
+  sex: Sex;
+  birth_year: number;
+  height_cm: number;
+  activity_level: ActivityLevel;
+  weight_kg: number;
+  at: Date;
+  tz: string;
+}): GoalWriteRow {
+  const { at, tz, targets, ...rest } = input;
+  return { ...syncFields(at), effective_from: stampLocalDay(at, tz).local_date, ...targets, ...rest };
 }
 
 export function buildWeightEntry(input: { weight_kg: number; at: Date; tz: string }): WeightEntryRow {
