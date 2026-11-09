@@ -1,7 +1,7 @@
 // The local log store: a SQLite file in OPFS with the log-schema v1 tables and an outbox.
 // Every save lands here first, so logging works without a connection (rule 5, decision 8).
 // The sync loop (sync.ts) drains the outbox through sync_push and applies sync_pull pages.
-import type { CustomFoodRow, GoalWriteRow, LogEntryRow, Meal, StoredGoal, WeightEntryRow } from '../domain/entry';
+import type { CustomFoodRow, FavouriteRow, FoodKey, GoalWriteRow, LogEntryRow, Meal, SavedMealItemRow, SavedMealRow, StoredGoal, WeightEntryRow } from '../domain/entry';
 import { MEALS } from '../domain/entry';
 import type { AmountUnit } from '../domain/grams';
 import { stampLocalDay } from '../domain/localDate';
@@ -68,6 +68,12 @@ export interface GoalRow {
   goal_type: GoalWriteRow['goal_type'];
 }
 
+export interface SavedMeal {
+  id: string;
+  name: string;
+  items: SavedMealItemRow[];
+}
+
 export class LogStore {
   constructor(
     private readonly sql: Sql,
@@ -118,6 +124,45 @@ export class LogStore {
 
   saveGoal(row: GoalWriteRow): void {
     this.save('goals', row as unknown as Record<string, unknown>);
+  }
+
+  /** Several entries at once: a whole meal is logged or none of it. */
+  saveLogEntries(rows: LogEntryRow[]): void {
+    this.sql.tx(() => {
+      for (const row of rows) this.saveLogEntry(row);
+    });
+  }
+
+  /** One live row per food (log-schema.md, Duplicates), so a double tap adds nothing. */
+  addFavourite(row: FavouriteRow): void {
+    this.sql.tx(() => {
+      const kind = row.product_id !== null ? 'product' : 'custom';
+      if (this.isFavourite(kind, [(row.product_id ?? row.custom_food_id) as string])) return;
+      this.save('favourites', row as unknown as Record<string, unknown>);
+    });
+  }
+
+  /** Remove a food from favourites under any of its ids, a merged product's old ids included. */
+  removeFavourites(kind: 'product' | 'custom', ids: string[]): void {
+    this.sql.tx(() => {
+      for (const { id } of this.liveFavourites(kind, ids)) this.tombstone('favourites', id);
+    });
+  }
+
+  /** A saved meal and its items, in one transaction. */
+  saveSavedMeal(meal: SavedMealRow, items: SavedMealItemRow[]): void {
+    this.sql.tx(() => {
+      this.save('saved_meals', meal as unknown as Record<string, unknown>);
+      for (const item of items) this.save('saved_meal_items', item as unknown as Record<string, unknown>);
+    });
+  }
+
+  /** Without foreign keys the server does not cascade, so every item gets a tombstone too (log-schema.md). */
+  deleteSavedMeal(id: string): void {
+    this.sql.tx(() => {
+      this.tombstone('saved_meals', id);
+      for (const item of this.savedMealItems(id)) this.tombstone('saved_meal_items', item.id);
+    });
   }
 
   /**
@@ -251,6 +296,44 @@ export class LogStore {
                  from log_entries where deleted_at is null)
         where n = 1 order by eaten_at desc limit ?`,
       [limit],
+    );
+  }
+
+  /** Newest favourite first. Duplicates are possible until a sync settles them. */
+  favourites(): FoodKey[] {
+    return this.sql.all<FoodKey>('select product_id, custom_food_id from favourites where deleted_at is null order by created_at desc, id desc');
+  }
+
+  isFavourite(kind: 'product' | 'custom', ids: string[]): boolean {
+    return this.liveFavourites(kind, ids).length > 0;
+  }
+
+  private liveFavourites(kind: 'product' | 'custom', ids: string[]): { id: string }[] {
+    if (ids.length === 0) return [];
+    const col = kind === 'product' ? 'product_id' : 'custom_food_id';
+    return this.sql.all<{ id: string }>(`select id from favourites where ${col} in (${ids.map(() => '?').join(', ')}) and deleted_at is null`, ids);
+  }
+
+  /** Saved meals with at least one live item, newest first. */
+  savedMeals(): SavedMeal[] {
+    const meals = this.sql.all<{ id: string; name: string }>('select id, name from saved_meals where deleted_at is null order by created_at desc, id desc');
+    return meals.map((m) => ({ ...m, items: this.savedMealItems(m.id) })).filter((m) => m.items.length > 0);
+  }
+
+  savedMeal(id: string): SavedMeal | null {
+    const meal = this.sql.get<{ id: string; name: string }>('select id, name from saved_meals where id = ? and deleted_at is null', [id]);
+    return meal ? { ...meal, items: this.savedMealItems(id) } : null;
+  }
+
+  private savedMealItems(savedMealId: string): SavedMealItemRow[] {
+    return this.sql.all<SavedMealItemRow>('select * from saved_meal_items where saved_meal_id = ? and deleted_at is null order by sort_order, id', [savedMealId]);
+  }
+
+  /** The newest snapshot held for a food. A deleted entry still counts, but only after every live one. */
+  latestSnapshot(key: FoodKey): LocalLogEntry | null {
+    const [col, id] = key.product_id !== null ? ['product_id', key.product_id] : ['custom_food_id', key.custom_food_id];
+    return (
+      this.sql.get<LocalLogEntry>(`select * from log_entries where ${col} = ? order by deleted_at is not null, eaten_at desc, id desc limit 1`, [id]) ?? null
     );
   }
 

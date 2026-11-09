@@ -3,7 +3,7 @@
 // without numbers can still be logged, or turned into a custom food with the label values.
 import { useState } from 'react';
 import { productSubtext, type Product } from '../data/products';
-import { buildLogEntry, MEALS, parseAmount, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../domain/entry';
+import { buildFavourite, buildLogEntry, MEALS, parseAmount, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../domain/entry';
 import { formatNumber } from '../domain/format';
 import { resolveGrams, type AmountUnit } from '../domain/grams';
 import { browserTimeZone } from '../domain/localDate';
@@ -13,7 +13,7 @@ import { href, navigate, useApp, useAppState, useData } from '../lib/hooks';
 import { Card, Chip, Header, Icon, Notice, Page, PrimaryButton, SecondaryButton, SourceBadge } from '../ui/kit';
 import { MEAL_LABEL, mealForNow } from './day';
 
-type Food = { ref: FoodRef; per: Product | CustomFoodRow; sourceName: string; verified: boolean | null; values: Record<string, number | null>; last: { quantity: number; unit: AmountUnit } | null };
+type Food = { ref: FoodRef; per: Product | CustomFoodRow; sourceName: string; verified: boolean | null; values: Record<string, number | null>; last: { quantity: number; unit: AmountUnit } | null; ids: string[]; favourite: boolean };
 
 export function Portion({ kind, id }: { kind: string; id: string }) {
   const app = useApp();
@@ -25,14 +25,17 @@ export function Portion({ kind, id }: { kind: string; id: string }) {
       const f = await app.db.customFood(id);
       if (!f) return { missing: 'This custom food is not on this device yet. Try again after syncing.' };
       const last = await app.db.lastPortion('custom', [id]);
-      return { ref: { kind: 'custom', food: f }, per: f, sourceName: 'Your own food', verified: null, values: Object.fromEntries(NUTRIENTS.map((n) => [n, f[n]])), last };
+      const favourite = await app.db.isFavourite('custom', [id]);
+      return { ref: { kind: 'custom', food: f }, per: f, sourceName: 'Your own food', verified: null, values: Object.fromEntries(NUTRIENTS.map((n) => [n, f[n]])), last, ids: [id], favourite };
     }
     if (!ready) return { missing: 'The food database is still loading.' };
     const r = await app.db.product(id);
     if (r.status === 'removed') return { missing: 'This product is no longer in the food database.' };
     // Old log entries may carry an id that now redirects here (a merged flavour), so ask for all of them.
-    const last = await app.db.lastPortion('product', await app.db.productAliases(r.product.id));
-    return { ref: { kind: 'product', product: r.product, db_version: dbVersion }, per: r.product, sourceName: r.product.source_name, verified: r.product.verified, values: r.product.nutrients, last };
+    const ids = await app.db.productAliases(r.product.id);
+    const last = await app.db.lastPortion('product', ids);
+    const favourite = await app.db.isFavourite('product', ids);
+    return { ref: { kind: 'product', product: r.product, db_version: dbVersion }, per: r.product, sourceName: r.product.source_name, verified: r.product.verified, values: r.product.nutrients, last, ids, favourite };
   }, [kind, id, ready]);
 
   if (!data) {
@@ -92,6 +95,17 @@ function PortionForm({ food }: { food: Food }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setSaving(false);
+    }
+  }
+
+  async function toggleFavourite() {
+    const ref = food.ref;
+    try {
+      if (food.favourite) await app.db.removeFavourites(ref.kind, food.ids);
+      else await app.db.addFavourite(buildFavourite(ref.kind === 'product' ? { product_id: ref.product.id, custom_food_id: null } : { product_id: null, custom_food_id: ref.food.id }, new Date()));
+      await app.changed();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -159,9 +173,20 @@ function PortionForm({ food }: { food: Food }) {
       {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
 
       <div className="mt-auto flex flex-col gap-2 pt-6">
-        <PrimaryButton onClick={add} disabled={grams === null || saving}>
-          {noData ? `Log without numbers to ${MEAL_LABEL[meal]}` : `Add to ${MEAL_LABEL[meal]}`}
-        </PrimaryButton>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            aria-label="Favourite"
+            aria-pressed={food.favourite}
+            onClick={toggleFavourite}
+            className={`tap flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border bg-raised ${food.favourite ? 'text-accent' : 'text-text'}`}
+          >
+            <Icon name="heart" size={22} filled={food.favourite} />
+          </button>
+          <PrimaryButton onClick={add} disabled={grams === null || saving}>
+            {noData ? `Log without numbers to ${MEAL_LABEL[meal]}` : `Add to ${MEAL_LABEL[meal]}`}
+          </PrimaryButton>
+        </div>
         {!noData && food.ref.kind === 'product' && <SecondaryButton href={customHref}>Numbers wrong? Make a custom food</SecondaryButton>}
       </div>
     </Page>

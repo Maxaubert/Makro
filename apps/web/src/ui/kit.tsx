@@ -41,6 +41,8 @@ const paths = {
     </>
   ),
   next: <path d="M9 5l7 7-7 7" />,
+  heart: <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />,
+  repeat: <path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" />,
   erase: <path d="M21 5H9l-6 7 6 7h12zM17 9l-6 6M11 9l6 6" />,
   cloud: <path d="M7 18a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z" />,
   noBarcode: (
@@ -53,13 +55,13 @@ const paths = {
 
 export type IconName = keyof typeof paths;
 
-export function Icon({ name, size = 24, stroke = 1.8, className }: { name: IconName; size?: number; stroke?: number; className?: string }) {
+export function Icon({ name, size = 24, stroke = 1.8, className, filled = false }: { name: IconName; size?: number; stroke?: number; className?: string; filled?: boolean }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
       strokeWidth={stroke}
       strokeLinecap="round"
@@ -176,6 +178,20 @@ export function Chip({ selected, children, onClick }: { selected: boolean; child
     >
       {children}
     </button>
+  );
+}
+
+/** The bottom sheet of the canvas (B_Portion meal picker, B_Diary repeat). */
+export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-20" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[440px] rounded-t-[28px] border-t border-border bg-card px-4 pb-10 pt-2.5">
+        <div className="mx-auto h-1 w-10 rounded-sm bg-[#3A3A3E]" />
+        <h2 className="mt-4 text-xl font-bold">{title}</h2>
+        {children}
+      </div>
+    </div>
   );
 }
 
