@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../data/products';
 import { validateMiss } from '../../../../supabase/functions/submit-miss/validate';
-import { buildCustomFood, buildLogEntry, buildMissPayload, buildWeightEntry, parseAmount, unitsFor } from './entry';
+import { buildCustomFood, buildFavourite, buildLogEntry, buildMissPayload, buildRepeatedEntry, buildSavedMeal, buildWeightEntry, parseAmount, unitsFor } from './entry';
 
 const skyr: Product = {
   id: 'tine:skyr-naturell',
@@ -73,6 +73,60 @@ describe('buildLogEntry', () => {
 
   it('rejects an unknown meal', () => {
     expect(() => buildLogEntry({ food: { kind: 'product', product: skyr, db_version: 'x' }, quantity: 1, unit: 'g', meal: 'brunch' as never, at, tz: 'UTC' })).toThrow();
+  });
+});
+
+describe('buildRepeatedEntry', () => {
+  const item = { product_id: skyr.id, custom_food_id: null, quantity: 2, unit: 'serving' as const, grams: 340, name: 'Skyr' };
+  const food = { kind: 'product' as const, product: skyr, db_version: '2026.10.25' };
+
+  it('takes the amount from the item and the numbers from the current product', () => {
+    const e = buildRepeatedEntry({ item, food, snapshot: null, meal: 'lunch', at, tz: 'Europe/Oslo' });
+    expect(e.id).toMatch(V7);
+    expect(e).toMatchObject({ quantity: 2, unit: 'serving', grams: 340, name: 'Skyr Naturell', kcal: 62, fibre_g: null, meal: 'lunch', local_date: '2026-10-21', tz: 'Europe/Oslo', db_version: '2026.10.25' });
+  });
+
+  it('keeps the stored grams when the product lost its serving size', () => {
+    const e = buildRepeatedEntry({ item, food: { ...food, product: { ...skyr, serving_g: null } }, snapshot: null, meal: 'lunch', at, tz: 'UTC' });
+    expect(e).toMatchObject({ quantity: 2, unit: 'serving', grams: 340 });
+  });
+
+  it('copies the snapshot when there is no current food', () => {
+    const old = buildLogEntry({ food, quantity: 1, unit: 'g', meal: 'snack', at, tz: 'UTC' });
+    const e = buildRepeatedEntry({ item, food: null, snapshot: { ...old, kcal: 50, db_version: '2026.01.01' }, meal: 'dinner', at, tz: 'UTC' });
+    expect(e).toMatchObject({ product_id: skyr.id, kcal: 50, db_version: '2026.01.01', source: 'tine', verified: 1, grams: 340, meal: 'dinner', fibre_g: null });
+    expect(e.id).not.toBe(old.id);
+  });
+
+  it('writes unknown numbers, not zeros, when there is nothing to copy', () => {
+    const e = buildRepeatedEntry({ item: { ...item, unit: 'ml', quantity: 200, grams: 200 }, food: null, snapshot: null, meal: 'dinner', at, tz: 'UTC' });
+    expect(e).toMatchObject({ name: 'Skyr', source: 'unknown', verified: null, db_version: null, per_100_unit: 'ml', kcal: null, salt_g: null, brand: null, ean: null, grams: 200 });
+  });
+});
+
+describe('buildSavedMeal', () => {
+  const entry = buildLogEntry({ food: { kind: 'product', product: skyr, db_version: 'x' }, quantity: 2, unit: 'serving', meal: 'lunch', at, tz: 'UTC' });
+
+  it('trims the name and links the items', () => {
+    const { meal, items } = buildSavedMeal('  Lunsj ', [entry], at);
+    expect(meal.id).toMatch(V7);
+    expect(meal.name).toBe('Lunsj');
+    expect(items[0]).toMatchObject({ saved_meal_id: meal.id, sort_order: 0, product_id: skyr.id, custom_food_id: null, quantity: 2, unit: 'serving', grams: 340, name: 'Skyr Naturell', deleted_at: null });
+    expect(items[0].id).toMatch(V7);
+  });
+
+  it('needs a name and at least one item', () => {
+    expect(() => buildSavedMeal(' ', [entry], at)).toThrow(/name/);
+    expect(() => buildSavedMeal('Lunsj', [], at)).toThrow(/item/);
+  });
+});
+
+describe('buildFavourite', () => {
+  it('points at exactly one food', () => {
+    const f = buildFavourite({ product_id: skyr.id, custom_food_id: null }, at);
+    expect(f).toMatchObject({ product_id: skyr.id, custom_food_id: null, deleted_at: null, created_at: at.toISOString() });
+    expect(() => buildFavourite({ product_id: null, custom_food_id: null }, at)).toThrow();
+    expect(() => buildFavourite({ product_id: 'a', custom_food_id: 'b' }, at)).toThrow();
   });
 });
 

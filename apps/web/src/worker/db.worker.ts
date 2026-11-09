@@ -6,6 +6,7 @@
 //   /log.sqlite       the user's log with the outbox (LogStore)
 // The main thread calls the methods of `api` through ../lib/db.ts.
 import sqlite3InitModule, { type Database, type SAHPoolUtil, type Sqlite3Static } from '@sqlite.org/sqlite-wasm';
+import { favouriteFoods, logSavedMeal, repeatMeals, type Catalogue } from '../data/fastRepeat';
 import { LogStore } from '../data/logStore';
 import {
   getProduct,
@@ -18,6 +19,7 @@ import {
 } from '../data/products';
 import { ProductSlots } from '../data/productSlots';
 import { wrapDb, type Sql } from '../data/sql';
+import type { Meal } from '../domain/entry';
 
 const LOG = '/log.sqlite';
 
@@ -35,6 +37,11 @@ function requireProducts(): Sql {
   const h = slots?.handle();
   if (!h) throw new Error('The product database is not installed yet.');
   return h.sql;
+}
+
+function catalogue(): Catalogue {
+  const h = slots?.handle();
+  return h ? { sql: h.sql, db_version: slots.meta()?.db_version ?? null } : null;
 }
 
 const api = {
@@ -94,6 +101,15 @@ const api = {
   saveCustomFood: (...a: Parameters<LogStore['saveCustomFood']>) => log.saveCustomFood(...a),
   saveWeight: (...a: Parameters<LogStore['saveWeight']>) => log.saveWeight(...a),
   saveGoal: (...a: Parameters<LogStore['saveGoal']>) => log.saveGoal(...a),
+  isFavourite: (...a: Parameters<LogStore['isFavourite']>) => log.isFavourite(...a),
+  addFavourite: (...a: Parameters<LogStore['addFavourite']>) => log.addFavourite(...a),
+  removeFavourites: (...a: Parameters<LogStore['removeFavourites']>) => log.removeFavourites(...a),
+  favouriteFoods: () => favouriteFoods(log, catalogue()),
+  savedMeals: () => log.savedMeals(),
+  saveSavedMeal: (...a: Parameters<LogStore['saveSavedMeal']>) => log.saveSavedMeal(...a),
+  deleteSavedMeal: (id: string) => log.deleteSavedMeal(id),
+  logSavedMeal: (id: string, meal: Meal, at: Date, tz: string) => logSavedMeal(log, catalogue(), id, meal, at, tz),
+  repeatMeals: (what: { from: string; meals: Meal[] }, at: Date, tz: string) => repeatMeals(log, catalogue(), what, at, tz),
   exportAll: () => log.exportAll(),
   wipe: () => log.wipe(),
   setupDoneFor: () => log.setupDoneFor(),
