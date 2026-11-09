@@ -1,24 +1,11 @@
 // Withdraw consent by deleting the account (B6's sheet). Used from Account and from the consent step.
 import { useState } from 'react';
-import { useApp } from '../lib/hooks';
 import { Notice, SecondaryButton } from '../ui/kit';
+import { useDeleteAccount } from './accountActions';
 
 export function DeleteAccount() {
-  const app = useApp();
   const [asking, setAsking] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function remove() {
-    setBusy(true);
-    setError(null);
-    try {
-      await app.deleteAccount();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setBusy(false);
-    }
-  }
+  const { busy, error, remove } = useDeleteAccount();
 
   if (!asking) return <SecondaryButton onClick={() => setAsking(true)}>Withdraw consent and delete my data</SecondaryButton>;
   return (

@@ -5,7 +5,7 @@ import { emptyGoalForm, evaluateGoalForm, type GoalEvaluation, type GoalForm, ty
 import { kcalFloor, GOAL_CONSTANTS, type ActivityLevel, type GoalType } from '../domain/goals';
 import { Chip, Notice } from '../ui/kit';
 
-const ACTIVITY: { value: ActivityLevel; label: string }[] = [
+export const ACTIVITY: { value: ActivityLevel; label: string }[] = [
   { value: 'sedentary', label: 'Mostly sitting' },
   { value: 'active', label: 'Active' },
   { value: 'very_active', label: 'Very active' },

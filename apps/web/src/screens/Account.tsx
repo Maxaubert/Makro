@@ -1,9 +1,9 @@
 // Account: who is signed in, sync and food database status, sign out.
-import { useState } from 'react';
 import { href, useApp, useAppState, useData } from '../lib/hooks';
 import { APP_VERSION } from '../lib/app';
 import { Card, Notice, Page, SecondaryButton, SyncPill } from '../ui/kit';
 import { aboutSummary, goalsSummary } from '../domain/goalForm';
+import { useDataActions } from './accountActions';
 import { DeleteAccount } from './DeleteAccount';
 import { HelpNote } from './goalFields';
 
@@ -11,36 +11,8 @@ export function Account() {
   const app = useApp();
   const { session, sync, pending, products } = useAppState();
   const { data: rejected } = useData(() => app.db.rejected(), []);
-  const [popularChange, setPopularChange] = useState<boolean | null>(null);
-  const { data: popularOn } = useData(() => app.popularityOn(), []);
-  const popular = popularChange ?? popularOn ?? null;
-  const [dataError, setDataError] = useState<string | null>(null);
+  const { popular, togglePopular, download, dataError } = useDataActions();
   const { data: goal } = useData(() => app.db.latestGoal(), []);
-
-  async function togglePopular() {
-    if (popular === null) return;
-    setDataError(null);
-    try {
-      await app.setPopularity(!popular);
-      setPopularChange(!popular);
-    } catch (e) {
-      setDataError(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  async function download() {
-    setDataError(null);
-    try {
-      const url = URL.createObjectURL(new Blob([await app.exportData()], { type: 'application/json' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'makro-data.json';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      setDataError(e instanceof Error ? e.message : String(e));
-    }
-  }
 
   const row = (label: string, value: string) => (
     <div className="flex justify-between gap-4 border-t border-border py-3 first:border-t-0">
