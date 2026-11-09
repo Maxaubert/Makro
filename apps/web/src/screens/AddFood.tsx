@@ -2,7 +2,7 @@
 // source and verified on every row (rule 4), recents, and your own foods. Never a dead end:
 // "Add custom" is always there (rule 5).
 import { useDeferredValue, useState } from 'react';
-import type { Product } from '../data/products';
+import { productSubtext, type Product } from '../data/products';
 import { normalise } from '../domain/normalise';
 import { formatNumber } from '../domain/format';
 import { href, useApp, useAppState, useData, useQueryParam } from '../lib/hooks';
@@ -26,7 +26,7 @@ function productRow(p: Product): Row {
     key: p.id,
     to: href('portion', 'product', p.id),
     name: p.name,
-    sub: [p.brand, p.pack_size].filter(Boolean).join(' · ') || null,
+    sub: productSubtext(p),
     sourceName: p.source_name,
     verified: p.verified,
     kcal: p.nutrients.kcal,

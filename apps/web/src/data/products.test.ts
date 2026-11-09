@@ -5,6 +5,7 @@ import {
   getProduct,
   lookupBarcode,
   productAliases,
+  productSubtext,
   readProductMeta,
   resolvePopularity,
   searchProducts,
@@ -35,6 +36,23 @@ describe('FTS query (products-db.md, Search)', () => {
   });
   it('gives no query for an empty token list', () => {
     expect(buildMatchQuery('  -- ')).toBeNull();
+  });
+});
+
+describe('productSubtext', () => {
+  const base = { brand: null, pack_size: null, source_kind: 'shop' } as const;
+  it('shows brand and sizes', () => {
+    expect(productSubtext({ ...base, brand: 'Tine', pack_size: '1 L, 1,75 L' })).toBe('Tine · 1 L, 1,75 L');
+  });
+  it('shows only the brand when no size is known', () => {
+    expect(productSubtext({ ...base, brand: 'Tine' })).toBe('Tine');
+  });
+  it('calls a food from a food table Generic', () => {
+    expect(productSubtext({ ...base, source_kind: 'government' })).toBe('Generic');
+    expect(productSubtext({ ...base, source_kind: 'government', pack_size: '100 g' })).toBe('Generic · 100 g');
+  });
+  it('invents nothing for a shop row with no brand', () => {
+    expect(productSubtext(base)).toBeNull();
   });
 });
 

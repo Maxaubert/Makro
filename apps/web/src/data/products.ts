@@ -89,6 +89,12 @@ function toProduct(r: ProductRow): Product {
   };
 }
 
+/** The line under a product name: brand and sizes. A food from a food table has no brand, so it reads Generic. */
+export function productSubtext(p: Pick<Product, 'brand' | 'pack_size' | 'source_kind'>): string | null {
+  const brand = p.brand ?? (p.source_kind === 'government' ? 'Generic' : null);
+  return [brand, p.pack_size].filter(Boolean).join(' · ') || null;
+}
+
 export interface PopularityScore {
   /** How many of your own live log entries are this product. */
   mine: number;
