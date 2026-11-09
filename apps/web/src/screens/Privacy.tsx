@@ -38,7 +38,7 @@ export function PrivacyBody() {
         <p>Until you delete your account. Deleting it removes your data from the server.</p>
       </Section>
       <Section title="Your rights">
-        <p>You can withdraw consent at any time, as easily as you gave it, in Profile. You can also see, correct, download or delete your data, and restrict or object to how it is used. What was done before you withdrew stays lawful.</p>
+        <p>You can withdraw consent at any time, as easily as you gave it, in Account. You can also see, correct, download or delete your data, and restrict or object to how it is used. What was done before you withdrew stays lawful.</p>
         <p>You can complain to Datatilsynet, the Norwegian data protection authority.</p>
       </Section>
       <Section title="What the numbers are">

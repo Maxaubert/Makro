@@ -117,6 +117,23 @@ export class LogStore {
     this.save('goals', row as unknown as Record<string, unknown>);
   }
 
+  /** Every live row, for the user's own download of their data. */
+  exportAll(): Record<TableName, Record<string, SqlValue>[]> {
+    const out = {} as Record<TableName, Record<string, SqlValue>[]>;
+    for (const t of TABLE_NAMES) out[t] = this.sql.all<Record<string, SqlValue>>(`select * from ${t} where deleted_at is null`);
+    return out;
+  }
+
+  /** Forget everything on this device, after the account is deleted. */
+  wipe(): void {
+    this.sql.tx(() => {
+      for (const t of TABLE_NAMES) this.sql.run(`delete from ${t}`);
+      this.sql.run('delete from outbox');
+      this.sql.run('delete from outbox_rejected');
+      this.sql.run('delete from sync_state');
+    });
+  }
+
   /** The account that finished first-run setup on this device, if any. */
   setupDoneFor(): string | null {
     return this.sql.get<{ value: string }>("select value from sync_state where key = 'setup_done_for'")?.value ?? null;

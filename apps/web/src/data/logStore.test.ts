@@ -22,6 +22,30 @@ beforeEach(async () => {
   store.migrate();
 });
 
+describe('your data', () => {
+  it('exports live rows of every table', () => {
+    store.saveLogEntry(entry());
+    const gone = entry(100);
+    store.saveLogEntry(gone);
+    store.tombstone('log_entries', gone.id);
+    store.saveWeight(buildWeightEntry({ weight_kg: 80, at: t0, tz: 'UTC' }));
+    const out = store.exportAll();
+    expect(out.log_entries).toHaveLength(1);
+    expect(out.weight_entries).toHaveLength(1);
+    expect(out.goals).toEqual([]);
+  });
+  it('wipes everything on this device', () => {
+    store.saveLogEntry(entry());
+    store.markSetupDone('user-1');
+    store.claimOwner('user-1');
+    store.wipe();
+    expect(store.dayEntries('2026-10-20')).toEqual([]);
+    expect(store.pendingCount()).toBe(0);
+    expect(store.setupDoneFor()).toBeNull();
+    expect(store.claimOwner('user-2')).toBe('claimed');
+  });
+});
+
 describe('first-run setup', () => {
   const goal = () =>
     buildGoal({

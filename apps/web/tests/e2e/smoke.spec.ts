@@ -88,4 +88,21 @@ test('sign in, log skyr, totals, offline logging and sync', async ({ page, conte
   const rows = await serverRows(userId);
   expect(rows.map((r) => r.grams)).toEqual([150, 100]);
   expect(rows[1].kcal_total).toBeCloseTo(62);
+
+  // Your data: opt in to popularity, download, then withdraw by deleting the account.
+  await page.goto('/#/account');
+  const popular = page.getByRole('switch', { name: 'Count toward popular foods' });
+  await expect(popular).toBeEnabled();
+  await expect(popular).toHaveAttribute('aria-checked', 'false');
+  await popular.click();
+  await expect(popular).toHaveAttribute('aria-checked', 'true');
+  expect(pgRows(`select 1 from public.consents where user_id = '${userId}' and kind = 'popularity' and withdrawn_at is null`)).toHaveLength(1);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download my data' }).click();
+  expect((await download).suggestedFilename()).toBe('makro-data.json');
+  // The edge runtime cannot run locally on Windows Docker; the function has its own Deno tests.
+  await page.route('**/functions/v1/delete-account', (r) => r.fulfill({ status: 200, json: { ok: true } }));
+  await page.getByRole('button', { name: 'Withdraw consent and delete my data' }).click();
+  await page.getByRole('button', { name: 'Delete everything' }).click();
+  await expect(page.getByLabel('Email address')).toBeVisible();
 });

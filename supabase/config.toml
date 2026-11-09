@@ -420,3 +420,6 @@ enabled = true
 # function rate-limits and validates on its own.
 [functions.submit-miss]
 verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = true

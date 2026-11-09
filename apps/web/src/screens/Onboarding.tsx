@@ -6,6 +6,7 @@ import { calculateTargets, goalProblem, kcalFloor, profileProblem, GOAL_CONSTANT
 import { browserTimeZone } from '../domain/localDate';
 import { useApp } from '../lib/hooks';
 import { Chip, Icon, Notice, Page, PrimaryButton, SecondaryButton } from '../ui/kit';
+import { DeleteAccount } from './DeleteAccount';
 import { PrivacyBody } from './Privacy';
 
 type Step = 'welcome' | 'consent' | 'about' | 'goals';
@@ -171,7 +172,7 @@ export function Onboarding({ hasConsent, hasGoal }: { hasConsent: boolean; hasGo
         <Progress step="consent" back={() => setStep('welcome')} />
         <h1 className="pt-4 text-[30px] font-bold leading-tight tracking-[-0.02em]">Your data</h1>
         <div className="mt-4 rounded-[20px] border border-border bg-card p-4 text-[14px] leading-relaxed text-[#C8C8CC]">
-          Weight, height, goals and what you eat can say something about your health, so Makro asks first. It is stored in the EU. You can download or delete it any time in Profile.
+          Weight, height, goals and what you eat can say something about your health, so Makro asks first. It is stored in the EU. You can download or delete it any time in Account.
           <button type="button" className="mt-2.5 block font-semibold text-accent-2" onClick={() => setShowPrivacy(true)}>Read the privacy notice</button>
         </div>
         <div className="mt-3 flex flex-col gap-2">
@@ -182,6 +183,7 @@ export function Onboarding({ hasConsent, hasGoal }: { hasConsent: boolean; hasGo
         <div className="mt-auto flex flex-col gap-2 pb-6 pt-4">
           <PrimaryButton disabled={!health || busy} onClick={() => void consentContinue()}>Continue</PrimaryButton>
           <SecondaryButton onClick={() => void app.signOut()}>Not now, sign out</SecondaryButton>
+          <DeleteAccount />
         </div>
       </Page>
     );
