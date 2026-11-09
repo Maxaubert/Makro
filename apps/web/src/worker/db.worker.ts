@@ -121,6 +121,7 @@ const api = {
   markDayComplete: (d: string) => log.markDayComplete(d),
   dayEntries: (d: string) => log.dayEntries(d),
   entriesBetween: (from: string, to: string) => log.entriesBetween(from, to),
+  loggedDays: () => log.loggedDays(),
   suggestions: (left: Parameters<typeof loadSuggestions>[2]) => loadSuggestions(log, slots?.handle()?.sql ?? null, left),
   logEntry: (id: string) => log.logEntry(id),
   recentFoods: (n: number) => log.recentFoods(n),

@@ -26,6 +26,13 @@ const paths = {
       <path d="M5 20a7 7 0 0 1 14 0" />
     </>
   ),
+  trends: <path d="M5 20V11M12 20V4M19 20v-6" />,
+  goals: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3.5" />
+    </>
+  ),
   search: (
     <>
       <circle cx="11" cy="11" r="6" />

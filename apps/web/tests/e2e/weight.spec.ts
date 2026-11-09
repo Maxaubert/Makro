@@ -109,7 +109,8 @@ test('weight: log, trend, ranges, edit and delete', async ({ page }) => {
 
 const SIZES = [
   { name: 'phone', width: 390, height: 844 },
-  { name: 'pc', width: 1280, height: 800 },
+  // The widest window that still gets the phone column; from 1024 px the desktop layout takes over.
+  { name: 'pc', width: 1023, height: 800 },
 ];
 
 async function expectGraph(page: Page, label: string) {

@@ -32,7 +32,7 @@ export interface WeightSummary {
 }
 
 /** Calendar arithmetic on YYYY-MM-DD strings, so time zones and daylight saving cannot enter. */
-function shiftDay(localDate: string, n: number): string {
+export function shiftDay(localDate: string, n: number): string {
   const [y, m, d] = localDate.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 }

@@ -49,6 +49,14 @@ export function dayLabel(localDate: string): string {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+/** "Saturday 17 October", the subtitle of the desktop page header. */
+export function longDayLabel(localDate: string): string {
+  const [y, m, d] = localDate.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const part = (o: Intl.DateTimeFormatOptions) => date.toLocaleDateString('en-GB', { ...o, timeZone: 'UTC' });
+  return `${part({ weekday: 'long' })} ${d} ${part({ month: 'long' })}`;
+}
+
 export function amountLabel(e: { quantity: number; unit: string; grams: number }): string {
   const q = Number.isInteger(e.quantity) ? String(e.quantity) : e.quantity.toLocaleString('en-US', { maximumFractionDigits: 1 });
   if (e.unit === 'g') return `${q} g`;
