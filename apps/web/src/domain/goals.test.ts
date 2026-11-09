@@ -2,7 +2,28 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { expectClose, loadGolden } from './golden';
-import { GOAL_CONSTANTS, ageFromBirthYear, birthYearFromAge, calculateTargets, goalProblem, profileProblem, type GoalInput, type GoalTargets, type LimitInput } from './goals';
+import { GOAL_CONSTANTS, ageFromBirthYear, birthYearFromAge, calculateTargets, goalProblem, macroSplit, profileProblem, type GoalInput, type GoalTargets, type LimitInput, type MacroGrams } from './goals';
+
+describe('goals/macro_split.json', () => {
+  type Split = Record<'protein_kcal' | 'carbs_kcal' | 'fat_kcal' | 'protein_share' | 'carbs_share' | 'fat_share', number | null>;
+  const golden = loadGolden<MacroGrams, Split>('goals/macro_split.json');
+  it.each(golden.cases.map((c) => [c.id, c] as const))('%s', (id, c) => {
+    const s = macroSplit(c.input);
+    const actual: Split = {
+      protein_kcal: s.protein.kcal,
+      carbs_kcal: s.carbs.kcal,
+      fat_kcal: s.fat.kcal,
+      protein_share: s.protein.share,
+      carbs_share: s.carbs.share,
+      fat_share: s.fat.share,
+    };
+    for (const k of Object.keys(c.expected) as (keyof Split)[]) {
+      const want = c.expected[k];
+      if (want === null) expect(actual[k], `${id} ${k}`).toBeNull();
+      else expectClose(actual[k] as number, want, `${id} ${k}`);
+    }
+  });
+});
 
 describe('goals/targets.json', () => {
   const golden = loadGolden<GoalInput, GoalTargets>('goals/targets.json');
