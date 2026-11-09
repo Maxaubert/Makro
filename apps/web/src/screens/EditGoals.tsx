@@ -1,7 +1,7 @@
 // Changing About you and Goals after first-run setup (#73). Same fields and limits as onboarding.
 // As on the canvas, About you continues to Your goals, so a recalculated target is seen before it is saved.
 import { useState } from 'react';
-import { buildGoalChange, prefillGoalForm, type Prefill } from '../domain/goalForm';
+import { buildGoalChange, canStartAtGoals, prefillGoalForm, type Prefill } from '../domain/goalForm';
 import { browserTimeZone } from '../domain/localDate';
 import { useApp, useBack, useData } from '../lib/hooks';
 import { Icon, Notice, Page, PrimaryButton } from '../ui/kit';
@@ -13,7 +13,7 @@ function Editor({ initial, start }: { initial: Prefill; start: Step }) {
   const app = useApp();
   const state = useGoalForm(initial);
   // Without a whole profile the limits cannot be checked, so it is asked for first.
-  const [first] = useState<Step>(start === 'goals' && initial.complete ? 'goals' : 'about');
+  const [first] = useState<Step>(start === 'goals' && canStartAtGoals(initial) ? 'goals' : 'about');
   const [step, setStep] = useState<Step>(first);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

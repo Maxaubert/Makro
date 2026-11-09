@@ -208,3 +208,6 @@ export function aboutSummary(goal: StoredGoal | null, year: number): string {
 }
 
 export const goalsSummary = (goal: StoredGoal | null): string => (goal ? `${formatNumber(goal.kcal_target, 0)} kcal` : 'Not set');
+
+/** Goals can open first only on a whole profile that passes the limits; else Save would sit disabled with no reason shown. */
+export const canStartAtGoals = (p: Prefill): boolean => p.complete && evaluateGoalForm(p.form, p.baseline).aboutOk;

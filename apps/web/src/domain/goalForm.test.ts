@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadGolden } from './golden';
 import type { StoredGoal } from './entry';
-import { aboutSummary, buildGoalChange, emptyGoalForm, evaluateGoalForm, goalsSummary, prefillGoalForm, type GoalForm } from './goalForm';
+import { aboutSummary, buildGoalChange, canStartAtGoals, emptyGoalForm, evaluateGoalForm, goalsSummary, prefillGoalForm, type GoalForm } from './goalForm';
 import type { LimitInput } from './goals';
 
 const at = new Date('2026-11-09T10:00:00.000Z');
@@ -150,5 +150,15 @@ describe('the Account rows', () => {
     expect(aboutSummary({ ...row, birth_year: null, height_cm: null, weight_kg: null }, year)).toBe('Not set');
     expect(aboutSummary(null, year)).toBe('Not set');
     expect(goalsSummary(null)).toBe('Not set');
+  });
+});
+
+describe('where editing starts', () => {
+  it('opens Goals only when the saved profile passes the limits', () => {
+    expect(canStartAtGoals(prefillGoalForm(row, year))).toBe(true);
+    expect(canStartAtGoals(prefillGoalForm({ ...row, birth_year: 2010 }, year))).toBe(false);
+    expect(canStartAtGoals(prefillGoalForm({ ...row, height_cm: 90 }, year))).toBe(false);
+    expect(canStartAtGoals(prefillGoalForm({ ...row, sex: null }, year))).toBe(false);
+    expect(canStartAtGoals(prefillGoalForm(null, year))).toBe(false);
   });
 });
