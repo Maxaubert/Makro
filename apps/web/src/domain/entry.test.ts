@@ -1,5 +1,7 @@
+import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import type { Product } from '../data/products';
+import { handle } from '../../../../supabase/functions/submit-miss/handler';
 import { validateMiss } from '../../../../supabase/functions/submit-miss/validate';
 import { buildCustomFood, buildLogEntry, buildMissPayload, buildWeightEntry, parseAmount, unitsFor } from './entry';
 
@@ -148,6 +150,46 @@ describe('buildMissPayload (submit-miss v1, log-schema.md Miss payload)', () => 
     expect((r.row.custom_food as { per100: Record<string, number | null> }).per100).toEqual({
       kcal: 250, protein_g: 9, fat_g: 3, sat_fat_g: 0.5, carbs_g: 45, sugars_g: 2, fibre_g: 6, salt_g: 1.1,
     });
+  });
+});
+
+describe('the supabase-js call flushMisses makes, against the submit-miss handler', () => {
+  const ORIGIN = 'https://makro-steel.vercel.app';
+  const f = buildCustomFood({ name: 'Skyr Mango', brand: '', ean: '', serving_g: '', per_100_unit: 'g', nutrients: { kcal: '74' } }, at);
+  const miss = { id: crypto.randomUUID(), ...buildMissPayload(f, { type: 'search_no_match', query_text: 'skyr mango', ean: null, db_version: null, app_version: 'web-0.1.0' }) };
+
+  function client(onRow: (row: unknown) => void, overrideFetch?: typeof fetch) {
+    const deps = { rateCheck: async () => true, insert: async (row: unknown) => (onRow(row), true) };
+    // What a browser does: preflight the POST, then refuse it unless every request header is allowed.
+    const browserFetch: typeof fetch = async (input, init) => {
+      const post = new Request(input, { ...init, headers: { ...Object.fromEntries(new Headers(init?.headers)), origin: ORIGIN } });
+      const pre = await handle(new Request(post.url, { method: 'OPTIONS', headers: { origin: ORIGIN } }), deps);
+      const allowed = (pre.headers.get('access-control-allow-headers') ?? '').split(',').map((h) => h.trim());
+      const blocked = [...post.headers.keys()].filter((h) => h !== 'origin' && !allowed.includes(h));
+      if (pre.headers.get('access-control-allow-origin') !== ORIGIN || blocked.length > 0) throw new TypeError(`CORS blocked: ${blocked.join()}`);
+      return handle(post, deps);
+    };
+    return createClient('https://x.supabase.test', 'anon-key', { auth: { persistSession: false }, global: { fetch: overrideFetch ?? browserFetch } });
+  }
+
+  it('passes the preflight and stores the miss with its id and nutrients', async () => {
+    const rows: unknown[] = [];
+    const { data, error } = await client((r) => rows.push(r)).functions.invoke('submit-miss', { body: miss });
+    expect(error).toBeNull();
+    expect(data).toEqual({ ok: true });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: miss.id, type: 'search_no_match', query_text: 'skyr mango', language: 'nb', country: 'NO', custom_food: { name: 'Skyr Mango', per_100_unit: 'g' } });
+    expect((rows[0] as { custom_food: { per100: Record<string, number | null> } }).custom_food.per100).toMatchObject({ kcal: 74, fibre_g: null });
+  });
+
+  it('gives flushMisses a status for a refused miss, and none for a network failure (which stays queued)', async () => {
+    const refused = await client(() => {}).functions.invoke('submit-miss', { body: { type: 'nope' } });
+    expect((refused.error as { context?: { status?: number } }).context?.status).toBe(400);
+    const offline = await client(() => {}, async () => {
+      throw new TypeError('Failed to fetch');
+    }).functions.invoke('submit-miss', { body: miss });
+    expect(offline.error).not.toBeNull();
+    expect((offline.error as { context?: { status?: number } }).context?.status).toBeUndefined();
   });
 });
 

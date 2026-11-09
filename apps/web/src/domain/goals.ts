@@ -88,9 +88,13 @@ export const WEIGHT_RANGE_KG = { min: 30, max: 400 };
 export type ProfileProblem ='under_18' | 'age' | 'height' | 'weight';
 
 export function profileProblem(p: { age: number; height_cm: number; weight_kg: number }): ProfileProblem | null {
-  if (!Number.isFinite(p.age) || p.age < 0 || p.age > 120) return 'age';
+  if (!Number.isInteger(p.age) || p.age < 0 || p.age > 120) return 'age';
   if (p.age < 18) return 'under_18';
   if (!Number.isFinite(p.height_cm) || p.height_cm < 100 || p.height_cm > 250) return 'height';
   if (!Number.isFinite(p.weight_kg) || p.weight_kg < WEIGHT_RANGE_KG.min || p.weight_kg > WEIGHT_RANGE_KG.max) return 'weight';
   return null;
 }
+
+/** By calendar year, as goals store a birth year and not a date (goals/age.json). */
+export const ageFromBirthYear = (birthYear: number, year: number): number => year - birthYear;
+export const birthYearFromAge = (age: number, year: number): number => year - age;

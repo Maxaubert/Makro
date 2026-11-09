@@ -1,22 +1,16 @@
-// Type the code: browsers on iPhone cannot scan, so the barcode is typed. The lookup uses the
-// canonical form of products-db.md (EAN-8 and UPC-A padded, GTIN-14 with a leading 0 trimmed).
-// Not found becomes a custom food straight away (rule 5).
+// Type the code: the way in where a browser cannot scan (iPhone), and the fallback on the scanner.
+// The lookup uses the canonical form of products-db.md (EAN-8 and UPC-A padded, GTIN-14 with a
+// leading 0 trimmed) and the same result screens as the camera.
 import { useEffect, useState, type FormEvent } from 'react';
 import { canonicalEan } from '../data/barcode';
+import { barcodeDestination } from '../data/barcodeResult';
 import { href, navigate, useApp, useAppState } from '../lib/hooks';
-import { Header, Icon, Notice, Page, PrimaryButton, SecondaryButton } from '../ui/kit';
-
-function grouped(code: string): string {
-  if (code.length === 13) return `${code.slice(0, 1)} ${code.slice(1, 7)} ${code.slice(7)}`;
-  if (code.length === 8) return `${code.slice(0, 4)} ${code.slice(4)}`;
-  return code;
-}
+import { Header, Icon, Notice, Page, PrimaryButton } from '../ui/kit';
 
 export function TypeCode() {
   const app = useApp();
   const { products } = useAppState();
   const [code, setCode] = useState('');
-  const [missing, setMissing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const valid = canonicalEan(code) !== null && code.length >= 8;
 
@@ -38,38 +32,12 @@ export function TypeCode() {
       return;
     }
     try {
-      const p = await app.db.barcode(code);
-      if (p) navigate(`/portion/product/${encodeURIComponent(p.id)}`);
-      else setMissing(code);
+      const route = await barcodeDestination(app.db, code);
+      if (route) navigate(route);
+      else setError('That is not a barcode.');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  }
-
-  if (missing) {
-    return (
-      <Page>
-        <Header title="" back="/add" />
-        <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <span className="flex h-24 w-24 items-center justify-center rounded-full border border-border bg-card text-secondary">
-            <Icon name="noBarcode" size={52} stroke={1.6} />
-          </span>
-          <h2 className="mt-5 text-2xl font-bold">Not in the database</h2>
-          <div className="num mt-1 tracking-[0.08em] text-secondary">{grouped(canonicalEan(missing) ?? missing)}</div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <PrimaryButton onClick={() => navigate(`/custom?ean=${encodeURIComponent(canonicalEan(missing) ?? '')}`)}>Add custom food</PrimaryButton>
-          <SecondaryButton
-            onClick={() => {
-              setMissing(null);
-              setCode('');
-            }}
-          >
-            Try another code
-          </SecondaryButton>
-        </div>
-      </Page>
-    );
   }
 
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];

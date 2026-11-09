@@ -18,7 +18,7 @@ Run locally (Docker needed): `npx supabase@2.121.0 db start`, `npx supabase@2.12
 
 ## Miss ingest: client contract (for the app's miss queue, slice 4 / #24)
 
-`POST https://qhzytbcqzaauzckafhsj.supabase.co/functions/v1/submit-miss`, JSON body, no auth header needed.
+`POST https://qhzytbcqzaauzckafhsj.supabase.co/functions/v1/submit-miss`, JSON body, no auth header needed. Browsers: the preflight and CORS headers are answered only for `https://makro-steel.vercel.app` and `http://localhost:5174` (`functions/submit-miss/handler.ts`, #72).
 
 | Field | Required | Notes |
 |---|---|---|

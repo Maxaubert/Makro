@@ -4,6 +4,7 @@
 import { canonicalEan } from './barcode';
 import { NUTRIENTS, type Nutrient } from '../domain/nutrients';
 import { tokenise } from '../domain/normalise';
+import { correctTokens, TYPO_MIN_MATCHES, type VocabTerm } from '../domain/typos';
 import type { Sql } from './sql';
 
 /** Oldest product file schema this client reads (v1 of the contract is schema_version 2). */
@@ -51,7 +52,10 @@ export function assertSupportedSchema(meta: { schema_version: number }): void {
 /** FTS5 MATCH text: every token quoted, AND-joined, `*` on tokens of 2+ characters. null = no query. */
 export function buildMatchQuery(query: string): string | null {
   const tokens = tokenise(query);
-  if (tokens.length === 0) return null;
+  return tokens.length === 0 ? null : matchTokens(tokens);
+}
+
+function matchTokens(tokens: readonly string[]): string {
   return tokens.map((t) => `"${t.replace(/"/g, '""')}"${t.length >= 2 ? '*' : ''}`).join(' ');
 }
 
@@ -144,15 +148,14 @@ const comparePopularity = (a: PopularityScore, b: PopularityScore): number =>
 
 const NO_SCORE: PopularityScore = { mine: 0, users: 0, logs: 0 };
 
-/** Search with the contract's query and its total ranking order. */
-export function searchProducts(sql: Sql, query: string, limit = 20, popularity?: Popularity): Product[] {
-  const match = buildMatchQuery(query);
-  if (match === null) return [];
-  const tokens = tokenise(query);
+type RankableRow = ProductRow & { _bm25: number };
+
+/** Up to 500 best text matches, plus popular foods that match but fell outside them. */
+function matchingRows(sql: Sql, match: string, popularity?: Popularity): RankableRow[] {
   const FROM = `select p.*, s.display_name as source_name, s.kind as source_kind, bm25(products_fts) as _bm25
        from products_fts f join products p on p.rowid = f.rowid left join sources s on s.slug = p.source
       where products_fts match ?`;
-  const rows = sql.all<ProductRow & { _bm25: number }>(
+  const rows = sql.all<RankableRow>(
     `${FROM} order by bm25(products_fts), length(p.search_text), p.id limit 500`,
     [match],
   );
@@ -163,12 +166,17 @@ export function searchProducts(sql: Sql, query: string, limit = 20, popularity?:
       .slice(0, POPULAR_CANDIDATES)
       .map(([id]) => id);
     const seen = new Set(rows.map((r) => String(r.id)));
-    const extra = sql.all<ProductRow & { _bm25: number }>(
+    const extra = sql.all<RankableRow>(
       `${FROM} and p.id in (${top.map(() => '?').join(', ')})`,
       [match, ...top],
     );
     for (const r of extra) if (!seen.has(String(r.id))) rows.push(r);
   }
+  return rows;
+}
+
+/** The contract's total ranking order. */
+function rank(rows: readonly RankableRow[], tokens: readonly string[], popularity?: Popularity): RankableRow[] {
   const ranked = rows.map((r) => {
     const words = new Set(String(r.search_text).split(/[^\p{L}\p{N}]+/u));
     return {
@@ -188,7 +196,51 @@ export function searchProducts(sql: Sql, query: string, limit = 20, popularity?:
       a.len - b.len ||
       (String(a.r.id) < String(b.r.id) ? -1 : String(a.r.id) > String(b.r.id) ? 1 : 0),
   );
-  return ranked.slice(0, limit).map((x) => toProduct(x.r));
+  return ranked.map((x) => x.r);
+}
+
+/**
+ * The FTS vocabulary terms starting with `first`. The table is created in temp on first use,
+ * so the read-only product file is never written and needs no change to its contents.
+ */
+function vocabulary(sql: Sql, first: string): VocabTerm[] {
+  sql.run('create virtual table if not exists temp.products_vocab using fts5vocab(main, products_fts, row)');
+  const next = String.fromCodePoint((first.codePointAt(0) as number) + 1);
+  return sql.all<{ term: string; doc: number }>(
+    'select term, doc from temp.products_vocab where term >= ? and term < ?',
+    [first, next],
+  ).map((r) => ({ term: r.term, docs: r.doc }));
+}
+
+/** How many products a token alone matches, capped at TYPO_MIN_MATCHES: more than that is never needed. */
+function tokenMatches(sql: Sql, token: string): number {
+  return (
+    sql.get<{ n: number }>(
+      `select count(*) as n from (select 1 from products_fts where products_fts match ? limit ${TYPO_MIN_MATCHES})`,
+      [matchTokens([token])],
+    )?.n ?? 0
+  );
+}
+
+/** Search with the contract's query, typo correction and total ranking order. */
+export function searchProducts(sql: Sql, query: string, limit = 20, popularity?: Popularity): Product[] {
+  const tokens = tokenise(query);
+  if (tokens.length === 0) return [];
+  const rows = matchingRows(sql, matchTokens(tokens), popularity);
+  const found = rank(rows, tokens, popularity);
+  // A correction only adds rows after what the query really found, so nothing good is lost.
+  const corrected = correctTokens(
+    tokens,
+    rows.length,
+    (t) => tokenMatches(sql, t),
+    (first) => vocabulary(sql, first),
+  );
+  if (corrected) {
+    const seen = new Set(rows.map((r) => String(r.id)));
+    const added = matchingRows(sql, matchTokens(corrected), popularity).filter((r) => !seen.has(String(r.id)));
+    found.push(...rank(added, corrected, popularity));
+  }
+  return found.slice(0, limit).map(toProduct);
 }
 
 export type ProductLookup =
