@@ -23,6 +23,15 @@ export function localDateIn(at: Date, timeZone: string): string {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+/** Minutes after midnight in `timeZone`, from a stored timestamp. null when it does not parse. */
+export function localMinutes(at: string, timeZone: string): number | null {
+  const t = new Date(at);
+  if (Number.isNaN(t.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(t);
+  const get = (type: string) => Number(parts.find((x) => x.type === type)?.value);
+  return get('hour') * 60 + get('minute');
+}
+
 export interface LocalDay {
   tz: string;
   local_date: string;

@@ -17,6 +17,7 @@ import {
   type ProductMeta,
 } from '../data/products';
 import { ProductSlots } from '../data/productSlots';
+import { loadSuggestions } from '../data/suggestions';
 import { wrapDb, type Sql } from '../data/sql';
 
 const LOG = '/log.sqlite';
@@ -99,6 +100,8 @@ const api = {
   setupDoneFor: () => log.setupDoneFor(),
   markSetupDone: (userId: string) => log.markSetupDone(userId),
   dayEntries: (d: string) => log.dayEntries(d),
+  entriesBetween: (from: string, to: string) => log.entriesBetween(from, to),
+  suggestions: (left: Parameters<typeof loadSuggestions>[2]) => loadSuggestions(log, slots?.handle()?.sql ?? null, left),
   logEntry: (id: string) => log.logEntry(id),
   recentFoods: (n: number) => log.recentFoods(n),
   lastPortion: (...a: Parameters<LogStore['lastPortion']>) => log.lastPortion(...a),

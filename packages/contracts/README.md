@@ -11,6 +11,7 @@ Status: oracle split, owners, rounding and CI approved by Nima in review of #51 
 | `nutrition/*.json` (per-100 g to portion, totals with unknowns) | yes | no | Maths lives in Swift only (`docs/MVP.md`, `AGENTS.md`) |
 | `goals/*.json` (targets, calorie floor, loss rate) | yes, when iOS is built | no | The web app runs them first (decision 38) |
 | `goals/constants.json` (calorie floor, maximum loss rate, the other goal numbers, each with its source and status) | yes, when iOS is built | no | The web app checks it too (decision 38) |
+| `guidance/*.json` (week window, weekly average and verdict, what is left, end-of-day status, suggestions, #27, #53) | yes, when iOS is built | no | The web app runs them first; the numbers in `guidance/constants.json` are provisional |
 | `search/normalise.json` (query text to normalised tokens: ø, æ, å, case, accents) | yes | yes | Both sides build or query the search index and must normalise alike |
 | `search/results.json` (query to expected product ids) | yes | no | Runs against a small pinned fixture database, not the full catalogue |
 

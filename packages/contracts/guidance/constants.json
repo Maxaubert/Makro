@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "description": "Numbers behind the guidance verdicts and the may-be-incomplete warning (#27, #53). The B Night canvas drew the verdict lines as placeholders and no decision settles them yet, so they are provisional.",
+  "values": {
+    "well_under_below": { "value": 0.75, "status": "provisional", "source": "B Night canvas, B_Today weekly card: below 75% of target reads Well under." },
+    "on_target_low": { "value": 0.9, "status": "provisional", "source": "B Night canvas, B_Today weekly card: from 90% of target reads On target." },
+    "on_target_high": { "value": 1.1, "status": "provisional", "source": "B Night canvas, B_Today weekly card: up to 110% of target reads On target." },
+    "incomplete_min_entries": { "value": 3, "status": "provisional", "source": "Chosen for this build. B_DayEnd only says few entries." },
+    "incomplete_ended_before_minute": { "value": 960, "status": "provisional", "source": "Chosen for this build: nothing logged from 16:00 on. B_DayEnd shows a day that stops at 13:10." },
+    "incomplete_gap_minutes": { "value": 480, "status": "provisional", "source": "Chosen for this build: 8 hours between two entries. B_DayEnd only says a long gap." },
+    "suggestion_limit": { "value": 3, "status": "settled", "source": "docs/MVP.md: 3 suggestions that fit the gap." }
+  }
+}

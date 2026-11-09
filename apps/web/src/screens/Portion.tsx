@@ -9,7 +9,7 @@ import { resolveGrams, type AmountUnit } from '../domain/grams';
 import { browserTimeZone } from '../domain/localDate';
 import { NUTRIENTS } from '../domain/nutrients';
 import { portion } from '../domain/portion';
-import { href, navigate, useApp, useAppState, useData } from '../lib/hooks';
+import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../lib/hooks';
 import { Card, Chip, Header, Icon, Notice, Page, PrimaryButton, SecondaryButton, SourceBadge } from '../ui/kit';
 import { MEAL_LABEL, mealForNow } from './day';
 
@@ -59,8 +59,10 @@ function PortionForm({ food }: { food: Food }) {
   const units = unitsFor(food.per);
   // Start from the amount you logged last time for this food, if its unit is still offered.
   const last = food.last && units.includes(food.last.unit) ? food.last : null;
-  const [unit, setUnit] = useState<AmountUnit>(last?.unit ?? units[0]);
-  const [qty, setQty] = useState(last ? String(last.quantity) : units[0] === 'g' || units[0] === 'ml' ? '100' : '1');
+  // A suggestion from Today says which amount it showed, in the food's own unit.
+  const amount = useQueryParam('amount');
+  const [unit, setUnit] = useState<AmountUnit>(amount ? units[0] : (last?.unit ?? units[0]));
+  const [qty, setQty] = useState(amount ?? (last ? String(last.quantity) : units[0] === 'g' || units[0] === 'ml' ? '100' : '1'));
   const [meal, setMeal] = useState<Meal>(mealForNow());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

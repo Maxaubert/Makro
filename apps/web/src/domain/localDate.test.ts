@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { browserTimeZone, localDateIn, stampLocalDay } from './localDate';
+import { browserTimeZone, localDateIn, localMinutes, stampLocalDay } from './localDate';
+
+describe('localMinutes', () => {
+  it('gives minutes after local midnight in the stored zone', () => {
+    // 11:10 UTC on 16 Oct is 13:10 in Oslo (UTC+2, summer time).
+    expect(localMinutes('2026-10-16T11:10:00.000Z', 'Europe/Oslo')).toBe(790);
+    expect(localMinutes('2026-10-16T11:10:00.000Z', 'UTC')).toBe(670);
+  });
+  it('gives 0 at midnight, not 1440', () => {
+    expect(localMinutes('2026-10-16T00:00:00.000Z', 'UTC')).toBe(0);
+  });
+  it('is unknown for a time that does not parse', () => {
+    expect(localMinutes('not a time', 'UTC')).toBeNull();
+  });
+});
 
 describe('local_date and tz', () => {
   it('gives the day in the given zone, not in UTC', () => {
