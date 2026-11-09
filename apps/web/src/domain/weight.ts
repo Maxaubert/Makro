@@ -111,6 +111,46 @@ export function entryDayLabel(localDate: string, today: string): string {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(',', '');
 }
 
+// ---- the line chart of the desktop Today card, in the board's 700 x 200 box --------------------
+
+const LINE_BOX = { width: 700, height: 200, padShare: 0.18, flatPadKg: 0.5 };
+
+export interface WeightLine {
+  /** One list of points per unbroken run of weigh-ins. A day with no entry breaks the line. */
+  segments: { x: number; y: number }[][];
+  latest: { x: number; y: number } | null;
+  /** Last weigh-in minus first weigh-in of the range; null with fewer than two. */
+  change_kg: number | null;
+}
+
+export function weightLine(days: TrendDay[]): WeightLine {
+  const known = days.flatMap((d) => (d.weight_kg === null ? [] : [d.weight_kg]));
+  if (known.length === 0) return { segments: [], latest: null, change_kg: null };
+  const lo = Math.min(...known);
+  const hi = Math.max(...known);
+  const pad = (hi - lo) * LINE_BOX.padShare || LINE_BOX.flatPadKg;
+  const yMin = lo - pad;
+  const yMax = hi + pad;
+  const segments: { x: number; y: number }[][] = [];
+  let open = false;
+  days.forEach((d, i) => {
+    if (d.weight_kg === null) {
+      open = false;
+      return;
+    }
+    if (!open) segments.push([]);
+    open = true;
+    const x = days.length === 1 ? LINE_BOX.width : (i / (days.length - 1)) * LINE_BOX.width;
+    segments[segments.length - 1].push({ x, y: LINE_BOX.height - ((d.weight_kg - yMin) / (yMax - yMin)) * LINE_BOX.height });
+  });
+  const lastSegment = segments[segments.length - 1];
+  return {
+    segments,
+    latest: lastSegment[lastSegment.length - 1],
+    change_kg: known.length >= 2 ? known[known.length - 1] - known[0] : null,
+  };
+}
+
 // ---- chart geometry, in the canvas's 326 x 116 box -------------------------------------------
 
 const BOX = { width: 326, baseline: 110, top: 4, edge: 4, barWidth: 6 };

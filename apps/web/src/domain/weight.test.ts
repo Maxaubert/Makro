@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { expectClose, loadGolden } from './golden';
 import type { GoalType } from './goals';
-import { chartLayout, entryDayLabel, isPlausibleWeight, rangeStart, toGoal, weightSummary, type TrendDay, type WeightSummary } from './weight';
+import { chartLayout, entryDayLabel, isPlausibleWeight, rangeStart, toGoal, weightLine, weightSummary, type TrendDay, type WeightSummary } from './weight';
 
 const trend = loadGolden<{ entries: { local_date: string; weight_kg: number }[]; from: string; to: string }, WeightSummary>('weight/trend.json');
 const goal = loadGolden<{ weight_kg: number | null; target_kg: number | null; goal_type: GoalType }, { kg: number | null; reached: boolean }>('weight/to_goal.json');
@@ -164,6 +164,48 @@ describe('chartLayout', () => {
   it('has no kg axis once a trend exists, as on the board, and none for an empty range', () => {
     expect(chartLayout(range(30)).axis).toEqual([]);
     expect(chartLayout([day('2026-10-01', null, null)]).axis).toEqual([]);
+  });
+});
+
+describe('weightLine', () => {
+  const on = (date: string, weight_kg: number | null): TrendDay => ({ date, weight_kg, entries: weight_kg === null ? 0 : 1, trend_kg: null, covered_days: 0 });
+
+  it('has no line, no latest point and no change without a weigh-in', () => {
+    expect(weightLine([on('2026-10-01', null), on('2026-10-02', null)])).toEqual({ segments: [], latest: null, change_kg: null });
+  });
+
+  it('spreads the days over the width and pads the height by 18% of the span', () => {
+    const line = weightLine([on('2026-10-01', 80), on('2026-10-02', 82), on('2026-10-03', 81)]);
+    expect(line.segments).toHaveLength(1);
+    expect(line.segments[0].map((p) => p.x)).toEqual([0, 350, 700]);
+    const [low, high, mid] = line.segments[0].map((p) => p.y);
+    expect(low).toBeCloseTo(200 - (0.36 / 2.72) * 200, 1);
+    expect(high).toBeCloseTo(200 - (2.36 / 2.72) * 200, 1);
+    expect(mid).toBeCloseTo(100, 1);
+  });
+
+  it('breaks the line at a day with no weigh-in instead of bridging it', () => {
+    const line = weightLine([on('2026-10-01', 80), on('2026-10-02', 81), on('2026-10-03', null), on('2026-10-04', 82), on('2026-10-05', 83)]);
+    expect(line.segments.map((s) => s.map((p) => p.x))).toEqual([[0, 175], [525, 700]]);
+  });
+
+  it('keeps a lone weigh-in as a one-point segment and has no change to report', () => {
+    const line = weightLine([on('2026-10-01', null), on('2026-10-02', 81), on('2026-10-03', null)]);
+    expect(line.segments).toEqual([[{ x: 350, y: 100 }]]);
+    expect(line.change_kg).toBeNull();
+  });
+
+  it('puts a single day on the right edge, with half a kilo of room when the values are flat', () => {
+    expect(weightLine([on('2026-10-01', 81.5)]).segments).toEqual([[{ x: 700, y: 100 }]]);
+  });
+
+  it('marks the latest weigh-in, which need not be the last day', () => {
+    const line = weightLine([on('2026-10-01', 80), on('2026-10-02', 81), on('2026-10-03', null)]);
+    expect(line.latest).toEqual(line.segments[0][1]);
+  });
+
+  it('reports the change from the first to the last weigh-in in the range', () => {
+    expect(weightLine([on('2026-10-01', null), on('2026-10-02', 83), on('2026-10-03', null), on('2026-10-04', 81.5)]).change_kg).toBeCloseTo(-1.5, 5);
   });
 });
 
