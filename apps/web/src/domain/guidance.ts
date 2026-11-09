@@ -14,6 +14,7 @@ export const GUIDANCE_CONSTANTS = {
   incomplete_ended_before_minute: 960,
   incomplete_gap_minutes: 480,
   suggestion_limit: 3,
+  weekday_over_high: 1.05,
 };
 
 export const WEEKLY_MEASURES = ['kcal', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g'] as const;
@@ -31,6 +32,14 @@ export function weekWindow(today: string): string[] {
   const [y, m, d] = today.split('-').map(Number);
   const daysSinceMonday = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
   return Array.from({ length: daysSinceMonday }, (_, i) => shiftDate(today, i - daysSinceMonday));
+}
+
+export type TargetBand = 'under' | 'on_target' | 'over';
+
+/** Where a known amount falls against a target above 0. The edges of the band are on target. */
+export function targetBand(value: number, target: number): TargetBand {
+  const r = value / target;
+  return r < GUIDANCE_CONSTANTS.on_target_low ? 'under' : r <= GUIDANCE_CONSTANTS.on_target_high ? 'on_target' : 'over';
 }
 
 export type Verdict = 'on_target' | 'a_bit_under' | 'well_under' | 'above_target';
@@ -72,7 +81,11 @@ export interface WeeklyAverage {
 }
 
 export function weeklyAverage(input: WeeklyInput, measures: readonly string[] = WEEKLY_MEASURES): WeeklyAverage {
-  const dates = weekWindow(input.today);
+  return averageOver(weekWindow(input.today), input, measures);
+}
+
+/** The per-logged-day average over any list of dates. A day with nothing logged is left out, never 0. */
+export function averageOver(dates: string[], input: Pick<WeeklyInput, 'targets' | 'days'>, measures: readonly string[] = WEEKLY_MEASURES): WeeklyAverage {
   const itemsOf = new Map(input.days.map((d) => [d.local_date, d.items]));
   const logged = (date: string) => (itemsOf.get(date)?.length ?? 0) > 0;
   const out: Record<string, WeeklyMeasure> = {};
@@ -144,10 +157,7 @@ export function dayStatus({ entries, kcal_target }: DayStatusInput): DayStatus {
   let status: DayStatusKind;
   if (eaten === null) status = 'unknown';
   else if (kcal_target === null || kcal_target <= 0) status = 'no_target';
-  else {
-    const r = eaten / kcal_target;
-    status = r < GUIDANCE_CONSTANTS.on_target_low ? 'under' : r <= GUIDANCE_CONSTANTS.on_target_high ? 'on_target' : 'over';
-  }
+  else status = targetBand(eaten, kcal_target);
 
   const reasons: IncompleteReason[] = [];
   if (covered < count) reasons.push('missing_values');

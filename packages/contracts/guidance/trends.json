@@ -1,0 +1,372 @@
+{
+  "version": 1,
+  "description": "The Trends summary. A range is 7, 30 or 90 calendar days ending with today, and today counts. Only days with at least one entry count: a day with nothing logged is left out and never read as 0. A logged day with no known value for a measure has no value for it and is left out of that measure. kcal uses the goal in force today for every day, because the chart draws one goal line. A band is under below 90% of the target, over above 110%, otherwise on_target (the edges are on target). 7D and 30D have one bar per day. 90D has 7-day bars counted back from today, so the oldest bar covers the 6 days left over, and a bar's value is the mean of its days with a value. bars lists only bars with a value; bar_count counts all of them. top is the larger of 125% of the kcal target, the known bars and the known weekdays, and at least 1. Weekdays run Monday to Sunday and hold the mean of the days with a value; over means above 105% of the target. Ties for highest and lowest take the earlier date. difference is average minus target. Values are unrounded.",
+  "nutrients": ["kcal", "protein_g", "carbs_g", "fat_g", "fibre_g"],
+  "cases": [
+    {
+      "id": "board-week",
+      "note": "The week drawn on the D_Trends board. Today counts, and it is the lowest day.",
+      "input": {
+        "today": "2026-10-17",
+        "range": "7D",
+        "targets": { "kcal": 2400, "protein_g": 180, "carbs_g": 260, "fat_g": 71, "fibre_g": 30 },
+        "days": [
+          { "local_date": "2026-10-11", "items": [{ "kcal": 1980, "protein_g": 100, "carbs_g": 250, "fat_g": 70, "fibre_g": 30 }] },
+          { "local_date": "2026-10-12", "items": [{ "kcal": 2350, "protein_g": 100, "carbs_g": 250, "fat_g": 70, "fibre_g": 30 }] },
+          { "local_date": "2026-10-13", "items": [{ "kcal": 2530, "protein_g": 100, "carbs_g": 250, "fat_g": 70, "fibre_g": 30 }] },
+          { "local_date": "2026-10-14", "items": [{ "kcal": 2280, "protein_g": 100, "carbs_g": 250, "fat_g": 70, "fibre_g": 30 }] },
+          { "local_date": "2026-10-15", "items": [{ "kcal": 2410, "protein_g": 100, "carbs_g": 250, "fat_g": 70, "fibre_g": 30 }] },
+          { "local_date": "2026-10-16", "items": [{ "kcal": 2064, "protein_g": 100, "carbs_g": 250, "fat_g": 70, "fibre_g": 30 }] },
+          { "local_date": "2026-10-17", "items": [{ "kcal": 1560, "protein_g": 100, "carbs_g": 250, "fat_g": 70, "fibre_g": 30 }] }
+        ]
+      },
+      "expected": {
+        "total_days": 7,
+        "logged_days": 7,
+        "measures": {
+          "kcal": { "average": 2167.7142857142858, "days_with_value": 7, "covered": 7, "count": 7 },
+          "protein_g": { "average": 100, "days_with_value": 7, "covered": 7, "count": 7 },
+          "carbs_g": { "average": 250, "days_with_value": 7, "covered": 7, "count": 7 },
+          "fat_g": { "average": 70, "days_with_value": 7, "covered": 7, "count": 7 },
+          "fibre_g": { "average": 30, "days_with_value": 7, "covered": 7, "count": 7 }
+        },
+        "difference": -232.2857142857142,
+        "days_on_target": 4,
+        "days_judged": 7,
+        "highest": { "local_date": "2026-10-13", "kcal": 2530 },
+        "lowest": { "local_date": "2026-10-17", "kcal": 1560 },
+        "bar_count": 7,
+        "bars": [
+          { "from": "2026-10-11", "to": "2026-10-11", "value": 1980, "band": "under" },
+          { "from": "2026-10-12", "to": "2026-10-12", "value": 2350, "band": "on_target" },
+          { "from": "2026-10-13", "to": "2026-10-13", "value": 2530, "band": "on_target" },
+          { "from": "2026-10-14", "to": "2026-10-14", "value": 2280, "band": "on_target" },
+          { "from": "2026-10-15", "to": "2026-10-15", "value": 2410, "band": "on_target" },
+          { "from": "2026-10-16", "to": "2026-10-16", "value": 2064, "band": "under" },
+          { "from": "2026-10-17", "to": "2026-10-17", "value": 1560, "band": "under" }
+        ],
+        "top": 3000,
+        "weekdays": [
+          { "average": 2350, "days": 1, "over": false },
+          { "average": 2530, "days": 1, "over": true },
+          { "average": 2280, "days": 1, "over": false },
+          { "average": 2410, "days": 1, "over": false },
+          { "average": 2064, "days": 1, "over": false },
+          { "average": 1560, "days": 1, "over": false },
+          { "average": 1980, "days": 1, "over": false }
+        ]
+      }
+    },
+    {
+      "id": "gap-and-unknown-values",
+      "note": "Tuesday has no entries and is left out. Wednesday is logged with no values, so it counts as logged but has no value. Thursday is partly known. The day before the window is ignored.",
+      "input": {
+        "today": "2026-10-17",
+        "range": "7D",
+        "targets": { "kcal": 2000, "protein_g": 100, "carbs_g": 200, "fat_g": 70, "fibre_g": 30 },
+        "days": [
+          { "local_date": "2026-10-10", "items": [{ "kcal": 9000, "protein_g": 900, "carbs_g": 900, "fat_g": 900, "fibre_g": 900 }] },
+          { "local_date": "2026-10-12", "items": [{ "kcal": 1000, "protein_g": 50, "carbs_g": 100, "fat_g": 30, "fibre_g": 10 }, { "kcal": 900, "protein_g": 40, "carbs_g": 90, "fat_g": 30, "fibre_g": null }] },
+          { "local_date": "2026-10-14", "items": [{ "kcal": null, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-15", "items": [{ "kcal": 1500, "protein_g": 60, "carbs_g": null, "fat_g": 50, "fibre_g": null }, { "kcal": null, "protein_g": 20, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-16", "items": [{ "kcal": 2300, "protein_g": 110, "carbs_g": 230, "fat_g": 80, "fibre_g": 20 }] }
+        ]
+      },
+      "expected": {
+        "total_days": 7,
+        "logged_days": 4,
+        "measures": {
+          "kcal": { "average": 1900, "days_with_value": 3, "covered": 4, "count": 6 },
+          "protein_g": { "average": 93.33333333333333, "days_with_value": 3, "covered": 5, "count": 6 },
+          "carbs_g": { "average": 210, "days_with_value": 2, "covered": 3, "count": 6 },
+          "fat_g": { "average": 63.333333333333336, "days_with_value": 3, "covered": 4, "count": 6 },
+          "fibre_g": { "average": 15, "days_with_value": 2, "covered": 2, "count": 6 }
+        },
+        "difference": -100,
+        "days_on_target": 1,
+        "days_judged": 3,
+        "highest": { "local_date": "2026-10-16", "kcal": 2300 },
+        "lowest": { "local_date": "2026-10-15", "kcal": 1500 },
+        "bar_count": 7,
+        "bars": [
+          { "from": "2026-10-12", "to": "2026-10-12", "value": 1900, "band": "on_target" },
+          { "from": "2026-10-15", "to": "2026-10-15", "value": 1500, "band": "under" },
+          { "from": "2026-10-16", "to": "2026-10-16", "value": 2300, "band": "over" }
+        ],
+        "top": 2500,
+        "weekdays": [
+          { "average": 1900, "days": 1, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": 1500, "days": 1, "over": false },
+          { "average": 2300, "days": 1, "over": true },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false }
+        ]
+      }
+    },
+    {
+      "id": "no-goal",
+      "note": "With no goal nothing is judged, but the day still counts and its value still shows.",
+      "input": {
+        "today": "2026-10-17",
+        "range": "7D",
+        "targets": { "kcal": null, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null },
+        "days": [
+          { "local_date": "2026-10-17", "items": [{ "kcal": 1234.5, "protein_g": 10, "carbs_g": null, "fat_g": null, "fibre_g": null }] }
+        ]
+      },
+      "expected": {
+        "total_days": 7,
+        "logged_days": 1,
+        "measures": {
+          "kcal": { "average": 1234.5, "days_with_value": 1, "covered": 1, "count": 1 },
+          "protein_g": { "average": 10, "days_with_value": 1, "covered": 1, "count": 1 },
+          "carbs_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 1 },
+          "fat_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 1 },
+          "fibre_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 1 }
+        },
+        "difference": null,
+        "days_on_target": null,
+        "days_judged": 1,
+        "highest": { "local_date": "2026-10-17", "kcal": 1234.5 },
+        "lowest": { "local_date": "2026-10-17", "kcal": 1234.5 },
+        "bar_count": 7,
+        "bars": [{ "from": "2026-10-17", "to": "2026-10-17", "value": 1234.5, "band": null }],
+        "top": 1234.5,
+        "weekdays": [
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": 1234.5, "days": 1, "over": false },
+          { "average": null, "days": 0, "over": false }
+        ]
+      }
+    },
+    {
+      "id": "nothing-logged",
+      "note": "No day counts, so every value is unknown and none is 0.",
+      "input": {
+        "today": "2026-10-17",
+        "range": "7D",
+        "targets": { "kcal": 2000, "protein_g": 100, "carbs_g": 200, "fat_g": 70, "fibre_g": 30 },
+        "days": []
+      },
+      "expected": {
+        "total_days": 7,
+        "logged_days": 0,
+        "measures": {
+          "kcal": { "average": null, "days_with_value": 0, "covered": 0, "count": 0 },
+          "protein_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 0 },
+          "carbs_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 0 },
+          "fat_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 0 },
+          "fibre_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 0 }
+        },
+        "difference": null,
+        "days_on_target": 0,
+        "days_judged": 0,
+        "highest": null,
+        "lowest": null,
+        "bar_count": 7,
+        "bars": [],
+        "top": 2500,
+        "weekdays": [
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false }
+        ]
+      }
+    },
+    {
+      "id": "thirty-day-boundary",
+      "note": "The range is 2026-10-01 to 2026-10-30, so 2026-09-30 is outside it.",
+      "input": {
+        "today": "2026-10-30",
+        "range": "30D",
+        "targets": { "kcal": 1500, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null },
+        "days": [
+          { "local_date": "2026-09-30", "items": [{ "kcal": 3000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-01", "items": [{ "kcal": 1000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-30", "items": [{ "kcal": 2000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] }
+        ]
+      },
+      "expected": {
+        "total_days": 30,
+        "logged_days": 2,
+        "measures": {
+          "kcal": { "average": 1500, "days_with_value": 2, "covered": 2, "count": 2 },
+          "protein_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 2 },
+          "carbs_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 2 },
+          "fat_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 2 },
+          "fibre_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 2 }
+        },
+        "difference": 0,
+        "days_on_target": 0,
+        "days_judged": 2,
+        "highest": { "local_date": "2026-10-30", "kcal": 2000 },
+        "lowest": { "local_date": "2026-10-01", "kcal": 1000 },
+        "bar_count": 30,
+        "bars": [
+          { "from": "2026-10-01", "to": "2026-10-01", "value": 1000, "band": "under" },
+          { "from": "2026-10-30", "to": "2026-10-30", "value": 2000, "band": "over" }
+        ],
+        "top": 2000,
+        "weekdays": [
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": 1000, "days": 1, "over": false },
+          { "average": 2000, "days": 1, "over": true },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false }
+        ]
+      }
+    },
+    {
+      "id": "band-edges",
+      "note": "90% and 110% of the target are on target; just outside them is not.",
+      "input": {
+        "today": "2026-10-17",
+        "range": "7D",
+        "targets": { "kcal": 2000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null },
+        "days": [
+          { "local_date": "2026-10-14", "items": [{ "kcal": 1800, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-15", "items": [{ "kcal": 2200, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-16", "items": [{ "kcal": 1799.5, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-17", "items": [{ "kcal": 2200.5, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] }
+        ]
+      },
+      "expected": {
+        "total_days": 7,
+        "logged_days": 4,
+        "measures": {
+          "kcal": { "average": 2000, "days_with_value": 4, "covered": 4, "count": 4 },
+          "protein_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 4 },
+          "carbs_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 4 },
+          "fat_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 4 },
+          "fibre_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 4 }
+        },
+        "difference": 0,
+        "days_on_target": 2,
+        "days_judged": 4,
+        "highest": { "local_date": "2026-10-17", "kcal": 2200.5 },
+        "lowest": { "local_date": "2026-10-16", "kcal": 1799.5 },
+        "bar_count": 7,
+        "bars": [
+          { "from": "2026-10-14", "to": "2026-10-14", "value": 1800, "band": "on_target" },
+          { "from": "2026-10-15", "to": "2026-10-15", "value": 2200, "band": "on_target" },
+          { "from": "2026-10-16", "to": "2026-10-16", "value": 1799.5, "band": "under" },
+          { "from": "2026-10-17", "to": "2026-10-17", "value": 2200.5, "band": "over" }
+        ],
+        "top": 2500,
+        "weekdays": [
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": 1800, "days": 1, "over": false },
+          { "average": 2200, "days": 1, "over": true },
+          { "average": 1799.5, "days": 1, "over": false },
+          { "average": 2200.5, "days": 1, "over": true },
+          { "average": null, "days": 0, "over": false }
+        ]
+      }
+    },
+    {
+      "id": "ninety-days-in-weekly-bars",
+      "note": "The range is 2026-07-20 to 2026-10-17, 13 bars. The oldest bar is 6 days. A weekday averages every matching day in the range.",
+      "input": {
+        "today": "2026-10-17",
+        "range": "90D",
+        "targets": { "kcal": 2000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null },
+        "days": [
+          { "local_date": "2026-07-19", "items": [{ "kcal": 5000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-07-20", "items": [{ "kcal": 1000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-07-25", "items": [{ "kcal": 2000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-03", "items": [{ "kcal": 2300, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-11", "items": [{ "kcal": 2000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-13", "items": [{ "kcal": 2200, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] }
+        ]
+      },
+      "expected": {
+        "total_days": 90,
+        "logged_days": 5,
+        "measures": {
+          "kcal": { "average": 1900, "days_with_value": 5, "covered": 5, "count": 5 },
+          "protein_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 5 },
+          "carbs_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 5 },
+          "fat_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 5 },
+          "fibre_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 5 }
+        },
+        "difference": -100,
+        "days_on_target": 3,
+        "days_judged": 5,
+        "highest": { "local_date": "2026-10-03", "kcal": 2300 },
+        "lowest": { "local_date": "2026-07-20", "kcal": 1000 },
+        "bar_count": 13,
+        "bars": [
+          { "from": "2026-07-20", "to": "2026-07-25", "value": 1500, "band": "under" },
+          { "from": "2026-09-27", "to": "2026-10-03", "value": 2300, "band": "over" },
+          { "from": "2026-10-11", "to": "2026-10-17", "value": 2100, "band": "on_target" }
+        ],
+        "top": 2500,
+        "weekdays": [
+          { "average": 1000, "days": 1, "over": false },
+          { "average": 2200, "days": 1, "over": true },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": 2150, "days": 2, "over": true },
+          { "average": 2000, "days": 1, "over": false }
+        ]
+      }
+    },
+    {
+      "id": "ties-take-the-earlier-date",
+      "input": {
+        "today": "2026-10-17",
+        "range": "7D",
+        "targets": { "kcal": null, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null },
+        "days": [
+          { "local_date": "2026-10-16", "items": [{ "kcal": 2000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] },
+          { "local_date": "2026-10-15", "items": [{ "kcal": 2000, "protein_g": null, "carbs_g": null, "fat_g": null, "fibre_g": null }] }
+        ]
+      },
+      "expected": {
+        "total_days": 7,
+        "logged_days": 2,
+        "measures": {
+          "kcal": { "average": 2000, "days_with_value": 2, "covered": 2, "count": 2 },
+          "protein_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 2 },
+          "carbs_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 2 },
+          "fat_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 2 },
+          "fibre_g": { "average": null, "days_with_value": 0, "covered": 0, "count": 2 }
+        },
+        "difference": null,
+        "days_on_target": null,
+        "days_judged": 2,
+        "highest": { "local_date": "2026-10-15", "kcal": 2000 },
+        "lowest": { "local_date": "2026-10-15", "kcal": 2000 },
+        "bar_count": 7,
+        "bars": [
+          { "from": "2026-10-15", "to": "2026-10-15", "value": 2000, "band": null },
+          { "from": "2026-10-16", "to": "2026-10-16", "value": 2000, "band": null }
+        ],
+        "top": 2000,
+        "weekdays": [
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": 2000, "days": 1, "over": false },
+          { "average": 2000, "days": 1, "over": false },
+          { "average": null, "days": 0, "over": false },
+          { "average": null, "days": 0, "over": false }
+        ]
+      }
+    }
+  ]
+}

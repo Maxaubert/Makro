@@ -11,8 +11,8 @@ Status: oracle split, owners, rounding and CI approved by Nima in review of #51 
 | `nutrition/*.json` (per-100 g to portion, totals with unknowns) | yes | no | Maths lives in Swift only (`docs/MVP.md`, `AGENTS.md`) |
 | `goals/*.json` (targets, calorie floor, loss rate, macro split) | yes, when iOS is built | no | The web app runs them first (decision 38) |
 | `goals/constants.json` (calorie floor, maximum loss rate, the other goal numbers, each with its source and status) | yes, when iOS is built | no | The web app checks it too (decision 38) |
-| `guidance/*.json` (week window, weekly average and verdict, what is left, end-of-day status, suggestions, #27, #53; the logging streak) | yes, when iOS is built | no | The web app runs them first; the numbers in `guidance/constants.json` are provisional |
-| `weight/*.json` (7-day trend with missing days and several entries a day, distance to goal) | yes, when iOS is built | no | The web app runs them first (#2) |
+| `guidance/*.json` (week window, weekly average and verdict, what is left, end-of-day status, suggestions, #27, #53; the logging streak; the Trends summary) | yes, when iOS is built | no | The web app runs them first; the numbers in `guidance/constants.json` are provisional |
+| `weight/*.json` (7-day trend with missing days and several entries a day, change of the trend over a range, distance to goal) | yes, when iOS is built | no | The web app runs them first (#2) |
 | `search/normalise.json` (query text to normalised tokens: ø, æ, å, case, accents) | yes | yes | Both sides build or query the search index and must normalise alike |
 | `search/results.json` (query to expected product ids) | yes | no | Runs against a small pinned fixture database, not the full catalogue |
 | `search/typos.json` (query, counts and FTS vocabulary to corrected tokens) | yes, when iOS is built | no | The web app runs it first (#22). Needs no database, the runner feeds the vocabulary in |

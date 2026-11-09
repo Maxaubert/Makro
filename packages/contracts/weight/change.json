@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "description": "How much the 7-day weight trend (see trend.json) moved over a number of days: the trend on day `to` minus the trend on day `to` minus `days`. change_kg is null when the trend is unknown at either end, so a missing weigh-in is never read as 0. Values are unrounded.",
+  "cases": [
+    {
+      "id": "seven-days",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-08", "weight_kg": 80 },
+          { "local_date": "2026-10-09", "weight_kg": 81 },
+          { "local_date": "2026-10-10", "weight_kg": 82 },
+          { "local_date": "2026-10-15", "weight_kg": 79 },
+          { "local_date": "2026-10-16", "weight_kg": 80 },
+          { "local_date": "2026-10-17", "weight_kg": 81 }
+        ],
+        "to": "2026-10-17",
+        "days": 7
+      },
+      "expected": { "change_kg": -1 }
+    },
+    {
+      "id": "unknown-at-the-start",
+      "note": "The end has a trend, but no weigh-ins near the start of the range.",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-15", "weight_kg": 79 },
+          { "local_date": "2026-10-16", "weight_kg": 80 },
+          { "local_date": "2026-10-17", "weight_kg": 81 }
+        ],
+        "to": "2026-10-17",
+        "days": 7
+      },
+      "expected": { "change_kg": null }
+    },
+    {
+      "id": "unknown-at-the-end",
+      "note": "Two weigh-ins in the last 7 days are too few for a trend.",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-08", "weight_kg": 80 },
+          { "local_date": "2026-10-09", "weight_kg": 81 },
+          { "local_date": "2026-10-10", "weight_kg": 82 },
+          { "local_date": "2026-10-16", "weight_kg": 80 },
+          { "local_date": "2026-10-17", "weight_kg": 81 }
+        ],
+        "to": "2026-10-17",
+        "days": 7
+      },
+      "expected": { "change_kg": null }
+    },
+    {
+      "id": "thirty-days",
+      "input": {
+        "entries": [
+          { "local_date": "2026-09-29", "weight_kg": 90 },
+          { "local_date": "2026-09-30", "weight_kg": 90 },
+          { "local_date": "2026-10-01", "weight_kg": 90 },
+          { "local_date": "2026-10-29", "weight_kg": 88 },
+          { "local_date": "2026-10-30", "weight_kg": 88 },
+          { "local_date": "2026-10-31", "weight_kg": 88 }
+        ],
+        "to": "2026-10-31",
+        "days": 30
+      },
+      "expected": { "change_kg": -2 }
+    },
+    {
+      "id": "no-weights",
+      "input": { "entries": [], "to": "2026-10-17", "days": 90 },
+      "expected": { "change_kg": null }
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 // The trend maths is in domain/weight.ts. Apple Health is phone only, so its controls are left out.
 import { useState } from 'react';
 import { roundForDisplay } from '../domain/display';
-import { chartLayout, entryDayLabel, rangeStart, toGoal, WEIGHT_RANGES, weightSummary, type TrendDay, type WeightRange } from '../domain/weight';
+import { chartLayout, entryDayLabel, rangeStart, signedKg, toGoal, WEIGHT_RANGES, weightSummary, type TrendDay, type WeightRange } from '../domain/weight';
 import { href, useApp, useBack, useData, useRoute } from '../lib/hooks';
 import { Card, Chip, Header, Icon, Notice, Page } from '../ui/kit';
 import { dayLabel, today } from './day';
@@ -22,12 +22,6 @@ function timeIn(iso: string, timeZone: string): string {
 function kgText(kg: number | null | undefined): string {
   if (kg === null || kg === undefined) return '?';
   return (roundForDisplay(kg, 1) as number).toFixed(1);
-}
-
-function signedKg(kg: number | null): string {
-  if (kg === null) return '?';
-  const rounded = roundForDisplay(kg, 1) as number;
-  return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}`;
 }
 
 function slotTitle(slot: { date: string; weight_kg: number | null; trend_kg: number | null }): string {

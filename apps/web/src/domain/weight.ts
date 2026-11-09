@@ -7,6 +7,7 @@
 // - The trend on day D is the mean of the daily values in the 7 calendar days D-6..D.
 // - With fewer than 3 days of values in that window the trend is unknown (null), because one
 //   or two weigh-ins are exactly the daily noise the trend is there to smooth away.
+import { roundForDisplay } from './display';
 import { WEIGHT_RANGE_KG, type GoalType } from './goals';
 
 export const TREND_WINDOW_DAYS = 7;
@@ -69,8 +70,6 @@ export function weightSummary(entries: WeightPoint[], from: string, to: string):
     days.push({ date, weight_kg: day?.value ?? null, entries: day?.entries ?? 0, ...trendOn(daily, date) });
   }
   const values = days.flatMap((d) => (d.weight_kg === null ? [] : [d.weight_kg]));
-  const end = trendOn(daily, to).trend_kg;
-  const start = trendOn(daily, shiftDay(to, -7)).trend_kg;
   return {
     days,
     stats: {
@@ -78,8 +77,23 @@ export function weightSummary(entries: WeightPoint[], from: string, to: string):
       highest_kg: values.length ? Math.max(...values) : null,
       average_kg: values.length ? mean(values) : null,
     },
-    change_7d_kg: end !== null && start !== null ? end - start : null,
+    change_7d_kg: trendChange(entries, to, 7),
   };
+}
+
+/** The trend on `to` minus the trend `days` earlier. Unknown at either end stays unknown. */
+export function trendChange(entries: WeightPoint[], to: string, days: number): number | null {
+  const daily = dailyValues(entries);
+  const end = trendOn(daily, to).trend_kg;
+  const start = trendOn(daily, shiftDay(to, -days)).trend_kg;
+  return end !== null && start !== null ? end - start : null;
+}
+
+/** "+0.6", "-1.5" or "?". The sign comes from the rounded value, so a tiny change never shows as "-0.0". */
+export function signedKg(kg: number | null): string {
+  if (kg === null) return '?';
+  const rounded = roundForDisplay(kg, 1) as number;
+  return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}`;
 }
 
 /** How far a weight is from the goal's target. Unknown stays unknown; maintain has no direction. */
