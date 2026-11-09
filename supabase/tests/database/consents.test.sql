@@ -1,6 +1,6 @@
 -- consents: who agreed to what, and when they withdrew (#15, #67).
 begin;
-select plan(11);
+select plan(12);
 
 create schema tests;
 grant usage on schema tests to authenticated, anon;
@@ -32,6 +32,10 @@ select isnt((select withdrawn_at from public.consents where kind = 'health_data'
 update public.consents set withdrawn_at = null where kind = 'health_data';
 select isnt((select withdrawn_at from public.consents where kind = 'health_data'), null, 'a withdrawal cannot be undone by editing it');
 select lives_ok($$insert into public.consents (kind, text_version) values ('health_data', '2026-11-10')$$, 'consent can be given again after withdrawing');
+
+insert into public.consents (kind, text_version) values ('popularity', '1');
+update public.consents set withdrawn_at = '2000-01-01' where kind = 'popularity' and withdrawn_at is null;
+select ok((select withdrawn_at >= granted_at from public.consents where kind = 'popularity'), 'the server sets the withdrawal time, so it cannot be backdated');
 
 reset role;
 set local role anon;

@@ -152,6 +152,41 @@ export class App {
     this.set({ setup: { ...this.state.setup, hasConsent: true } });
   }
 
+  /** Whether the optional popularity consent is active; null when that cannot be checked. */
+  async popularityOn(): Promise<boolean | null> {
+    const { data, error } = await this.supabase.from('consents').select('id').eq('kind', 'popularity').is('withdrawn_at', null).limit(1);
+    return error ? null : data.length > 0;
+  }
+
+  async setPopularity(on: boolean): Promise<void> {
+    if (on) {
+      const { error } = await this.supabase.from('consents').insert({ kind: 'popularity', text_version: CONSENT_TEXT_VERSION });
+      if (error && error.code !== '23505') throw new Error(error.message);
+      return;
+    }
+    // The server replaces the time with its own (consents_stamp_withdrawal).
+    const { error } = await this.supabase.from('consents').update({ withdrawn_at: new Date().toISOString() }).eq('kind', 'popularity').is('withdrawn_at', null);
+    if (error) throw new Error(error.message);
+  }
+
+  /** Everything Makro holds about the user, as JSON text. */
+  async exportData(): Promise<string> {
+    const rows = await this.db.exportAll();
+    const { data: consents, error } = await this.supabase.from('consents').select('kind, text_version, granted_at, withdrawn_at');
+    if (error) throw new Error(`Could not reach the server for your consent history. (${error.message})`);
+    return JSON.stringify({ exported_at: new Date().toISOString(), email: this.state.session?.user.email ?? null, consents, ...rows }, null, 2);
+  }
+
+  /** Withdraw consent: delete the account and its data on the server, then on this device. */
+  async deleteAccount(): Promise<void> {
+    const { error } = await this.supabase.functions.invoke('delete-account', { method: 'POST' });
+    if (error) throw new Error(`Nothing was deleted. Check your connection and try again. (${error.message})`);
+    this.scheduler.stop();
+    await this.db.wipe();
+    localStorage.removeItem(MISS_QUEUE_KEY);
+    await this.supabase.auth.signOut({ scope: 'local' });
+  }
+
   /** Save the first goal and weight (null when a goal already exists) and open the app. */
   async finishSetup(first: { goal: GoalWriteRow; weight: WeightEntryRow } | null): Promise<void> {
     const userId = this.state.session?.user.id;

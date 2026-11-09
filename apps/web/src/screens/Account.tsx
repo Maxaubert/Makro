@@ -1,12 +1,44 @@
 // Account: who is signed in, sync and food database status, sign out.
-import { useApp, useAppState, useData } from '../lib/hooks';
+import { useState } from 'react';
+import { href, useApp, useAppState, useData } from '../lib/hooks';
 import { APP_VERSION } from '../lib/app';
 import { Card, Notice, Page, SecondaryButton, SyncPill } from '../ui/kit';
+import { DeleteAccount } from './DeleteAccount';
+import { HelpNote } from './Onboarding';
 
 export function Account() {
   const app = useApp();
   const { session, sync, pending, products } = useAppState();
   const { data: rejected } = useData(() => app.db.rejected(), []);
+  const [popularChange, setPopularChange] = useState<boolean | null>(null);
+  const { data: popularOn } = useData(() => app.popularityOn(), []);
+  const popular = popularChange ?? popularOn ?? null;
+  const [dataError, setDataError] = useState<string | null>(null);
+
+  async function togglePopular() {
+    if (popular === null) return;
+    setDataError(null);
+    try {
+      await app.setPopularity(!popular);
+      setPopularChange(!popular);
+    } catch (e) {
+      setDataError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function download() {
+    setDataError(null);
+    try {
+      const url = URL.createObjectURL(new Blob([await app.exportData()], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'makro-data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setDataError(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   const row = (label: string, value: string) => (
     <div className="flex justify-between gap-4 border-t border-border py-3 first:border-t-0">
@@ -37,6 +69,30 @@ export function Account() {
           </Notice>
         </div>
       )}
+      <h2 className="mt-6 text-[16px] font-bold">Your data</h2>
+      <Card className="mt-2 px-4 py-1 text-[15px]">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={popular === true}
+          aria-label="Count toward popular foods"
+          disabled={popular === null}
+          onClick={() => void togglePopular()}
+          className="flex w-full items-center justify-between gap-4 py-3 text-left disabled:opacity-50"
+        >
+          <span>Count toward popular foods</span>
+          <span className={`relative h-[26px] w-11 flex-none rounded-full ${popular ? 'bg-accent' : 'bg-[#3A3A3E]'}`}>
+            <span className={`absolute top-[3px] h-5 w-5 rounded-full bg-ground ${popular ? 'left-[21px]' : 'left-[3px]'}`} />
+          </span>
+        </button>
+      </Card>
+      {dataError && <div className="mt-3"><Notice tone="error">{dataError}</Notice></div>}
+      <div className="mt-3 flex flex-col gap-2">
+        <SecondaryButton onClick={() => void download()}>Download my data</SecondaryButton>
+        <SecondaryButton href={href('privacy')}>Privacy notice</SecondaryButton>
+        <DeleteAccount />
+      </div>
+      <div className="mt-4"><HelpNote /></div>
       <div className="mt-6 flex flex-col gap-2">
         <SecondaryButton onClick={() => void app.scheduler.runNow()}>Sync now</SecondaryButton>
         <SecondaryButton onClick={() => void app.signOut()}>Sign out</SecondaryButton>
