@@ -3,6 +3,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { inviteUser, pgRows, readOtp } from './local';
 
+const SHOTS = process.env.SHOTS_DIR;
+async function shot(page: Page, name: string) {
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true });
+}
+
 const pad = (n: number) => String(n).padStart(2, '0');
 function daysAgoInput(days: number): string {
   const d = new Date();
@@ -11,7 +16,7 @@ function daysAgoInput(days: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-async function signInAndOnboard(page: Page, email: string) {
+async function signInAndOnboard(page: Page, email: string, targetKg?: string) {
   await page.goto('/');
   await page.getByLabel('Email address').fill(email);
   await page.getByRole('button', { name: 'Email me a code' }).click();
@@ -25,6 +30,10 @@ async function signInAndOnboard(page: Page, email: string) {
   await page.getByLabel('Height').fill('182');
   await page.getByLabel('Weight').fill('81,5');
   await page.getByRole('button', { name: 'Continue' }).click();
+  if (targetKg) {
+    await page.getByRole('button', { name: 'Lose', exact: true }).click();
+    await page.getByLabel('Target weight').fill(targetKg);
+  }
   await page.getByRole('button', { name: 'Start logging' }).click();
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 }
@@ -66,7 +75,7 @@ test('weight: log, trend, ranges, edit and delete', async ({ page }) => {
   await sheet.getByRole('button', { name: 'Minus 0.1 kg' }).click();
   await expect(sheet.getByLabel('Weight in kg')).toHaveValue('81.4');
   await sheet.getByLabel('Weight in kg').fill('20');
-  await expect(sheet.getByText(/Enter a weight from/)).toBeVisible();
+  await expect(sheet.getByText('Enter a weight between 30 and 400 kg')).toBeVisible();
   await expect(sheet.getByRole('button', { name: 'Save weight' })).toBeDisabled();
   await sheet.getByRole('button', { name: 'Cancel' }).click();
   await expect(sheet).toBeHidden();
@@ -96,4 +105,77 @@ test('weight: log, trend, ranges, edit and delete', async ({ page }) => {
   await page.getByRole('dialog', { name: 'Edit weight' }).getByRole('button', { name: 'Delete entry' }).click();
   await expect(rows).toHaveCount(3);
   await expect.poll(async () => (await serverWeights()).filter((w) => w.deleted_at === null).length, { timeout: 15_000 }).toBe(3);
+});
+
+const SIZES = [
+  { name: 'phone', width: 390, height: 844 },
+  { name: 'pc', width: 1280, height: 800 },
+];
+
+async function expectGraph(page: Page, label: string) {
+  for (const size of SIZES) {
+    await page.setViewportSize({ width: size.width, height: size.height });
+    const graph = page.getByRole('img', { name: /Daily weight/ });
+    await expect(graph, `${label} ${size.name}`).toBeVisible();
+    const box = await graph.boundingBox();
+    expect.soft(box?.height, `${label} ${size.name} graph height`).toBe(116);
+    expect.soft(box?.width ?? 0, `${label} ${size.name} graph width`).toBeGreaterThan(300);
+    expect.soft(box?.width ?? 999, `${label} ${size.name} graph stays in the phone column`).toBeLessThanOrEqual(380);
+    await expect.soft(page.getByTestId('weight-bar').first(), `${label} ${size.name} bar`).toBeAttached();
+    await expect.soft(page.getByText('Daily weight', { exact: true })).toBeVisible();
+    await expect.soft(page.getByText('No bar: no weigh-in')).toBeVisible();
+    await shot(page, `${label}-${size.name}`);
+  }
+}
+
+test('weight: the graph and layout of the board, with one weigh-in and many, on a phone and a PC', async ({ page }) => {
+  test.setTimeout(240_000);
+  const email = `weight-graph-${Date.now()}@example.test`;
+  await inviteUser(email);
+  await signInAndOnboard(page, email, '78');
+  await page.getByRole('link', { name: 'Weight', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Weight' })).toBeVisible();
+
+  // One weigh-in: still a graph, with a kg axis and date labels.
+  await expectGraph(page, 'one');
+  await expect.soft(page.getByTestId('weight-axis')).toContainText('83');
+  await expect.soft(page.getByTestId('weight-axis')).toContainText('80');
+  await expect.soft(page.getByText('3.5 kg to goal')).toBeVisible();
+  await expect.soft(page.getByText('Entries', { exact: true })).toBeVisible();
+  await expect.soft(page.getByText('Tap one to edit')).toBeVisible();
+  const rows = page.getByRole('list', { name: 'Weights' }).getByRole('link');
+  await expect.soft(rows.first()).toHaveAccessibleName(/^Edit weight 81\.5 kg, Today \d\d:\d\d$/);
+  await expect.soft(page.getByRole('link', { name: 'Back to Today' })).toBeVisible();
+
+  // Many weigh-ins over the 30-day range, with two days left out as on the board.
+  const kg = [83.0, 83.2, 82.9, 83.0, 82.6, 82.7, 82.4, 82.5, 82.2, 82.4, 82.1, 82.4, 82.1, 82.2, 81.9, 82.0, 81.6, 81.8, 81.4, 81.6, 81.3, 81.5, 81.3, 81.4, 81.6, 81.7, 81.2];
+  for (let i = 0; i < kg.length; i++) {
+    const daysAgo = 29 - i - (i >= 11 ? 2 : 0);
+    if (daysAgo > 0) await logWeight(page, String(kg[i]), daysAgo);
+  }
+  await expect(page.getByText(/^7-day trend \d+\.\d kg$/)).toBeVisible();
+  await expectGraph(page, 'many');
+  await expect.soft(page.getByTestId('weight-axis')).toHaveCount(0);
+
+  // A day with no weigh-in has no bar: 30 days, two gaps, and the rest all have a bar.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.soft(page.getByTestId('weight-bar')).toHaveCount(28);
+  await shot(page, 'many-phone-30d');
+  for (const range of ['7D', '90D', 'All']) {
+    await page.getByRole('button', { name: range }).click();
+    await shot(page, `many-phone-${range}`);
+  }
+  await page.getByRole('button', { name: '30D' }).click();
+
+  // The sheets.
+  await page.getByRole('link', { name: 'Log weight' }).click();
+  await expect(page.getByRole('dialog', { name: 'Log weight' })).toBeVisible();
+  await expect.soft(page.getByText('Type the number or use the steps')).toBeVisible();
+  await shot(page, 'sheet-log');
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await rows.nth(1).click();
+  const edit = page.getByRole('dialog', { name: 'Edit weight' });
+  await expect(edit).toBeVisible();
+  await expect.soft(edit.getByText('Added by you')).toBeVisible();
+  await shot(page, 'sheet-edit');
 });

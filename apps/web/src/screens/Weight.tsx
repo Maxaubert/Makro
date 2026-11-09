@@ -3,8 +3,7 @@
 // The trend maths is in domain/weight.ts. Apple Health is phone only, so its controls are left out.
 import { useState } from 'react';
 import { roundForDisplay } from '../domain/display';
-import { formatNumber } from '../domain/format';
-import { chartLayout, rangeStart, toGoal, WEIGHT_RANGES, weightSummary, type TrendDay, type WeightRange } from '../domain/weight';
+import { chartLayout, entryDayLabel, rangeStart, toGoal, WEIGHT_RANGES, weightSummary, type TrendDay, type WeightRange } from '../domain/weight';
 import { href, useApp, useBack, useData, useRoute } from '../lib/hooks';
 import { Card, Chip, Header, Icon, Notice, Page } from '../ui/kit';
 import { dayLabel, today } from './day';
@@ -19,26 +18,41 @@ function timeIn(iso: string, timeZone: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone });
 }
 
+/** Always one decimal, as on the board (81.0, not 81). Unknown stays "?". */
+function kgText(kg: number | null | undefined): string {
+  if (kg === null || kg === undefined) return '?';
+  return (roundForDisplay(kg, 1) as number).toFixed(1);
+}
+
 function signedKg(kg: number | null): string {
   if (kg === null) return '?';
   const rounded = roundForDisplay(kg, 1) as number;
-  return `${rounded > 0 ? '+' : ''}${formatNumber(rounded, 1)}`;
+  return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}`;
 }
 
 function slotTitle(slot: { date: string; weight_kg: number | null; trend_kg: number | null }): string {
-  const weight = slot.weight_kg === null ? 'no entry' : `${formatNumber(slot.weight_kg, 1)} kg`;
-  const trend = slot.trend_kg === null ? '' : `, trend ${formatNumber(slot.trend_kg, 1)} kg`;
+  const weight = slot.weight_kg === null ? 'no entry' : `${kgText(slot.weight_kg)} kg`;
+  const trend = slot.trend_kg === null ? '' : `, trend ${kgText(slot.trend_kg)} kg`;
   return `${dayLabel(slot.date)}: ${weight}${trend}`;
 }
 
+function graphLabel(days: TrendDay[]): string {
+  const missing = days.filter((d) => d.weight_kg === null).length;
+  const gaps = missing === 0 ? '' : ` ${missing} ${missing === 1 ? 'day has' : 'days have'} no weigh-in and no bar.`;
+  return `Daily weight for the last ${days.length} days as bars, with a 7-day trend line.${gaps}`;
+}
+
 function WeightChart({ days }: { days: TrendDay[] }) {
-  const { bars, trend, slots } = chartLayout(days);
+  const { bars, trend, slots, axis } = chartLayout(days);
   return (
     <div className="relative mt-3">
-      <svg width="100%" height="160" viewBox="0 0 326 160" preserveAspectRatio="none" role="img" aria-label={`Daily weight for the last ${days.length} days as bars, with a 7-day trend line`} className="block">
-        <line x1="0" y1="150" x2="326" y2="150" stroke="var(--color-border)" />
+      <svg width="100%" height="116" viewBox="0 0 326 116" preserveAspectRatio="none" role="img" aria-label={graphLabel(days)} className="block">
+        {axis.slice(0, -1).map((a) => (
+          <line key={a.kg} x1="0" y1={a.y} x2="326" y2={a.y} stroke="var(--color-border)" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
+        ))}
+        <line x1="0" y1="110" x2="326" y2="110" stroke="var(--color-border)" />
         {bars.map((b) => (
-          <rect key={b.date} x={b.x} y={b.y} width={b.width} height={b.height} rx="2" fill="var(--color-accent)" fillOpacity={b.latest ? 1 : 0.45} />
+          <rect key={b.date} data-testid="weight-bar" x={b.x} y={b.y} width={b.width} height={b.height} rx="2" fill="var(--color-accent)" fillOpacity={b.latest ? 1 : 0.45} />
         ))}
         {trend.map((points) =>
           points.length > 1 ? (
@@ -48,21 +62,30 @@ function WeightChart({ days }: { days: TrendDay[] }) {
           ),
         )}
         {slots.map((s) => (
-          <rect key={s.date} x={s.x} y="0" width={s.width} height="160" fill="transparent">
+          <rect key={s.date} x={s.x} y="0" width={s.width} height="116" fill="transparent">
             <title>{slotTitle(s)}</title>
           </rect>
         ))}
       </svg>
-      {bars.length === 0 && <p className="absolute inset-x-0 top-14 text-center text-sm text-secondary">No weights in this period.</p>}
+      {axis.length > 0 && (
+        <div data-testid="weight-axis" aria-hidden="true" className="pointer-events-none absolute inset-0">
+          {axis.map((a) => (
+            <span key={a.kg} className="absolute left-0 text-[11px] leading-none text-secondary" style={{ top: a.y - 13 }}>
+              {kgText(a.kg)}
+            </span>
+          ))}
+        </div>
+      )}
+      {bars.length === 0 && <p className="absolute inset-x-0 top-[46px] text-center text-sm text-secondary">No weights in this period.</p>}
     </div>
   );
 }
 
 function Stat({ label, kg }: { label: string; kg: number | null }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-3">
+    <div className="rounded-2xl border border-border bg-card px-3 py-2.5">
       <div className="text-[11px] text-secondary">{label}</div>
-      <div className="num mt-0.5 text-lg font-bold">{formatNumber(kg, 1)}</div>
+      <div className="mt-0.5 text-lg font-bold">{kgText(kg)}</div>
     </div>
   );
 }
@@ -91,46 +114,47 @@ export function Weight() {
 
   return (
     <Page nav>
-      <Header title="Weight" back="/today" />
+      <Header title="Weight" backLink={{ to: 'today', label: 'Back to Today' }} />
 
       <Card className="mt-2 p-4">
         <div className="flex items-start justify-between">
           <div>
             <div className="text-[13px] text-secondary">Latest</div>
-            <div className="num text-[44px] font-bold leading-[1.05] tracking-[-0.035em]">
-              {formatNumber(latest?.weight_kg, 1)}
+            <div className="text-[44px] font-bold leading-[1.05] tracking-[-1.5px]">
+              {kgText(latest?.weight_kg)}
               <span className="text-lg font-medium tracking-normal text-secondary"> kg</span>
             </div>
           </div>
           <div className="text-right">
-            <div className="num text-sm font-semibold text-secondary">{signedKg(summary.change_7d_kg)} kg / 7 days</div>
+            <div className="text-sm font-semibold text-secondary">{signedKg(summary.change_7d_kg)} kg / 7 days</div>
             {distance?.reached && <div className="mt-0.5 text-[13px] text-accent-2">Goal reached</div>}
-            {distance && !distance.reached && distance.kg !== null && <div className="num mt-0.5 text-[13px] text-accent-2">{formatNumber(distance.kg, 1)} kg to goal</div>}
+            {distance && !distance.reached && distance.kg !== null && <div className="mt-0.5 text-[13px] text-accent-2">{kgText(distance.kg)} kg to goal</div>}
           </div>
         </div>
 
         <div className="mt-2.5 flex gap-1.5">
           {WEIGHT_RANGES.map((r) => (
-            <Chip key={r} selected={range === r} onClick={() => setRange(r)}>
+            <Chip key={r} compact selected={range === r} onClick={() => setRange(r)}>
               {r}
             </Chip>
           ))}
         </div>
 
         <WeightChart days={summary.days} />
-        <div className="mt-1.5 flex justify-between text-[11px] text-secondary">
-          <span>{shortDate(from)}</span>
+        <div className={`mt-1.5 flex text-[11px] text-secondary ${summary.days.length > 1 ? 'justify-between' : 'justify-center'}`}>
+          {summary.days.length > 1 && <span>{shortDate(from)}</span>}
           <span>Today</span>
         </div>
-        <div className="mt-2 flex items-center gap-4 text-[12px] text-secondary">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] text-[#C8C8CC]">
           <span className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="h-2.5 w-1.5 rounded-sm bg-accent/45" />
-            Daily
+            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-[2px] bg-accent opacity-70" />
+            Daily weight
           </span>
-          <span className="num flex items-center gap-1.5">
-            <span aria-hidden="true" className="h-0.5 w-3.5 rounded-sm bg-text" />
-            {trendNow === null ? '7-day trend needs 3 weigh-ins in a week' : `7-day trend ${formatNumber(trendNow, 1)} kg`}
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-0.5 w-4 rounded-[1px] bg-text" />
+            {trendNow === null ? '7-day trend needs 3 weigh-ins in a week' : `7-day trend ${kgText(trendNow)} kg`}
           </span>
+          <span className="text-secondary">No bar: no weigh-in</span>
         </div>
       </Card>
 
@@ -152,21 +176,34 @@ export function Weight() {
       )}
 
       {entries.length > 0 && (
-        <ul className="mt-5 overflow-hidden rounded-2xl border border-border bg-card" aria-label="Weights">
-          {entries.map((w, i) => (
-            <li key={w.id} className={i > 0 ? 'border-t border-border' : ''}>
-              <a href={href('weight', 'edit', w.id)} className="tap flex items-baseline justify-between px-4 py-3.5">
-                <span className="text-[15px]">
-                  {dayLabel(w.local_date)}
-                  <span className="num ml-2 text-[13px] text-secondary">{timeIn(w.measured_at, w.tz)}</span>
-                </span>
-                <span className="num text-[17px] font-bold">
-                  {formatNumber(w.weight_kg, 1)} <span className="text-[13px] font-medium text-secondary">kg</span>
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
+        <section className="mt-3">
+          <div className="flex items-baseline justify-between pb-1.5">
+            <span className="text-[15px] font-bold text-secondary">Entries</span>
+            <span className="text-[12px] text-secondary">Tap one to edit</span>
+          </div>
+          <ul className="overflow-hidden rounded-2xl border border-border bg-card" aria-label="Weights">
+            {entries.map((w, i) => {
+              const when = entryDayLabel(w.local_date, day);
+              const time = timeIn(w.measured_at, w.tz);
+              return (
+                <li key={w.id} className={i > 0 ? 'border-t border-border' : ''}>
+                  <a href={href('weight', 'edit', w.id)} aria-label={`Edit weight ${kgText(w.weight_kg)} kg, ${when} ${time}`} className="tap flex min-h-12 items-center justify-between pl-4 pr-3">
+                    <span className="text-[15px]">
+                      {when}
+                      <span className="ml-1.5 text-[13px] text-secondary">{time}</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-[17px] font-bold">
+                        {kgText(w.weight_kg)} <span className="text-[13px] font-medium text-secondary">kg</span>
+                      </span>
+                      <Icon name="next" size={18} stroke={2} className="text-secondary" />
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {mode === 'log' && data && <WeightSheet entry={null} suggestedKg={latest?.weight_kg ?? null} onClose={close} />}
