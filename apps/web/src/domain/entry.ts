@@ -75,6 +75,11 @@ export interface GoalWriteRow extends SyncFields {
   weight_kg: number;
 }
 
+type GoalInputColumn = 'pace_kg_per_week' | 'sex' | 'birth_year' | 'height_cm' | 'activity_level' | 'weight_kg';
+
+/** A goal row as read back: a row from a phone may not hold the inputs (log-schema.md). */
+export type StoredGoal = Omit<GoalWriteRow, GoalInputColumn> & { [K in GoalInputColumn]: GoalWriteRow[K] | null };
+
 export type FoodRef =
   | { kind: 'product'; product: Product; db_version: string | null }
   | { kind: 'custom'; food: CustomFoodRow };
@@ -306,11 +311,12 @@ export function buildGoal(input: {
   return { ...syncFields(at), effective_from: stampLocalDay(at, tz).local_date, ...targets, ...rest };
 }
 
-export function buildWeightEntry(input: { weight_kg: number; at: Date; tz: string }): WeightEntryRow {
+/** `at` is when it was measured; `now` (default `at`) is when the row is written, for a back-dated weight. */
+export function buildWeightEntry(input: { weight_kg: number; at: Date; tz: string; now?: Date }): WeightEntryRow {
   if (!Number.isFinite(input.weight_kg) || input.weight_kg <= 0) throw new Error('weight must be above 0 kg');
   const day = stampLocalDay(input.at, input.tz);
   return {
-    ...syncFields(input.at),
+    ...syncFields(input.now ?? input.at),
     measured_at: input.at.toISOString(),
     tz: day.tz,
     local_date: day.local_date,

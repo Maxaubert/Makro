@@ -9,6 +9,7 @@ import { normalise } from '../domain/normalise';
 import { formatNumber } from '../domain/format';
 import { browserTimeZone } from '../domain/localDate';
 import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../lib/hooks';
+import { canTryScan } from '../lib/scanner';
 import { Chip, Header, Icon, Notice, Page, SourceBadge } from '../ui/kit';
 import { MEAL_LABEL, mealForNow } from './day';
 
@@ -102,7 +103,7 @@ export function AddFood() {
             if (tab !== 'all') setTab('all');
           }}
         />
-        <a href={href('code')} aria-label="Type a barcode" className="tap flex h-[38px] w-[38px] items-center justify-center rounded-full bg-accent text-ground">
+        <a href={href(canTryScan() ? 'scan' : 'code')} aria-label={canTryScan() ? 'Scan a barcode' : 'Type a barcode'} className="tap flex h-[38px] w-[38px] items-center justify-center rounded-full bg-accent text-ground">
           <Icon name="barcode" size={20} stroke={2} />
         </a>
       </div>
