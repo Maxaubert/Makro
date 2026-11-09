@@ -85,4 +85,4 @@ Static files only, all data stays in Supabase Frankfurt. When real logging is ap
 
 - Missing means `null`, shown as `?` with a count, never `0` (accuracy rule 2).
 - Every product shows its source and verified flag (rule 4).
-- The web app does not do goal maths (Swift only). It shows targets only from `goals` rows the phone writes.
+- Goal maths and limits live in `src/domain/goals.ts` (decision 38) and are checked by the golden files. Onboarding and the editing screens write `goals` rows through `src/domain/goalForm.ts`; a change takes effect from today, so past days keep their target.

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "description": "Age in a goal form, from the birth_year stored on a goal row, by calendar year: age = year - birth_year. Saving turns it back with birth_year = year - age, so an unchanged age never moves birth_year.",
+  "cases": [
+    { "id": "thirty", "input": { "birth_year": 1996, "year": 2026 }, "expected": { "age": 30 } },
+    { "id": "eighteen-this-year", "input": { "birth_year": 2008, "year": 2026 }, "expected": { "age": 18 } },
+    { "id": "seventeen-this-year", "input": { "birth_year": 2009, "year": 2026 }, "expected": { "age": 17 } },
+    { "id": "after-new-year", "input": { "birth_year": 1996, "year": 2027 }, "expected": { "age": 31 } }
+  ]
+}

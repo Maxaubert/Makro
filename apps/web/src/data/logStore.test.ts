@@ -46,6 +46,69 @@ describe('your data', () => {
   });
 });
 
+describe('changing a goal after onboarding (#73)', () => {
+  const change = (kcal: number, at: Date) =>
+    buildGoal({
+      targets: { kcal_target: kcal, protein_g_target: 163, carbs_g_target: 258, fat_g_target: 63, fibre_g_target: 30 },
+      goal_type: 'lose', target_weight_kg: 78, pace_kg_per_week: 0.5, sex: 'male', birth_year: 1996, height_cm: 182, activity_level: 'active', weight_kg: 81.5, at, tz: 'UTC',
+    });
+  const later = new Date('2026-10-25T08:00:00.000Z');
+  const liveGoals = () => store.exportAll().goals;
+
+  it('adds a row from today, so past days keep their target', () => {
+    store.saveGoal(change(2250, t0));
+    store.saveGoalChange(change(2100, later), null);
+    expect(liveGoals()).toHaveLength(2);
+    expect(store.goalFor('2026-10-24')?.kcal_target).toBe(2250);
+    expect(store.goalFor('2026-10-25')?.kcal_target).toBe(2100);
+    expect(store.goalFor('2026-10-30')?.kcal_target).toBe(2100);
+  });
+  it('updates the row when one exists for today, with a later updated_at, and queues it once', () => {
+    const first = change(2250, later);
+    store.saveGoal(first);
+    now = new Date('2026-10-25T09:00:00.000Z');
+    store.saveGoalChange(change(2100, now), null);
+    const rows = liveGoals();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: first.id, created_at: first.created_at, kcal_target: 2100, updated_at: '2026-10-25T09:00:00.000Z' });
+    expect(store.outboxBatch(10).filter((o) => o.table === 'goals')).toHaveLength(1);
+  });
+  it('wins over the old row even with a slow clock', () => {
+    const first = change(2250, later);
+    store.saveGoal(first);
+    now = new Date('2026-10-25T07:00:00.000Z');
+    store.saveGoalChange(change(2100, later), null);
+    expect(Date.parse(String(liveGoals()[0].updated_at))).toBeGreaterThan(Date.parse(first.updated_at));
+  });
+  it('does not reuse a deleted row for today', () => {
+    const first = change(2250, later);
+    store.saveGoal(first);
+    store.tombstone('goals', first.id);
+    const next = change(2100, later);
+    store.saveGoalChange(next, null);
+    expect(liveGoals()).toHaveLength(1);
+    expect(liveGoals()[0].id).toBe(next.id);
+  });
+  it('saves a changed weight with the goal, in one go', () => {
+    store.saveGoalChange(change(2100, later), buildWeightEntry({ weight_kg: 80, at: later, tz: 'UTC' }));
+    expect(store.weights(5).map((w) => w.weight_kg)).toEqual([80]);
+    expect(liveGoals()).toHaveLength(1);
+  });
+  it('writes nothing if the weight cannot be saved', () => {
+    expect(() => store.saveGoalChange(change(2100, later), { ...buildWeightEntry({ weight_kg: 80, at: later, tz: 'UTC' }), measured_at: 'nonsense' })).toThrow();
+    expect(liveGoals()).toEqual([]);
+  });
+  it('reads the latest live goal with all its inputs', () => {
+    expect(store.latestGoal()).toBeNull();
+    store.saveGoal(change(2250, t0));
+    const newest = change(2100, later);
+    store.saveGoal(newest);
+    expect(store.latestGoal()).toMatchObject({ id: newest.id, kcal_target: 2100, goal_type: 'lose', sex: 'male', birth_year: 1996, height_cm: 182, activity_level: 'active', weight_kg: 81.5, target_weight_kg: 78, pace_kg_per_week: 0.5 });
+    store.tombstone('goals', newest.id);
+    expect(store.latestGoal()?.kcal_target).toBe(2250);
+  });
+});
+
 describe('first-run setup', () => {
   const goal = () =>
     buildGoal({

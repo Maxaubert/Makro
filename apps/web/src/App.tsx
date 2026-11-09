@@ -7,6 +7,7 @@ import { BarcodeNoData, BarcodeNotFound } from './screens/BarcodeResults';
 import { CustomFood } from './screens/CustomFood';
 import { Diary } from './screens/Diary';
 import { EditEntry } from './screens/EditEntry';
+import { EditGoals } from './screens/EditGoals';
 import { Onboarding } from './screens/Onboarding';
 import { Portion } from './screens/Portion';
 import { Privacy } from './screens/Privacy';
@@ -76,6 +77,8 @@ export function App() {
       return <Account />;
     case 'privacy':
       return <Privacy />;
+    case 'profile':
+      return <EditGoals key={a} start={a === 'goals' ? 'goals' : 'about'} />;
     default:
       return <Today />;
   }

@@ -75,6 +75,11 @@ export interface GoalWriteRow extends SyncFields {
   weight_kg: number;
 }
 
+type GoalInputColumn = 'pace_kg_per_week' | 'sex' | 'birth_year' | 'height_cm' | 'activity_level' | 'weight_kg';
+
+/** A goal row as read back: a row from a phone may not hold the inputs (log-schema.md). */
+export type StoredGoal = Omit<GoalWriteRow, GoalInputColumn> & { [K in GoalInputColumn]: GoalWriteRow[K] | null };
+
 export type FoodRef =
   | { kind: 'product'; product: Product; db_version: string | null }
   | { kind: 'custom'; food: CustomFoodRow };
