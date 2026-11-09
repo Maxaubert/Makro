@@ -161,3 +161,5 @@ Two Makro PRs (#34, then #46) and one nutrition-data PR. Each Makro PR waits for
 **2026-11-09, later:** consent and first-run onboarding are live (#67, #15; Makro #68 to #71, decision 38, plan in `2026-11-09-consent-and-onboarding.md`). Every signed-in user sees setup once. Friend invites stay on hold: see the decision note on #15. Labels and dairy names are in `db-2026.11.09-3`. Follow-ups: #72, #73, #74.
 
 **2026-11-09, evening:** merged and deployed #75 to #81: missed-product CORS, edit goals, weight chart and trend, favourites, saved meals, repeat yesterday, search typos, barcode camera, weekly average and guidance. Not tried on a real phone; the camera has never read a real barcode. #27 still needs the end-of-day screen (where a confirmed day is stored is undecided). #74 awaits a decision.
+
+**2026-11-09, night:** #82 (Weight matches the boards) and #83 (end-of-day) merged and deployed. Curated names for meat, ready meals, snacks and drinks in `db-2026.11.09-4` (nutrition-data #17). A confirmed day is stored on the device only (`sync_state`, `day_complete:<date>`), and there is no undo yet.
