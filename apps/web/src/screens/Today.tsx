@@ -1,5 +1,5 @@
 // Today: half-ring kcal gauge, macro rings, quick actions and the latest weight.
-// A target shows only when a goals row exists (the phone writes it; the web never sets goals).
+// A target shows only when a goals row exists (set during onboarding).
 import { formatNumber, formatTotal } from '../domain/format';
 import { href, useApp, useAppState, useData } from '../lib/hooks';
 import { Card, HalfGauge, Icon, Page, Ring, SyncPill, UnknownNote } from '../ui/kit';

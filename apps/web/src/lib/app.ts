@@ -4,9 +4,10 @@ import { createClient, type Session, type SupabaseClient } from '@supabase/supab
 import { syncProductFile, type LatestJson } from '../data/productFile';
 import type { ProductMeta } from '../data/products';
 import { SyncScheduler, syncOnce, type SyncStatus } from '../data/sync';
-import { buildMissPayload, type CustomFoodRow, type MissType } from '../domain/entry';
+import { buildMissPayload, type CustomFoodRow, type GoalWriteRow, type MissType, type WeightEntryRow } from '../domain/entry';
 import { createDb, type Db } from './db';
 import { guardOwner, ownerReady } from './owner';
+import { CONSENT_TEXT_VERSION, resolveSetup, type SetupState } from './setup';
 
 export const APP_VERSION = `web-${__APP_VERSION__}`;
 
@@ -20,6 +21,8 @@ export interface AppState {
   authReady: boolean;
   /** The user the local log is claimed for. Data screens and syncs wait until it equals the session user. */
   owner: string | null;
+  /** First-run consent and goal. The app opens only when this is done. */
+  setup: SetupState;
   products: ProductState;
   sync: SyncStatus;
   pending: number;
@@ -36,6 +39,8 @@ export function productSourceMode(): 'fixture' | 'bucket' {
   // The fixture is served only by the dev server; a production build always uses the bucket.
   return import.meta.env.DEV && import.meta.env.VITE_PRODUCTS_SOURCE === 'fixture' ? 'fixture' : 'bucket';
 }
+
+const CHECKING: SetupState = { status: 'checking', hasConsent: false, hasGoal: false };
 
 export class App {
   readonly supabase: SupabaseClient;
@@ -56,6 +61,7 @@ export class App {
       session: null,
       authReady: false,
       owner: null,
+      setup: CHECKING,
       products: { status: 'loading', message: 'Opening your log' },
       sync: this.scheduler.getStatus(),
       pending: 0,
@@ -67,7 +73,7 @@ export class App {
       const was = this.state.session?.user.id;
       const changedUser = session?.user.id !== was;
       // A different (or no) user: forget the claim first, so no screen or sync uses the old log.
-      this.set(changedUser ? { session, authReady: true, owner: null } : { session, authReady: true });
+      this.set(changedUser ? { session, authReady: true, owner: null, setup: CHECKING } : { session, authReady: true });
       if (!session) this.scheduler.stop();
       else if (changedUser) void this.afterSignIn();
     });
@@ -104,10 +110,60 @@ export class App {
       return;
     }
     await this.refreshPending();
+    await this.checkSetup();
+    await this.loadProducts();
+  }
+
+  /** Decide whether first-run setup is needed. Nothing syncs until it is done. */
+  async checkSetup(): Promise<void> {
+    const userId = this.state.session?.user.id;
+    if (!userId) return;
+    this.set({ setup: CHECKING });
+    const setup = await resolveSetup({ userId, doneFor: await this.db.setupDoneFor(), fetchFacts: () => this.setupFacts() });
+    if (this.state.session?.user.id !== userId) return;
+    this.set({ setup });
+    if (setup.status === 'done') await this.afterSetup(userId);
+  }
+
+  private async setupFacts() {
+    const [consent, goal] = await Promise.all([
+      this.supabase.from('consents').select('id').eq('kind', 'health_data').is('withdrawn_at', null).limit(1),
+      this.supabase.from('goals').select('id').is('deleted_at', null).limit(1),
+    ]);
+    if (consent.error) throw new Error(consent.error.message);
+    if (goal.error) throw new Error(goal.error.message);
+    return { hasConsent: consent.data.length > 0, hasGoal: goal.data.length > 0 };
+  }
+
+  private async afterSetup(userId: string): Promise<void> {
+    await this.db.markSetupDone(userId);
     // After a sign-out the scheduler is stopped; start() brings back the timer and the
     // reconnect listener; when it is already running, start() just syncs now.
     this.scheduler.start();
-    await this.loadProducts();
+  }
+
+  /** Record explicit consent. Already having an active one counts as success. */
+  async giveConsent(choice: { popularity: boolean }): Promise<void> {
+    const kinds = choice.popularity ? ['health_data', 'popularity'] : ['health_data'];
+    for (const kind of kinds) {
+      const { error } = await this.supabase.from('consents').insert({ kind, text_version: CONSENT_TEXT_VERSION });
+      if (error && error.code !== '23505') throw new Error(`Could not save your choice. Check your connection and try again. (${error.message})`);
+    }
+    this.set({ setup: { ...this.state.setup, hasConsent: true } });
+  }
+
+  /** Save the first goal and weight (null when a goal already exists) and open the app. */
+  async finishSetup(first: { goal: GoalWriteRow; weight: WeightEntryRow } | null): Promise<void> {
+    const userId = this.state.session?.user.id;
+    if (!userId) return;
+    if (first) {
+      await this.db.saveGoal(first.goal);
+      await this.db.saveWeight(first.weight);
+    }
+    await this.refreshPending();
+    await this.afterSetup(userId);
+    this.set({ setup: { status: 'done', hasConsent: true, hasGoal: true }, dataVersion: this.state.dataVersion + 1 });
+    window.location.hash = '#/today';
   }
 
   /** Call after every local write: the screens re-read and a sync is scheduled. */

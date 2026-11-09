@@ -1,7 +1,7 @@
 // The local log store: a SQLite file in OPFS with the log-schema v1 tables and an outbox.
 // Every save lands here first, so logging works without a connection (rule 5, decision 8).
 // The sync loop (sync.ts) drains the outbox through sync_push and applies sync_pull pages.
-import type { CustomFoodRow, LogEntryRow, Meal, WeightEntryRow } from '../domain/entry';
+import type { CustomFoodRow, GoalWriteRow, LogEntryRow, Meal, WeightEntryRow } from '../domain/entry';
 import { MEALS } from '../domain/entry';
 import type { AmountUnit } from '../domain/grams';
 import type { Nutrient } from '../domain/nutrients';
@@ -111,6 +111,19 @@ export class LogStore {
 
   saveWeight(row: WeightEntryRow): void {
     this.save('weight_entries', row as unknown as Record<string, unknown>);
+  }
+
+  saveGoal(row: GoalWriteRow): void {
+    this.save('goals', row as unknown as Record<string, unknown>);
+  }
+
+  /** The account that finished first-run setup on this device, if any. */
+  setupDoneFor(): string | null {
+    return this.sql.get<{ value: string }>("select value from sync_state where key = 'setup_done_for'")?.value ?? null;
+  }
+
+  markSetupDone(userId: string): void {
+    this.sql.run("insert into sync_state (key, value) values ('setup_done_for', ?) on conflict (key) do update set value = excluded.value", [userId]);
   }
 
   /** Edit the amount or meal of an entry. grams follows the amount; the snapshot stays. */

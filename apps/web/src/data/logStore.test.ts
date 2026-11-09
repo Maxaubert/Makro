@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { buildCustomFood, buildLogEntry, buildWeightEntry, type LogEntryRow } from '../domain/entry';
+import { buildCustomFood, buildGoal, buildLogEntry, buildWeightEntry, type LogEntryRow } from '../domain/entry';
 import type { Product } from './products';
 import { LogStore } from './logStore';
 import { memoryDb } from './testing';
@@ -20,6 +20,27 @@ beforeEach(async () => {
   now = new Date('2026-10-20T09:00:00.000Z');
   store = new LogStore(await memoryDb(), () => now);
   store.migrate();
+});
+
+describe('first-run setup', () => {
+  const goal = () =>
+    buildGoal({
+      targets: { kcal_target: 2250, protein_g_target: 163, carbs_g_target: 258, fat_g_target: 63, fibre_g_target: 30 },
+      goal_type: 'lose', target_weight_kg: 78, pace_kg_per_week: 0.5, sex: 'male', birth_year: 1996, height_cm: 182, activity_level: 'active', weight_kg: 81.5, at: t0, tz: 'UTC',
+    });
+  it('saves a goal that the day screens read and that syncs', () => {
+    const g = goal();
+    expect(g).toMatchObject({ effective_from: '2026-10-20', goal_type: 'lose', kcal_target: 2250, sex: 'male', birth_year: 1996 });
+    store.saveGoal(g);
+    expect(store.goalFor('2026-10-20')?.kcal_target).toBe(2250);
+    expect(store.goalFor('2026-10-19')).toBeNull();
+    expect(store.pendingCount()).toBe(1);
+  });
+  it('remembers which account finished setup', () => {
+    expect(store.setupDoneFor()).toBeNull();
+    store.markSetupDone('user-1');
+    expect(store.setupDoneFor()).toBe('user-1');
+  });
 });
 
 describe('popularity', () => {
