@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "description": "Distance from a weight to the goal's target. goal_type gives the direction: a weight at or past the target in that direction is reached, with kg 0. maintain has no direction, so kg is null, as it is when the weight or the target is unknown. Values are unrounded.",
+  "cases": [
+    { "id": "lose-above-target", "input": { "weight_kg": 81.5, "target_kg": 78, "goal_type": "lose" }, "expected": { "kg": 3.5, "reached": false } },
+    { "id": "lose-at-target", "input": { "weight_kg": 78, "target_kg": 78, "goal_type": "lose" }, "expected": { "kg": 0, "reached": true } },
+    { "id": "lose-past-target", "input": { "weight_kg": 77, "target_kg": 78, "goal_type": "lose" }, "expected": { "kg": 0, "reached": true } },
+    { "id": "gain-below-target", "input": { "weight_kg": 70, "target_kg": 75, "goal_type": "gain" }, "expected": { "kg": 5, "reached": false } },
+    { "id": "gain-past-target", "input": { "weight_kg": 76, "target_kg": 75, "goal_type": "gain" }, "expected": { "kg": 0, "reached": true } },
+    { "id": "maintain-has-no-distance", "input": { "weight_kg": 80, "target_kg": 78, "goal_type": "maintain" }, "expected": { "kg": null, "reached": false } },
+    { "id": "no-target-is-unknown", "input": { "weight_kg": 80, "target_kg": null, "goal_type": "lose" }, "expected": { "kg": null, "reached": false } },
+    { "id": "no-weight-is-unknown", "input": { "weight_kg": null, "target_kg": 78, "goal_type": "lose" }, "expected": { "kg": null, "reached": false } }
+  ]
+}

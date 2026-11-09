@@ -152,6 +152,16 @@ describe('buildMissPayload (submit-miss v1, log-schema.md Miss payload)', () => 
 });
 
 describe('buildWeightEntry', () => {
+  it('dates a back-dated weight by when it was measured but stamps the row with now', () => {
+    const now = new Date('2026-10-20T09:00:00.000Z');
+    const measured = new Date('2026-10-17T06:30:00.000Z');
+    const w = buildWeightEntry({ weight_kg: 81.5, at: measured, tz: 'Europe/Oslo', now });
+    expect(w.measured_at).toBe(measured.toISOString());
+    expect(w.local_date).toBe('2026-10-17');
+    expect(w.created_at).toBe(now.toISOString());
+    expect(w.updated_at).toBe(now.toISOString());
+  });
+
   it('stamps tz and local_date and marks the source manual', () => {
     const w = buildWeightEntry({ weight_kg: 81.5, at, tz: 'Europe/Oslo' });
     expect(w).toMatchObject({ weight_kg: 81.5, local_date: '2026-10-21', tz: 'Europe/Oslo', source: 'manual', external_id: null, measured_at: '2026-10-20T23:30:00.000Z' });
