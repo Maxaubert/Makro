@@ -5,6 +5,7 @@ import { Account } from './screens/Account';
 import { AddFood } from './screens/AddFood';
 import { BarcodeNoData, BarcodeNotFound } from './screens/BarcodeResults';
 import { CustomFood } from './screens/CustomFood';
+import { DayEnd } from './screens/DayEnd';
 import { Diary } from './screens/Diary';
 import { EditEntry } from './screens/EditEntry';
 import { EditGoals } from './screens/EditGoals';
@@ -55,6 +56,8 @@ export function App() {
   switch (screen) {
     case 'diary':
       return <Diary key={a ?? 'today'} date={a} />;
+    case 'day-end':
+      return <DayEnd key={a ?? 'yesterday'} date={a} />;
     case 'entry':
       return <EditEntry id={a} />;
     case 'add':

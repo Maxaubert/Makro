@@ -32,6 +32,27 @@ export function localMinutes(at: string, timeZone: string): number | null {
   return get('hour') * 60 + get('minute');
 }
 
+/** The instant that is `minutes` after local midnight of `localDate` in `timeZone`. */
+export function instantOn(localDate: string, minutes: number, timeZone: string): Date {
+  const [y, m, d] = localDate.split('-').map(Number);
+  const wall = Date.UTC(y, m - 1, d, 0, minutes);
+  let at = new Date(wall);
+  // The zone's offset depends on the instant, so correct by what the clock shows, twice for DST.
+  for (let i = 0; i < 2; i++) {
+    const [sy, sm, sd] = localDateIn(at, timeZone).split('-').map(Number);
+    const shown = Date.UTC(sy, sm - 1, sd, 0, localMinutes(at.toISOString(), timeZone) as number);
+    at = new Date(at.getTime() + wall - shown);
+  }
+  return at;
+}
+
+/** `value` when it is a real YYYY-MM-DD day before `today`, otherwise null. Input from a URL. */
+export function pastLocalDate(value: string | null, today: string): string | null {
+  if (value === null || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value >= today) return null;
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10) === value ? value : null;
+}
+
 export interface LocalDay {
   tz: string;
   local_date: string;

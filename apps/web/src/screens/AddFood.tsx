@@ -7,11 +7,11 @@ import { productSubtext, type Product } from '../data/products';
 import type { CustomFoodRow } from '../domain/entry';
 import { normalise } from '../domain/normalise';
 import { formatNumber } from '../domain/format';
-import { browserTimeZone } from '../domain/localDate';
+import { browserTimeZone, pastLocalDate } from '../domain/localDate';
 import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../lib/hooks';
 import { canTryScan } from '../lib/scanner';
 import { Chip, Header, Icon, Notice, Page, SourceBadge } from '../ui/kit';
-import { MEAL_LABEL, mealForNow } from './day';
+import { dayLabel, MEAL_LABEL, mealForNow, today, withDay } from './day';
 
 type Tab = 'all' | 'recent' | 'favourites' | 'mine';
 
@@ -46,6 +46,9 @@ function customRow(f: CustomFoodRow): Row {
 export function AddFood() {
   const app = useApp();
   const { products } = useAppState();
+  // Set when adding to an earlier day from the end-of-day screen. Barcode and saved meals log
+  // for now only, so they are left out here rather than landing on the wrong day.
+  const day = pastLocalDate(useQueryParam('date'), today());
   const [query, setQuery] = useState(useQueryParam('q') ?? '');
   const [tab, setTab] = useState<Tab>('all');
   const q = useDeferredValue(query);
@@ -88,6 +91,7 @@ export function AddFood() {
   return (
     <Page>
       <Header title="Log food" back="/today" />
+      {day && <p className="mt-1 text-[13px] font-semibold text-accent-2" data-testid="adding-to-day">Adding to {dayLabel(day)}</p>}
 
       <div className="mt-2 flex h-12 items-center gap-2.5 rounded-full border border-border bg-card pl-4 pr-1.5 focus-within:border-accent-2">
         <Icon name="search" size={20} className="text-secondary" />
@@ -103,9 +107,11 @@ export function AddFood() {
             if (tab !== 'all') setTab('all');
           }}
         />
-        <a href={href(canTryScan() ? 'scan' : 'code')} aria-label={canTryScan() ? 'Scan a barcode' : 'Type a barcode'} className="tap flex h-[38px] w-[38px] items-center justify-center rounded-full bg-accent text-ground">
-          <Icon name="barcode" size={20} stroke={2} />
-        </a>
+        {!day && (
+          <a href={href(canTryScan() ? 'scan' : 'code')} aria-label={canTryScan() ? 'Scan a barcode' : 'Type a barcode'} className="tap flex h-[38px] w-[38px] items-center justify-center rounded-full bg-accent text-ground">
+            <Icon name="barcode" size={20} stroke={2} />
+          </a>
+        )}
       </div>
 
       <div className="mt-3 flex gap-2 overflow-x-auto">
@@ -123,12 +129,12 @@ export function AddFood() {
       )}
       {error && <div className="mt-4"><Notice tone="error">{error}</Notice></div>}
 
-      {tab === 'mine' && savedMeals && savedMeals.length > 0 && <SavedMeals meals={savedMeals} />}
+      {tab === 'mine' && !day && savedMeals && savedMeals.length > 0 && <SavedMeals meals={savedMeals} />}
 
       <ul className="mt-3 flex flex-col gap-2" aria-label="Results">
         {rows.map((r) => (
           <li key={r.key}>
-            <a href={r.to} className="tap flex min-h-11 items-center gap-3 rounded-2xl border border-border bg-card py-3 pl-4 pr-3" data-testid="food-row">
+            <a href={withDay(r.to, day)} className="tap flex min-h-11 items-center gap-3 rounded-2xl border border-border bg-card py-3 pl-4 pr-3" data-testid="food-row">
               <div className="min-w-0 flex-1">
                 <div className="text-[15px] font-semibold">{r.name}</div>
                 {r.sub && <div className="mt-0.5 truncate text-[13px] text-secondary">{r.sub}</div>}
@@ -163,7 +169,7 @@ export function AddFood() {
       <div className="mt-3 flex items-center gap-3 rounded-2xl border border-dashed border-[#3A3A3E] p-3.5">
         <div className="flex-1 text-sm font-semibold">Can't find it?</div>
         <a
-          href={`${href('custom')}?name=${encodeURIComponent(query.trim())}&q=${encodeURIComponent(query.trim())}`}
+          href={withDay(`${href('custom')}?name=${encodeURIComponent(query.trim())}&q=${encodeURIComponent(query.trim())}`, day)}
           className="tap flex h-11 shrink-0 items-center rounded-full bg-text px-4 text-sm font-bold text-ground"
         >
           Add custom

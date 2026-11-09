@@ -39,6 +39,11 @@ export function addDays(localDate: string, n: number): string {
   return t.toISOString().slice(0, 10);
 }
 
+/** Carries the earlier day being added to from screen to screen (#/add?date=...). */
+export function withDay(to: string, day: string | null): string {
+  return day ? `${to}${to.includes('?') ? '&' : '?'}date=${day}` : to;
+}
+
 export function dayLabel(localDate: string): string {
   const [y, m, d] = localDate.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });

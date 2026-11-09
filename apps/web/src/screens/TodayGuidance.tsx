@@ -50,26 +50,27 @@ export function GuidanceCards({ date, entries, goal }: { date: string; entries: 
       week: dates.length > 0 ? await app.db.entriesBetween(dates[0], dates[dates.length - 1]) : [],
       yesterday: await app.db.dayEntries(yesterday),
       yesterdayGoal: await app.db.goalFor(yesterday),
+      yesterdayComplete: await app.db.isDayComplete(yesterday),
     };
   }, [date]);
   return (
     <>
-      {data && <YesterdayRow date={yesterday} entries={data.yesterday} kcalTarget={data.yesterdayGoal?.kcal_target ?? null} />}
+      {data && <YesterdayRow date={yesterday} entries={data.yesterday} kcalTarget={data.yesterdayGoal?.kcal_target ?? null} confirmedComplete={data.yesterdayComplete} />}
       {goal && <WhatIsLeft entries={entries} goal={goal} />}
       {data && <WeeklyCard today={date} entries={data.week} goal={goal} />}
     </>
   );
 }
 
-function YesterdayRow({ date, entries, kcalTarget }: { date: string; entries: LocalLogEntry[]; kcalTarget: number | null }) {
+function YesterdayRow({ date, entries, kcalTarget, confirmedComplete }: { date: string; entries: LocalLogEntry[]; kcalTarget: number | null; confirmedComplete: boolean }) {
   const status = dayStatus({
     entries: entries.map((e) => ({ kcal: e.kcal_total, eaten_minutes: localMinutes(e.eaten_at, e.tz) })),
     kcal_target: kcalTarget,
   });
-  const line = dayStatusLine(status);
+  const line = dayStatusLine(status, confirmedComplete);
   if (line === null) return null;
   return (
-    <a href={href('diary', date)} className="card tap mt-3 flex items-center gap-3 px-4 py-3.5" data-testid="yesterday-row">
+    <a href={href('day-end', date)} className="card tap mt-3 flex items-center gap-3 px-4 py-3.5" data-testid="yesterday-row">
       <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent-2" aria-hidden="true" />
       <div className="min-w-0 grow">
         <div className="text-[12px] text-secondary">Yesterday, {dayLine(date)}</div>

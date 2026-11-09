@@ -6,6 +6,7 @@ import { buildCustomFood, type CustomFoodForm } from '../domain/entry';
 import type { Nutrient } from '../domain/nutrients';
 import { navigate, useApp, useQueryParam } from '../lib/hooks';
 import { Card, Chip, Header, Notice, Page, PrimaryButton } from '../ui/kit';
+import { withDay } from './day';
 
 const MAIN: { key: Nutrient; label: string; unit: string }[] = [
   { key: 'kcal', label: 'Calories', unit: 'kcal' },
@@ -23,6 +24,7 @@ const MORE: { key: Nutrient; label: string; unit: string }[] = [
 export function CustomFood() {
   const app = useApp();
   const query = useQueryParam('q');
+  const day = useQueryParam('date');
   const [form, setForm] = useState<CustomFoodForm>({
     name: useQueryParam('name') ?? '',
     brand: useQueryParam('brand') ?? '',
@@ -51,7 +53,7 @@ export function CustomFood() {
         ean: food.ean,
         query_text: food.ean ? null : query?.trim() || food.name,
       });
-      navigate(`/portion/custom/${encodeURIComponent(food.id)}`, { replace: true });
+      navigate(withDay(`/portion/custom/${encodeURIComponent(food.id)}`, day), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSaving(false);

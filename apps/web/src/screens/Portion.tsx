@@ -3,15 +3,15 @@
 // without numbers can still be logged, or turned into a custom food with the label values.
 import { useState } from 'react';
 import { productSubtext, type Product } from '../data/products';
-import { buildFavourite, buildLogEntry, MEALS, parseAmount, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../domain/entry';
+import { buildFavourite, buildLogEntry, MEALS, mealTimeOn, parseAmount, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../domain/entry';
 import { formatNumber } from '../domain/format';
 import { resolveGrams, type AmountUnit } from '../domain/grams';
-import { browserTimeZone } from '../domain/localDate';
+import { browserTimeZone, pastLocalDate } from '../domain/localDate';
 import { NUTRIENTS } from '../domain/nutrients';
 import { portion } from '../domain/portion';
 import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../lib/hooks';
 import { Card, Chip, Header, Icon, Notice, Page, PrimaryButton, SecondaryButton, SourceBadge } from '../ui/kit';
-import { MEAL_LABEL, mealForNow } from './day';
+import { dayLabel, MEAL_LABEL, mealForNow, today, withDay } from './day';
 
 type Food = { ref: FoodRef; per: Product | CustomFoodRow; sourceName: string; verified: boolean | null; values: Record<string, number | null>; last: { quantity: number; unit: AmountUnit } | null; ids: string[]; favourite: boolean };
 
@@ -66,7 +66,9 @@ function PortionForm({ food }: { food: Food }) {
   const amount = useQueryParam('amount');
   const [unit, setUnit] = useState<AmountUnit>(amount ? units[0] : (last?.unit ?? units[0]));
   const [qty, setQty] = useState(amount ?? (last ? String(last.quantity) : units[0] === 'g' || units[0] === 'ml' ? '100' : '1'));
-  const [meal, setMeal] = useState<Meal>(mealForNow());
+  // Set when adding to an earlier day from the end-of-day screen.
+  const day = pastLocalDate(useQueryParam('date'), today());
+  const [meal, setMeal] = useState<Meal>(day ? 'dinner' : mealForNow());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -90,10 +92,12 @@ function PortionForm({ food }: { food: Food }) {
     if (quantity === null || grams === null) return;
     setSaving(true);
     try {
-      const entry = buildLogEntry({ food: food.ref, quantity, unit, meal, at: new Date(), tz: browserTimeZone() });
+      const tz = browserTimeZone();
+      const saved_at = new Date();
+      const entry = buildLogEntry({ food: food.ref, quantity, unit, meal, at: day ? mealTimeOn(day, meal, tz) : saved_at, tz, saved_at });
       await app.db.saveLogEntry(entry);
       await app.changed();
-      navigate('/today');
+      navigate(day ? `/day-end/${day}` : '/today');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setSaving(false);
@@ -114,11 +118,12 @@ function PortionForm({ food }: { food: Food }) {
   const unitLabel = (u: AmountUnit) =>
     u === 'serving' ? `Serving ${formatNumber(p.serving_g, 0)} g` : u === 'piece' ? `Piece ${formatNumber(p.serving_g, 0)} g` : u === 'ml' ? 'Millilitres' : 'Grams';
 
-  const customHref = `${href('custom')}?name=${encodeURIComponent(p.name)}&brand=${encodeURIComponent(p.brand ?? '')}&ean=${encodeURIComponent(p.ean ?? '')}`;
+  const customHref = withDay(`${href('custom')}?name=${encodeURIComponent(p.name)}&brand=${encodeURIComponent(p.brand ?? '')}&ean=${encodeURIComponent(p.ean ?? '')}`, day);
 
   return (
     <Page>
       <Header title="Add portion" back="/add" />
+      {day && <p className="mt-1 text-[13px] font-semibold text-accent-2" data-testid="adding-to-day">Adding to {dayLabel(day)}</p>}
       <div className="pt-3">
         <div className="text-[22px] font-bold" data-testid="portion-name">{p.name}</div>
         <div className="mt-0.5 text-[13px] text-secondary">{'pack_size' in p ? productSubtext(p) : p.brand}</div>
