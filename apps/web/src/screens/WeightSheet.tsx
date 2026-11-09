@@ -12,24 +12,30 @@ import { today } from './day';
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** The value format of datetime-local, in the browser's own zone. */
-function toLocalInput(d: Date): string {
+export function toLocalInput(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function whenLabel(at: Date | null): string {
+export function whenLabel(at: Date | null): string {
   if (!at) return 'Pick a time';
   const time = `${pad(at.getHours())}:${pad(at.getMinutes())}`;
   if (localDateIn(at, browserTimeZone()) === today()) return `Today, ${time}`;
   return `${at.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '')}, ${time}`;
 }
 
-function parseKg(text: string): number | null {
+export function parseKg(text: string): number | null {
   try {
     const n = parseAmount(text);
     return n !== null && isPlausibleWeight(n) ? n : null;
   } catch {
     return null;
   }
+}
+
+/** The text after one step of the stepper, or null when that step would leave the plausible range. */
+export function steppedKgText(kg: number, delta: number): string | null {
+  const next = roundForDisplay(kg + delta, 1) as number;
+  return isPlausibleWeight(next) ? next.toFixed(1) : null;
 }
 
 /** The dimmed backdrop and the sheet itself. Escape or a tap outside closes it. */
@@ -101,8 +107,8 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
 
   function step(delta: number) {
     if (kg === null) return;
-    const next = roundForDisplay(kg + delta, 1) as number;
-    if (isPlausibleWeight(next)) setText(next.toFixed(1));
+    const next = steppedKgText(kg, delta);
+    if (next !== null) setText(next);
   }
 
   async function run(action: () => Promise<void>) {

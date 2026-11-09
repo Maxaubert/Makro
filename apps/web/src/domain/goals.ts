@@ -1,6 +1,7 @@
 // Daily targets from a profile, and the limits on a goal (decision 38). Deterministic code only:
 // AI never produces a number (accuracy rule 1). Checked by packages/contracts/goals/*.json, which
 // also says how far each constant is confirmed; the floors and the loss cap are provisional.
+import { roundForDisplay } from './display';
 
 export type Sex = 'male' | 'female';
 export type ActivityLevel = 'sedentary' | 'active' | 'very_active';
@@ -81,6 +82,34 @@ export function goalProblem(i: LimitInput): GoalProblem | null {
   if (i.kcal_target < kcalFloor(i.sex)) return 'below_floor';
   if (i.goal_type === 'lose' && i.pace_kg_per_week > GOAL_CONSTANTS.max_loss_kg_per_week) return 'pace_too_fast';
   return null;
+}
+
+export interface MacroGrams {
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+}
+
+export interface MacroPart {
+  kcal: number | null;
+  /** A whole percent of the three together, or null when that total is unknown or 0. */
+  share: number | null;
+}
+
+export type MacroSplit = Record<'protein' | 'carbs' | 'fat', MacroPart>;
+
+/** What each macro target is worth in kcal and its share (goals/macro_split.json). Unknown stays unknown. */
+export function macroSplit(g: MacroGrams): MacroSplit {
+  const kcal = (grams: number | null, perGram: number) => (grams === null ? null : grams * perGram);
+  const protein = kcal(g.protein_g, 4);
+  const carbs = kcal(g.carbs_g, 4);
+  const fat = kcal(g.fat_g, 9);
+  const total = protein === null || carbs === null || fat === null ? null : protein + carbs + fat;
+  const part = (k: number | null): MacroPart => ({
+    kcal: k,
+    share: k === null || total === null || total === 0 ? null : roundForDisplay((k / total) * 100, 0),
+  });
+  return { protein: part(protein), carbs: part(carbs), fat: part(fat) };
 }
 
 export const WEIGHT_RANGE_KG = { min: 30, max: 400 };

@@ -14,6 +14,7 @@ const paths = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
   weight: (
     <>
       <rect x="4" y="4" width="16" height="16" rx="3" />
@@ -24,6 +25,13 @@ const paths = {
     <>
       <circle cx="12" cy="8" r="3.5" />
       <path d="M5 20a7 7 0 0 1 14 0" />
+    </>
+  ),
+  trends: <path d="M5 20V11M12 20V4M19 20v-6" />,
+  goals: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3.5" />
     </>
   ),
   search: (

@@ -22,6 +22,22 @@ beforeEach(async () => {
   store.migrate();
 });
 
+describe('loggedDays', () => {
+  it('lists each day with a live entry once, newest first', () => {
+    store.saveLogEntry(entry(150, new Date('2026-10-18T08:00:00.000Z')));
+    store.saveLogEntry(entry(150, new Date('2026-10-20T08:00:00.000Z')));
+    store.saveLogEntry(entry(100, new Date('2026-10-20T12:00:00.000Z')));
+    expect(store.loggedDays()).toEqual(['2026-10-20', '2026-10-18']);
+  });
+
+  it('leaves out a day whose only entry was deleted', () => {
+    const gone = entry(150, new Date('2026-10-19T08:00:00.000Z'));
+    store.saveLogEntry(gone);
+    store.tombstone('log_entries', gone.id);
+    expect(store.loggedDays()).toEqual([]);
+  });
+});
+
 describe('your data', () => {
   it('exports live rows of every table', () => {
     store.saveLogEntry(entry());

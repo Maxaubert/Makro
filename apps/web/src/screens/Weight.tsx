@@ -3,31 +3,25 @@
 // The trend maths is in domain/weight.ts. Apple Health is phone only, so its controls are left out.
 import { useState } from 'react';
 import { roundForDisplay } from '../domain/display';
-import { chartLayout, entryDayLabel, rangeStart, toGoal, WEIGHT_RANGES, weightSummary, type TrendDay, type WeightRange } from '../domain/weight';
+import { chartLayout, entryDayLabel, rangeStart, signedKg, toGoal, WEIGHT_RANGES, weightSummary, type TrendDay, type WeightRange } from '../domain/weight';
 import { href, useApp, useBack, useData, useRoute } from '../lib/hooks';
 import { Card, Chip, Header, Icon, Notice, Page } from '../ui/kit';
 import { dayLabel, today } from './day';
 import { Sheet, WeightSheet } from './WeightSheet';
 
-function shortDate(localDate: string): string {
+export function shortDate(localDate: string): string {
   const [y, m, d] = localDate.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-function timeIn(iso: string, timeZone: string): string {
+export function timeIn(iso: string, timeZone: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone });
 }
 
 /** Always one decimal, as on the board (81.0, not 81). Unknown stays "?". */
-function kgText(kg: number | null | undefined): string {
+export function kgText(kg: number | null | undefined): string {
   if (kg === null || kg === undefined) return '?';
   return (roundForDisplay(kg, 1) as number).toFixed(1);
-}
-
-function signedKg(kg: number | null): string {
-  if (kg === null) return '?';
-  const rounded = roundForDisplay(kg, 1) as number;
-  return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}`;
 }
 
 function slotTitle(slot: { date: string; weight_kg: number | null; trend_kg: number | null }): string {

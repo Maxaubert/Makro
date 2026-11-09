@@ -1,11 +1,13 @@
 // App shell: sign-in gate and hash routes. Every screen has its design on the B Night canvas.
-import { useApp, useAppState, useRoute } from './lib/hooks';
+import { useApp, useAppState, useIsDesktop, useRoute } from './lib/hooks';
 import { ownerReady } from './lib/owner';
 import { Account } from './screens/Account';
 import { AddFood } from './screens/AddFood';
 import { BarcodeNoData, BarcodeNotFound } from './screens/BarcodeResults';
 import { CustomFood } from './screens/CustomFood';
 import { DayEnd } from './screens/DayEnd';
+import { DesktopToday } from './screens/desktop/DesktopToday';
+import { desktopScreen } from './screens/desktop/routes';
 import { Diary } from './screens/Diary';
 import { EditEntry } from './screens/EditEntry';
 import { EditGoals } from './screens/EditGoals';
@@ -23,6 +25,7 @@ export function App() {
   const app = useApp();
   const { session, authReady, fatal, owner, setup } = useAppState();
   const [screen, a, b] = useRoute();
+  const isDesktop = useIsDesktop();
 
   if (!authReady) return <Page><div className="flex-1" aria-busy="true" /></Page>;
   if (!session) return <SignIn />;
@@ -52,6 +55,9 @@ export function App() {
     );
   }
   if (setup.status === 'needed') return <Onboarding hasConsent={setup.hasConsent} hasGoal={setup.hasGoal} />;
+
+  const desktop = isDesktop ? desktopScreen(screen, a) : null;
+  if (desktop) return desktop;
 
   switch (screen) {
     case 'diary':
@@ -83,6 +89,6 @@ export function App() {
     case 'profile':
       return <EditGoals key={a} start={a === 'goals' ? 'goals' : 'about'} />;
     default:
-      return <Today />;
+      return isDesktop ? <DesktopToday /> : <Today />;
   }
 }

@@ -2,6 +2,7 @@
 // Rounding goes through formatNumber; unknown shows as "?" and is never printed as 0 (rule 2).
 import { formatNumber } from '../domain/format';
 import type { Meal } from '../domain/entry';
+import type { Nutrient } from '../domain/nutrients';
 import type { DayStatus, DayStatusKind, RemainingValue, Verdict, WeeklyAverage, WeeklyMeasure, WeeklyMeasureKey } from '../domain/guidance';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -59,15 +60,18 @@ export function weeklyHeadline(m: WeeklyMeasure, key: WeeklyMeasureKey): { capti
   return { caption: m.covered < m.count ? 'At least, per logged day' : 'Average per logged day', value: amountText(m.average, key) };
 }
 
-const VALUE_NAME: Record<WeeklyMeasureKey, string> = {
+const VALUE_NAME: Record<Nutrient, string> = {
   kcal: 'calorie',
   protein_g: 'protein',
   carbs_g: 'carb',
   fat_g: 'fat',
   fibre_g: 'fibre',
+  sat_fat_g: 'saturated fat',
+  sugars_g: 'sugar',
+  salt_g: 'salt',
 };
 
-export function coverageNote(m: WeeklyMeasure, key: WeeklyMeasureKey): string {
+export function coverageNote(m: WeeklyMeasure, key: Nutrient): string {
   if (m.count === 0) return '';
   if (m.covered === m.count) return m.count === 1 ? 'Covers the 1 entry.' : `Covers all ${m.count} entries.`;
   const others = m.count - m.covered;

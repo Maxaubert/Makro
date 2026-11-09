@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "description": "Time to the goal and progress towards it. weeks is the distance to the target divided by the pace, rounded up to whole weeks; 0 once reached; null when the weight, the target or a pace above 0 is unknown, and always for maintain. progress is the share of the way from start_kg (the weight the goal was set at) to the target, clamped to 0..1; 1 once reached; null when the start, weight or target is unknown, for maintain, or when start and target are the same and the target is not reached.",
+  "cases": [
+    { "id": "board-example", "input": { "weight_kg": 81.5, "start_kg": 83.0, "target_kg": 78, "pace_kg_per_week": 0.5, "goal_type": "lose" }, "expected": { "weeks": 7, "progress": 0.3 } },
+    { "id": "rounds-weeks-up", "input": { "weight_kg": 81.6, "start_kg": 83.0, "target_kg": 78, "pace_kg_per_week": 0.5, "goal_type": "lose" }, "expected": { "weeks": 8, "progress": 0.28 } },
+    { "id": "float-noise-does-not-add-a-week", "input": { "weight_kg": 80.1, "start_kg": 80.1, "target_kg": 78, "pace_kg_per_week": 0.3, "goal_type": "lose" }, "expected": { "weeks": 7, "progress": 0 } },
+    { "id": "gain", "input": { "weight_kg": 72, "start_kg": 70, "target_kg": 75, "pace_kg_per_week": 0.25, "goal_type": "gain" }, "expected": { "weeks": 12, "progress": 0.4 } },
+    { "id": "reached", "input": { "weight_kg": 77.5, "start_kg": 83.0, "target_kg": 78, "pace_kg_per_week": 0.5, "goal_type": "lose" }, "expected": { "weeks": 0, "progress": 1 } },
+    { "id": "moved-away-is-no-progress", "input": { "weight_kg": 85, "start_kg": 83.0, "target_kg": 78, "pace_kg_per_week": 0.5, "goal_type": "lose" }, "expected": { "weeks": 14, "progress": 0 } },
+    { "id": "no-start-keeps-the-weeks", "input": { "weight_kg": 81.5, "start_kg": null, "target_kg": 78, "pace_kg_per_week": 0.5, "goal_type": "lose" }, "expected": { "weeks": 7, "progress": null } },
+    { "id": "no-pace-keeps-the-progress", "input": { "weight_kg": 80.5, "start_kg": 83.0, "target_kg": 78, "pace_kg_per_week": null, "goal_type": "lose" }, "expected": { "weeks": null, "progress": 0.5 } },
+    { "id": "zero-pace-is-unknown", "input": { "weight_kg": 80.5, "start_kg": 83.0, "target_kg": 78, "pace_kg_per_week": 0, "goal_type": "lose" }, "expected": { "weeks": null, "progress": 0.5 } },
+    { "id": "no-target", "input": { "weight_kg": 80.5, "start_kg": 83.0, "target_kg": null, "pace_kg_per_week": 0.5, "goal_type": "lose" }, "expected": { "weeks": null, "progress": null } },
+    { "id": "no-weight", "input": { "weight_kg": null, "start_kg": 83.0, "target_kg": 78, "pace_kg_per_week": 0.5, "goal_type": "lose" }, "expected": { "weeks": null, "progress": null } },
+    { "id": "maintain", "input": { "weight_kg": 80, "start_kg": 80, "target_kg": 78, "pace_kg_per_week": 0, "goal_type": "maintain" }, "expected": { "weeks": null, "progress": null } },
+    { "id": "start-equals-target-not-reached", "input": { "weight_kg": 80, "start_kg": 78, "target_kg": 78, "pace_kg_per_week": 0.5, "goal_type": "lose" }, "expected": { "weeks": 4, "progress": null } }
+  ]
+}

@@ -320,6 +320,13 @@ export class LogStore {
     );
   }
 
+  /** Every local date with at least one live entry, newest first, for the logging streak. */
+  loggedDays(): string[] {
+    return this.sql
+      .all<{ local_date: string }>('select distinct local_date from log_entries where deleted_at is null order by local_date desc')
+      .map((r) => r.local_date);
+  }
+
   /** Each food once: its newest portion and snapshot, and how many live entries it has. */
   foodHistory(limit: number): FoodHistoryRow[] {
     return this.sql.all<FoodHistoryRow>(

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "The logging streak: how many consecutive calendar days up to today have at least one live log entry. logged_days are local_date values, possibly repeated and in any order. A streak that reaches yesterday is still alive while today has nothing logged yet, because today is not over. A day with no entry ends the streak, and days after today are ignored.",
+  "cases": [
+    { "id": "no-log", "input": { "logged_days": [], "today": "2026-10-17" }, "expected": { "days": 0 } },
+    { "id": "today-only", "input": { "logged_days": ["2026-10-17"], "today": "2026-10-17" }, "expected": { "days": 1 } },
+    { "id": "three-days-ending-today", "input": { "logged_days": ["2026-10-15", "2026-10-16", "2026-10-17"], "today": "2026-10-17" }, "expected": { "days": 3 } },
+    { "id": "today-not-logged-yet-keeps-streak", "input": { "logged_days": ["2026-10-15", "2026-10-16"], "today": "2026-10-17" }, "expected": { "days": 2 } },
+    { "id": "last-logged-two-days-ago-is-over", "input": { "logged_days": ["2026-10-14", "2026-10-15"], "today": "2026-10-17" }, "expected": { "days": 0 } },
+    { "id": "gap-ends-streak", "input": { "logged_days": ["2026-10-13", "2026-10-14", "2026-10-16", "2026-10-17"], "today": "2026-10-17" }, "expected": { "days": 2 } },
+    { "id": "repeated-and-unordered", "input": { "logged_days": ["2026-10-17", "2026-10-15", "2026-10-17", "2026-10-16"], "today": "2026-10-17" }, "expected": { "days": 3 } },
+    { "id": "across-a-month-end", "input": { "logged_days": ["2026-09-30", "2026-10-01"], "today": "2026-10-01" }, "expected": { "days": 2 } },
+    { "id": "across-a-year-end", "input": { "logged_days": ["2025-12-31", "2026-01-01"], "today": "2026-01-01" }, "expected": { "days": 2 } },
+    { "id": "across-a-leap-day", "input": { "logged_days": ["2028-02-28", "2028-02-29", "2028-03-01"], "today": "2028-03-01" }, "expected": { "days": 3 } },
+    { "id": "future-day-is-ignored", "input": { "logged_days": ["2026-10-17", "2026-10-18"], "today": "2026-10-17" }, "expected": { "days": 1 } },
+    { "id": "only-future-days", "input": { "logged_days": ["2026-10-18", "2026-10-19"], "today": "2026-10-17" }, "expected": { "days": 0 } }
+  ]
+}

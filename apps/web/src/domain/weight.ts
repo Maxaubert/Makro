@@ -7,6 +7,7 @@
 // - The trend on day D is the mean of the daily values in the 7 calendar days D-6..D.
 // - With fewer than 3 days of values in that window the trend is unknown (null), because one
 //   or two weigh-ins are exactly the daily noise the trend is there to smooth away.
+import { roundForDisplay } from './display';
 import { WEIGHT_RANGE_KG, type GoalType } from './goals';
 
 export const TREND_WINDOW_DAYS = 7;
@@ -32,7 +33,7 @@ export interface WeightSummary {
 }
 
 /** Calendar arithmetic on YYYY-MM-DD strings, so time zones and daylight saving cannot enter. */
-function shiftDay(localDate: string, n: number): string {
+export function shiftDay(localDate: string, n: number): string {
   const [y, m, d] = localDate.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 }
@@ -69,8 +70,6 @@ export function weightSummary(entries: WeightPoint[], from: string, to: string):
     days.push({ date, weight_kg: day?.value ?? null, entries: day?.entries ?? 0, ...trendOn(daily, date) });
   }
   const values = days.flatMap((d) => (d.weight_kg === null ? [] : [d.weight_kg]));
-  const end = trendOn(daily, to).trend_kg;
-  const start = trendOn(daily, shiftDay(to, -7)).trend_kg;
   return {
     days,
     stats: {
@@ -78,8 +77,23 @@ export function weightSummary(entries: WeightPoint[], from: string, to: string):
       highest_kg: values.length ? Math.max(...values) : null,
       average_kg: values.length ? mean(values) : null,
     },
-    change_7d_kg: end !== null && start !== null ? end - start : null,
+    change_7d_kg: trendChange(entries, to, 7),
   };
+}
+
+/** The trend on `to` minus the trend `days` earlier. Unknown at either end stays unknown. */
+export function trendChange(entries: WeightPoint[], to: string, days: number): number | null {
+  const daily = dailyValues(entries);
+  const end = trendOn(daily, to).trend_kg;
+  const start = trendOn(daily, shiftDay(to, -days)).trend_kg;
+  return end !== null && start !== null ? end - start : null;
+}
+
+/** "+0.6", "-1.5" or "?". The sign comes from the rounded value, so a tiny change never shows as "-0.0". */
+export function signedKg(kg: number | null): string {
+  if (kg === null) return '?';
+  const rounded = roundForDisplay(kg, 1) as number;
+  return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}`;
 }
 
 /** How far a weight is from the goal's target. Unknown stays unknown; maintain has no direction. */
@@ -109,6 +123,68 @@ export function entryDayLabel(localDate: string, today: string): string {
   if (localDate === today) return 'Today';
   const [y, m, d] = localDate.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(',', '');
+}
+
+// ---- the line chart of the desktop Today card, in the board's 700 x 200 box --------------------
+
+const LINE_BOX = { width: 700, height: 200, padShare: 0.18, flatPadKg: 0.5 };
+
+export interface WeightLine {
+  /** One list of points per unbroken run of weigh-ins. A day with no entry breaks the line. */
+  segments: { x: number; y: number }[][];
+  latest: { x: number; y: number } | null;
+  /** Last weigh-in minus first weigh-in of the range; null with fewer than two. */
+  change_kg: number | null;
+}
+
+function knownWeights(days: TrendDay[]): number[] {
+  return days.flatMap((d) => (d.weight_kg === null ? [] : [d.weight_kg]));
+}
+
+function lineScale(known: number[]): { yMin: number; yMax: number } {
+  const lo = Math.min(...known);
+  const hi = Math.max(...known);
+  const pad = (hi - lo) * LINE_BOX.padShare || LINE_BOX.flatPadKg;
+  return { yMin: lo - pad, yMax: hi + pad };
+}
+
+export function weightLine(days: TrendDay[]): WeightLine {
+  const known = knownWeights(days);
+  if (known.length === 0) return { segments: [], latest: null, change_kg: null };
+  const { yMin, yMax } = lineScale(known);
+  const segments: { x: number; y: number }[][] = [];
+  let open = false;
+  days.forEach((d, i) => {
+    if (d.weight_kg === null) {
+      open = false;
+      return;
+    }
+    if (!open) segments.push([]);
+    open = true;
+    const x = days.length === 1 ? LINE_BOX.width : (i / (days.length - 1)) * LINE_BOX.width;
+    segments[segments.length - 1].push({ x, y: LINE_BOX.height - ((d.weight_kg - yMin) / (yMax - yMin)) * LINE_BOX.height });
+  });
+  const lastSegment = segments[segments.length - 1];
+  return {
+    segments,
+    latest: lastSegment[lastSegment.length - 1],
+    change_kg: known.length >= 2 ? known[known.length - 1] - known[0] : null,
+  };
+}
+
+/** Three labelled kg lines for weightLine's scale, top first, `top` in percent of the box. */
+export function weightLineTicks(days: TrendDay[]): { kg: number; top: number }[] {
+  const known = knownWeights(days);
+  if (known.length === 0) return [];
+  const { yMin, yMax } = lineScale(known);
+  return [0, 0.5, 1].map((t) => ({ kg: yMax - (yMax - yMin) * t, top: t * 100 }));
+}
+
+type LinePoint = WeightLine['segments'][number][number];
+
+/** Pairs joining each segment's end to the next one's start, across days with no weigh-in. Drawn apart: no value exists there. */
+export function weightLineGaps(segments: WeightLine['segments']): [LinePoint, LinePoint][] {
+  return segments.slice(1).map((s, i) => [segments[i][segments[i].length - 1], s[0]]);
 }
 
 // ---- chart geometry, in the canvas's 326 x 116 box -------------------------------------------
@@ -194,4 +270,32 @@ export function chartLayout(days: TrendDay[]): ChartLayout {
   });
   const axis = sparse ? [ceiling, (ceiling + floor) / 2, floor].map((kg) => ({ kg, y: y(kg) })) : [];
   return { bars, trend, slots, axis };
+}
+
+// ---- weigh-in change and goal estimate, pinned by weight/*.json ------------------------------
+
+/** Each entry's change from the entry before it, oldest first; the first has nothing to compare with. */
+export function weighInChanges(entries: { weight_kg: number }[]): (number | null)[] {
+  return entries.map((e, i) => (i === 0 ? null : e.weight_kg - entries[i - 1].weight_kg));
+}
+
+export interface GoalEstimateInput {
+  weight_kg: number | null;
+  /** The weight the goal was set at. */
+  start_kg: number | null;
+  target_kg: number | null;
+  pace_kg_per_week: number | null;
+  goal_type: GoalType;
+}
+
+/** Whole weeks to the target at the goal's pace, and the share of the way there (0..1). Unknown stays null. */
+export function goalEstimate(i: GoalEstimateInput): { weeks: number | null; progress: number | null } {
+  const distance = toGoal(i.weight_kg, i.target_kg, i.goal_type);
+  if (distance.kg === null) return { weeks: null, progress: null };
+  if (distance.reached) return { weeks: 0, progress: 1 };
+  // Rounded before the ceiling so float noise (7.000000000000001) cannot add a week.
+  const weeks = i.pace_kg_per_week !== null && i.pace_kg_per_week > 0 ? Math.ceil(Math.round((distance.kg / i.pace_kg_per_week) * 1e6) / 1e6) : null;
+  if (i.start_kg === null || i.target_kg === null || i.start_kg === i.target_kg) return { weeks, progress: null };
+  const total = Math.abs(i.start_kg - i.target_kg);
+  return { weeks, progress: Math.min(1, Math.max(0, (total - distance.kg) / total)) };
 }

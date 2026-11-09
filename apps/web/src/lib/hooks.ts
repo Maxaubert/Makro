@@ -36,6 +36,20 @@ export function useData<T>(read: () => Promise<T>, deps: unknown[]): { data: T |
   return state;
 }
 
+// ---- layout: the one place that decides phone or desktop.
+
+export const DESKTOP_MIN_WIDTH = 1024;
+const DESKTOP_QUERY = `(min-width: ${DESKTOP_MIN_WIDTH}px)`;
+
+/** True from DESKTOP_MIN_WIDTH up: the D Night screens replace the phone column. */
+export function useIsDesktop(): boolean {
+  return useSyncExternalStore((fn) => {
+    const media = window.matchMedia(DESKTOP_QUERY);
+    media.addEventListener('change', fn);
+    return () => media.removeEventListener('change', fn);
+  }, () => window.matchMedia(DESKTOP_QUERY).matches);
+}
+
 // ---- hash routing: #/today, #/diary/2026-10-25, #/portion/product/<id> ...
 
 function currentPath(): string {

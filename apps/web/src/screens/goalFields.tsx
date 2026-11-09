@@ -5,16 +5,19 @@ import { emptyGoalForm, evaluateGoalForm, type GoalEvaluation, type GoalForm, ty
 import { kcalFloor, GOAL_CONSTANTS, type ActivityLevel, type GoalType } from '../domain/goals';
 import { Chip, Notice } from '../ui/kit';
 
-const ACTIVITY: { value: ActivityLevel; label: string }[] = [
+export const ACTIVITY: { value: ActivityLevel; label: string }[] = [
   { value: 'sedentary', label: 'Mostly sitting' },
   { value: 'active', label: 'Active' },
   { value: 'very_active', label: 'Very active' },
 ];
-const GOAL_TYPES: { value: GoalType; label: string; pace: number }[] = [
+export const GOAL_TYPES: { value: GoalType; label: string; pace: number }[] = [
   { value: 'lose', label: 'Lose', pace: 0.5 },
   { value: 'maintain', label: 'Maintain', pace: 0 },
   { value: 'gain', label: 'Gain', pace: 0.25 },
 ];
+
+/** Picking a goal type starts from its usual pace and drops targets typed by hand. */
+export const pickGoalType = (g: (typeof GOAL_TYPES)[number]): Partial<GoalForm> => ({ goalType: g.value, pace: String(g.pace), edits: {} });
 
 /** Chips that share the row evenly and are tall enough to tap, as on the canvas. */
 const FULL_CHIPS = 'flex gap-2 [&>button]:h-12 [&>button]:flex-1 [&>button]:justify-center [&>button]:text-[15px]';
@@ -55,9 +58,20 @@ export function HelpNote() {
   );
 }
 
+/** Shown when the age typed is under 18, with where to get help. */
+export function Under18Note({ state }: { state: GoalFormState }) {
+  const { form, evaluation } = state;
+  if (evaluation.profileIssue !== 'under_18' || form.age.trim() === '') return null;
+  return (
+    <div className="mt-3">
+      <Notice>Makro is for people aged 18 and up.</Notice>
+      <div className="mt-2"><HelpNote /></div>
+    </div>
+  );
+}
+
 export function AboutFields({ state }: { state: GoalFormState }) {
-  const { form, set, evaluation } = state;
-  const under18 = evaluation.profileIssue === 'under_18' && form.age.trim() !== '';
+  const { form, set } = state;
   return (
     <>
       <div className={`mt-4 ${FULL_CHIPS}`}>
@@ -70,12 +84,7 @@ export function AboutFields({ state }: { state: GoalFormState }) {
         <NumberField label="Height" unit="cm" value={form.height} onChange={(height) => set({ height })} />
         <NumberField label="Weight" unit="kg" value={form.weight} onChange={(weight) => set({ weight })} />
       </div>
-      {under18 && (
-        <div className="mt-3">
-          <Notice>Makro is for people aged 18 and up.</Notice>
-          <div className="mt-2"><HelpNote /></div>
-        </div>
-      )}
+      <Under18Note state={state} />
       <p className="mt-4 text-[13px] text-secondary">How active are you?</p>
       <div className="mt-2 flex flex-col gap-2">
         {ACTIVITY.map((a) => (
@@ -94,15 +103,33 @@ export function AboutFields({ state }: { state: GoalFormState }) {
   );
 }
 
+/** Why a goal cannot be saved, a save error, and the "An estimate you can change" line. */
+export function GoalNotes({ state, error }: { state: GoalFormState; error: string | null }) {
+  const { form, evaluation: e } = state;
+  const [showHelp, setShowHelp] = useState(false);
+  return (
+    <>
+      {e.problem === 'below_floor' && form.sex && <div className="mt-3"><Notice>Makro doesn't set goals under {kcalFloor(form.sex)} kcal a day.</Notice></div>}
+      {e.problem === 'pace_too_fast' && <div className="mt-3"><Notice>Makro doesn't set a pace above {GOAL_CONSTANTS.max_loss_kg_per_week} kg a week.</Notice></div>}
+      {e.floored && <div className="mt-3"><Notice>This is the lowest goal Makro sets for you.</Notice></div>}
+      {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
+      <p className="mt-3 text-center text-[12px] text-secondary">
+        An estimate you can change.{' '}
+        <button type="button" className="font-semibold text-accent-2" onClick={() => setShowHelp(!showHelp)}>Need help?</button>
+      </p>
+      {showHelp && <div className="mt-2"><HelpNote /></div>}
+    </>
+  );
+}
+
 export function GoalFields({ state, error }: { state: GoalFormState; error: string | null }) {
   const { form, set, evaluation: e } = state;
-  const [showHelp, setShowHelp] = useState(false);
   const edit = (key: TargetKey) => (v: string) => set({ edits: { ...form.edits, [key]: v } });
   return (
     <>
       <div className={`mt-4 ${FULL_CHIPS}`}>
         {GOAL_TYPES.map((g) => (
-          <Chip key={g.value} selected={form.goalType === g.value} onClick={() => set({ goalType: g.value, pace: String(g.pace), edits: {} })}>
+          <Chip key={g.value} selected={form.goalType === g.value} onClick={() => set(pickGoalType(g))}>
             {g.label}
           </Chip>
         ))}
@@ -120,15 +147,7 @@ export function GoalFields({ state, error }: { state: GoalFormState; error: stri
         <NumberField label="Fat" unit="g" value={e.shown.fat} onChange={edit('fat')} />
         <NumberField label="Fibre" unit="g" value={e.shown.fibre} onChange={edit('fibre')} />
       </div>
-      {e.problem === 'below_floor' && form.sex && <div className="mt-3"><Notice>Makro doesn't set goals under {kcalFloor(form.sex)} kcal a day.</Notice></div>}
-      {e.problem === 'pace_too_fast' && <div className="mt-3"><Notice>Makro doesn't set a pace above {GOAL_CONSTANTS.max_loss_kg_per_week} kg a week.</Notice></div>}
-      {e.floored && <div className="mt-3"><Notice>This is the lowest goal Makro sets for you.</Notice></div>}
-      {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
-      <p className="mt-3 text-center text-[12px] text-secondary">
-        An estimate you can change.{' '}
-        <button type="button" className="font-semibold text-accent-2" onClick={() => setShowHelp(!showHelp)}>Need help?</button>
-      </p>
-      {showHelp && <div className="mt-2"><HelpNote /></div>}
+      <GoalNotes state={state} error={error} />
     </>
   );
 }
