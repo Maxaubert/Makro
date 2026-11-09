@@ -1,0 +1,583 @@
+{
+  "version": 1,
+  "description": "Typo correction of search query tokens (products-db.md, Search, step 6). Input: the query text, how many products the query found before any correction (query_matches), how many products each normalised token matches on its own as a prefix query (token_matches, a count capped at 3 is enough) and the FTS vocabulary terms with how many products hold each one. Expected: the tokens to search with, equal to the normalised tokens when nothing is corrected. No database needed: a runner feeds the vocabulary in.",
+  "cases": [
+    {
+      "id": "barebels-finds-barebells",
+      "input": {
+        "query": "barebels",
+        "query_matches": 0,
+        "token_matches": {
+          "barebels": 0
+        },
+        "vocabulary": [
+          {
+            "term": "barebells",
+            "docs": 120
+          },
+          {
+            "term": "bareksla",
+            "docs": 2
+          },
+          {
+            "term": "bar",
+            "docs": 900
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "barebells"
+        ]
+      },
+      "note": "The issue #22 slice check. Length 8, so up to 2 edits; 'bareksla' is further away."
+    },
+    {
+      "id": "good-query-is-never-changed",
+      "input": {
+        "query": "barebels",
+        "query_matches": 3,
+        "token_matches": {
+          "barebels": 3
+        },
+        "vocabulary": [
+          {
+            "term": "barebells",
+            "docs": 120
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "barebels"
+        ]
+      },
+      "note": "Three results is enough, even though a much commoner word is one edit away."
+    },
+    {
+      "id": "few-results-still-corrected",
+      "input": {
+        "query": "barebels",
+        "query_matches": 2,
+        "token_matches": {
+          "barebels": 2
+        },
+        "vocabulary": [
+          {
+            "term": "barebells",
+            "docs": 120
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "barebells"
+        ]
+      },
+      "note": "One below the limit: a stray misspelt listing does not stop the correction. The search keeps those rows first."
+    },
+    {
+      "id": "frequent-token-kept-when-and-finds-nothing",
+      "input": {
+        "query": "skyr mango",
+        "query_matches": 0,
+        "token_matches": {
+          "skyr": 40,
+          "mango": 12
+        },
+        "vocabulary": [
+          {
+            "term": "skyr",
+            "docs": 40
+          },
+          {
+            "term": "mango",
+            "docs": 12
+          },
+          {
+            "term": "sykr",
+            "docs": 1
+          },
+          {
+            "term": "mangold",
+            "docs": 30
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "skyr",
+          "mango"
+        ]
+      },
+      "note": "Both words exist, they just do not occur together."
+    },
+    {
+      "id": "three-letters-never-corrected",
+      "input": {
+        "query": "skr",
+        "query_matches": 0,
+        "token_matches": {
+          "skr": 0
+        },
+        "vocabulary": [
+          {
+            "term": "skyr",
+            "docs": 40
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "skr"
+        ]
+      },
+      "note": "Under 4 characters there are too many neighbours."
+    },
+    {
+      "id": "four-letters-corrected",
+      "input": {
+        "query": "skyx",
+        "query_matches": 0,
+        "token_matches": {
+          "skyx": 0
+        },
+        "vocabulary": [
+          {
+            "term": "skyr",
+            "docs": 40
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "skyr"
+        ]
+      }
+    },
+    {
+      "id": "number-token-never-corrected",
+      "input": {
+        "query": "1450",
+        "query_matches": 0,
+        "token_matches": {
+          "1450": 0
+        },
+        "vocabulary": [
+          {
+            "term": "1400",
+            "docs": 7
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "1450"
+        ]
+      },
+      "note": "Any token holding a number is left alone."
+    },
+    {
+      "id": "digit-inside-token-never-corrected",
+      "input": {
+        "query": "50mcg",
+        "query_matches": 0,
+        "token_matches": {
+          "50mcg": 0
+        },
+        "vocabulary": [
+          {
+            "term": "50mg",
+            "docs": 7
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "50mcg"
+        ]
+      }
+    },
+    {
+      "id": "candidate-with-number-excluded",
+      "input": {
+        "query": "vitad",
+        "query_matches": 0,
+        "token_matches": {
+          "vitad": 0
+        },
+        "vocabulary": [
+          {
+            "term": "vita3",
+            "docs": 9
+          },
+          {
+            "term": "vitae",
+            "docs": 2
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "vitae"
+        ]
+      }
+    },
+    {
+      "id": "first-letter-must-match",
+      "input": {
+        "query": "karebells",
+        "query_matches": 0,
+        "token_matches": {
+          "karebells": 0
+        },
+        "vocabulary": [
+          {
+            "term": "barebells",
+            "docs": 120
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "karebells"
+        ]
+      },
+      "note": "The first character is never corrected; it also limits the vocabulary read."
+    },
+    {
+      "id": "seven-letters-one-edit",
+      "input": {
+        "query": "vanilie",
+        "query_matches": 0,
+        "token_matches": {
+          "vanilie": 0
+        },
+        "vocabulary": [
+          {
+            "term": "vanilje",
+            "docs": 30
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "vanilje"
+        ]
+      }
+    },
+    {
+      "id": "seven-letters-not-two-edits",
+      "input": {
+        "query": "vanelie",
+        "query_matches": 0,
+        "token_matches": {
+          "vanelie": 0
+        },
+        "vocabulary": [
+          {
+            "term": "vanilje",
+            "docs": 30
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "vanelie"
+        ]
+      },
+      "note": "Length 4 to 7 allows 1 edit."
+    },
+    {
+      "id": "eight-letters-two-edits",
+      "input": {
+        "query": "kjotdiig",
+        "query_matches": 0,
+        "token_matches": {
+          "kjotdiig": 0
+        },
+        "vocabulary": [
+          {
+            "term": "kjottdeig",
+            "docs": 300
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "kjottdeig"
+        ]
+      },
+      "note": "Length 8 or more allows 2 edits."
+    },
+    {
+      "id": "two-edits-limit",
+      "input": {
+        "query": "kjotdiiig",
+        "query_matches": 0,
+        "token_matches": {
+          "kjotdiiig": 0
+        },
+        "vocabulary": [
+          {
+            "term": "kjottdeig",
+            "docs": 300
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "kjotdiiig"
+        ]
+      },
+      "note": "Three edits away."
+    },
+    {
+      "id": "transposition-is-one-edit",
+      "input": {
+        "query": "mlek",
+        "query_matches": 0,
+        "token_matches": {
+          "mlek": 0
+        },
+        "vocabulary": [
+          {
+            "term": "melk",
+            "docs": 800
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "melk"
+        ]
+      },
+      "note": "Two swapped neighbours count as one edit."
+    },
+    {
+      "id": "smaller-distance-beats-more-products",
+      "input": {
+        "query": "barebelss",
+        "query_matches": 0,
+        "token_matches": {
+          "barebelss": 0
+        },
+        "vocabulary": [
+          {
+            "term": "barebells",
+            "docs": 12
+          },
+          {
+            "term": "barebolts",
+            "docs": 90
+          },
+          {
+            "term": "barbells",
+            "docs": 500
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "barebells"
+        ]
+      },
+      "note": "'barbells' and 'barebolts' are 2 edits away, 'barebells' is 1."
+    },
+    {
+      "id": "same-distance-more-products-wins",
+      "input": {
+        "query": "melp",
+        "query_matches": 0,
+        "token_matches": {
+          "melp": 0
+        },
+        "vocabulary": [
+          {
+            "term": "melk",
+            "docs": 800
+          },
+          {
+            "term": "mels",
+            "docs": 20
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "melk"
+        ]
+      }
+    },
+    {
+      "id": "full-tie-lowest-term-wins",
+      "input": {
+        "query": "melp",
+        "query_matches": 0,
+        "token_matches": {
+          "melp": 0
+        },
+        "vocabulary": [
+          {
+            "term": "mels",
+            "docs": 20
+          },
+          {
+            "term": "melk",
+            "docs": 20
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "melk"
+        ]
+      },
+      "note": "Ascending by code point."
+    },
+    {
+      "id": "candidate-must-have-more-products",
+      "input": {
+        "query": "barebels",
+        "query_matches": 1,
+        "token_matches": {
+          "barebels": 1
+        },
+        "vocabulary": [
+          {
+            "term": "barebell",
+            "docs": 1
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "barebels"
+        ]
+      },
+      "note": "A candidate must match more products than the token already does."
+    },
+    {
+      "id": "exact-term-is-not-its-own-candidate",
+      "input": {
+        "query": "barebels",
+        "query_matches": 0,
+        "token_matches": {
+          "barebels": 0
+        },
+        "vocabulary": [
+          {
+            "term": "barebels",
+            "docs": 0
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "barebels"
+        ]
+      }
+    },
+    {
+      "id": "only-the-weak-token-changes",
+      "input": {
+        "query": "barebels sjokolade",
+        "query_matches": 0,
+        "token_matches": {
+          "barebels": 0,
+          "sjokolade": 450
+        },
+        "vocabulary": [
+          {
+            "term": "barebells",
+            "docs": 120
+          },
+          {
+            "term": "sjokolade",
+            "docs": 450
+          },
+          {
+            "term": "sjokolader",
+            "docs": 8
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "barebells",
+          "sjokolade"
+        ]
+      }
+    },
+    {
+      "id": "every-weak-token-changes",
+      "input": {
+        "query": "barebels sjokolde",
+        "query_matches": 0,
+        "token_matches": {
+          "barebels": 0,
+          "sjokolde": 0
+        },
+        "vocabulary": [
+          {
+            "term": "barebells",
+            "docs": 120
+          },
+          {
+            "term": "sjokolade",
+            "docs": 450
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "barebells",
+          "sjokolade"
+        ]
+      }
+    },
+    {
+      "id": "norwegian-letters-normalised-first",
+      "input": {
+        "query": "Kjøtdeig",
+        "query_matches": 0,
+        "token_matches": {
+          "kjotdeig": 0
+        },
+        "vocabulary": [
+          {
+            "term": "kjottdeig",
+            "docs": 300
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "kjottdeig"
+        ]
+      },
+      "note": "Normalise, then correct against the normalised vocabulary."
+    },
+    {
+      "id": "nothing-close-enough",
+      "input": {
+        "query": "qwertyuiop",
+        "query_matches": 0,
+        "token_matches": {
+          "qwertyuiop": 0
+        },
+        "vocabulary": [
+          {
+            "term": "quinoa",
+            "docs": 40
+          }
+        ]
+      },
+      "expected": {
+        "tokens": [
+          "qwertyuiop"
+        ]
+      }
+    }
+  ]
+}

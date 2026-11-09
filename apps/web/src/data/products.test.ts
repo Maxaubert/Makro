@@ -120,6 +120,83 @@ describe('searchProducts', () => {
   });
 });
 
+describe('typo correction (products-db.md, Search step 6)', () => {
+  /** The fixture plus extra rows, searchable once the FTS index is rebuilt. */
+  async function withRows(extra: readonly (readonly [id: string, text: string])[]): Promise<Sql> {
+    const out = await fixtureProducts();
+    const cols = out.all<{ name: string }>('pragma table_info(products)').map((c) => c.name);
+    const rest = cols.filter((c) => c !== 'id' && c !== 'name' && c !== 'search_text' && c !== 'ean').join(', ');
+    for (const [id, text] of extra) {
+      out.run(
+        `insert into products (id, name, search_text, ${rest}) select ?, ?, ?, ${rest} from products where id = 'tine:skyr-naturell'`,
+        [id, text, text],
+      );
+    }
+    out.run("insert into products_fts(products_fts) values('rebuild')");
+    return out;
+  }
+  const BAREBELLS = [
+    ['b:1', 'barebells protein bar salty peanut'],
+    ['b:2', 'barebells protein bar caramel'],
+    ['b:3', 'barebells soft bar'],
+  ] as const;
+  const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
+
+  it('barebels finds Barebells', async () => {
+    const big = await withRows(BAREBELLS);
+    expect(ids(searchProducts(big, 'barebels')).sort()).toEqual(['b:1', 'b:2', 'b:3']);
+  });
+  it('kjottdeig and kjøttdeig find the product directly, and a typo finds it too', () => {
+    expect(ids(searchProducts(db, 'kjottdeig'))).toEqual(['oda:kjottdeig-14']);
+    expect(ids(searchProducts(db, 'kjøttdeig'))).toEqual(['oda:kjottdeig-14']);
+    expect(ids(searchProducts(db, 'kjotdeig'))).toEqual(['oda:kjottdeig-14']);
+    expect(ids(searchProducts(db, 'kjøtdeig'))).toEqual(['oda:kjottdeig-14']);
+  });
+  it('corrects one word of several and keeps the others', async () => {
+    const big = await withRows(BAREBELLS);
+    expect(ids(searchProducts(big, 'barebels caramel'))).toEqual(['b:2']);
+  });
+  it('leaves a query that already finds enough alone', async () => {
+    const big = await withRows([...BAREBELLS, ['t:1', 'barebels a'], ['t:2', 'barebels b'], ['t:3', 'barebels c']]);
+    expect(ids(searchProducts(big, 'barebels')).sort()).toEqual(['t:1', 't:2', 't:3']);
+  });
+  it('shows what the query really found first, then the correction', async () => {
+    const big = await withRows([...BAREBELLS, ['t:1', 'barebels misprint']]);
+    const found = ids(searchProducts(big, 'barebels'));
+    expect(found[0]).toBe('t:1');
+    expect(found.slice(1).sort()).toEqual(['b:1', 'b:2', 'b:3']);
+  });
+  it('ranks corrected results with the normal order, popularity included', async () => {
+    const big = await withRows(BAREBELLS);
+    const pop = resolvePopularity(big, [{ product_id: 'b:3', n: 2 }], []);
+    expect(ids(searchProducts(big, 'barebels', 20, pop))[0]).toBe('b:3');
+  });
+  it('respects the limit across real and corrected rows', async () => {
+    const big = await withRows([...BAREBELLS, ['t:1', 'barebels misprint']]);
+    expect(searchProducts(big, 'barebels', 2)).toHaveLength(2);
+  });
+  it('finds nothing when no word is close enough', () => {
+    expect(searchProducts(db, 'qwertyuiop')).toEqual([]);
+  });
+  it('does not correct numbers or very short tokens', () => {
+    expect(searchProducts(db, 'skr')).toEqual([]);
+    expect(searchProducts(db, '1450')).toEqual([]);
+  });
+  it('never writes to the product file: the vocabulary table lives in temp', async () => {
+    const big = await withRows(BAREBELLS);
+    const schema = () => big.all('select name from main.sqlite_master order by name');
+    const before = schema();
+    searchProducts(big, 'barebels');
+    expect(schema()).toEqual(before);
+    expect(big.all("select name from temp.sqlite_master where name = 'products_vocab'")).toHaveLength(1);
+  });
+  it('does no vocabulary work for a query that finds enough', async () => {
+    const fresh = await fixtureProducts();
+    searchProducts(fresh, 'skyr');
+    expect(fresh.all("select name from temp.sqlite_master where name = 'products_vocab'")).toHaveLength(0);
+  });
+});
+
 describe('getProduct resolves ids in the contract order', () => {
   it('finds a product by id', () => {
     expect(getProduct(db, 'tine:lettmelk')).toMatchObject({ status: 'found', product: { name: 'Lettmelk' } });
