@@ -1,6 +1,6 @@
 -- product_popularity(): how many people log each product, for search ranking (decision 36).
 begin;
-select plan(9);
+select plan(10);
 
 create schema tests;
 grant usage on schema tests to authenticated, anon;
@@ -27,7 +27,14 @@ grant execute on all functions in schema tests to authenticated, anon;
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-000000000001', 'a@example.test'),
   ('00000000-0000-4000-8000-000000000002', 'b@example.test'),
-  ('00000000-0000-4000-8000-000000000003', 'c@example.test');
+  ('00000000-0000-4000-8000-000000000003', 'c@example.test'),
+  ('00000000-0000-4000-8000-000000000004', 'd@example.test');
+
+-- Taking part is a choice: users 1, 2 and 3 opted in, user 4 did not.
+insert into public.consents (user_id, kind, text_version) values
+  ('00000000-0000-4000-8000-000000000001', 'popularity', '1'),
+  ('00000000-0000-4000-8000-000000000002', 'popularity', '1'),
+  ('00000000-0000-4000-8000-000000000003', 'popularity', '1');
 
 set local role authenticated;
 select tests.as_user('00000000-0000-4000-8000-000000000001');
@@ -50,9 +57,14 @@ select public.sync_push(1, jsonb_build_object('log_entries', jsonb_build_array(
   tests.log_row(11, 'p:shared'),
   tests.log_row(12, repeat('x', 1025)))));
 
+select tests.as_user('00000000-0000-4000-8000-000000000004');
+select public.sync_push(1, jsonb_build_object('log_entries', jsonb_build_array(
+  tests.log_row(13, 'p:shared'), tests.log_row(14, 'p:opted-out'))));
+
 select tests.as_user('00000000-0000-4000-8000-000000000001');
 select is((select users from public.product_popularity() where product_id = 'p:shared'), 3, 'counts distinct people');
-select is((select logs from public.product_popularity() where product_id = 'p:shared'), 4, 'counts every log of the product');
+select is((select logs from public.product_popularity() where product_id = 'p:shared'), 4, 'counts every log of the product, and none from someone who did not opt in');
+select is((select count(*) from public.product_popularity() where product_id = 'p:opted-out'), 0::bigint, 'a product only a non-participant logged never appears');
 select is((select count(*) from public.product_popularity() where product_id = 'p:alone'), 0::bigint, 'a product only one person logs stays private');
 select is((select count(*) from public.product_popularity() where product_id = 'p:pair'), 0::bigint, 'your own logs do not count toward the floor, so you cannot test what one other person ate');
 select is((select count(*) from public.product_popularity() where product_id = 'p:deleted-later'), 0::bigint, 'deleted entries do not count');
