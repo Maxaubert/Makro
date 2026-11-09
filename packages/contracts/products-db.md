@@ -21,7 +21,7 @@ One row per visible product. A product is in the file only if it is Norway-relev
 | `id` | text, primary key | no | Opaque, unbounded and never reused (see Ids). Today it looks like `source:url`; 15,083 ids are longer than 40 characters, so no consumer may cap its length. |
 | `name` | text | no | Product name |
 | `brand` | text | yes | |
-| `pack_size` | text | yes | Free text, for example `450 g`. Not searchable (see Search). |
+| `pack_size` | text | yes | Up to three sizes across the product's listings, the most common ones, smallest first: `500 ml, 1 L, 1,75 L`. A listing with no parseable size keeps its own text (`60 caps`). NULL when no listing has a size. Not searchable (see Search). |
 | `ean` | text | yes | The primary barcode in canonical form (see Barcodes). Look up barcodes through `product_eans`, not this column. |
 | `flavour` | text | yes | |
 | `category` | text | yes | One of the 21 food categories below (assigned by a model, can be wrong) |
@@ -140,7 +140,7 @@ Still to settle with the data: what `per_serving_only` (6,761 products) does to 
 The same product sold in several flavours, pack sizes or shops is one row, for example `YT Proteinpudding` for Mango, Vanilje, Sjokolade and the multipacks.
 - **Which listings form a family:** they are one product line (the first product word after sizes and brand words are dropped, with split words joined, so `Protein Melk` and `YT Proteinmelk` match; ml and g count alike), their brands agree, and every nutrient both listings know is within 10% (at least 0.3 g or 0.3 kcal), checked for every pair (Max, 2026-11-08: YT Proteinmelk Kakao at 46 kcal is a flavour of Naturell at 43). Variant words the numbers cannot show (lactose-free, organic, vegan, smoked, marinated, capsules, decaf, energy) must match. When the names differ by more than size or case, both need the same known brand (a brand at the start of the name counts), and Jev checked that they really are one product line. The same words in another order, with or without the brand, count as the same name. A listing with no numbers folds into the product of the same brand and the same words that has numbers. The accepted families are committed in `nutrition-data` as `data/families.json`.
 - **Which listing the row comes from:** the family row is its best listing (verified first, then a non-shop source, then the most known nutrients), with that listing's id, source and numbers. Numbers are never averaged (accuracy rule 1).
-- **The family name:** the words every listing shares (`YT Proteinpudding`). `pack_size` and `flavour` are NULL when the listings disagree.
+- **The family name:** the words every listing shares (`YT Proteinpudding`). `flavour` is NULL when the listings disagree; `pack_size` lists their sizes.
 - **What still works:** the other listings' ids are in `redirects`, their barcodes are in `product_eans` on the family row, and their names and flavours are in its `search_text`, so `proteinpudding mango` still finds it.
 
 Display names: ALL-CAPS names and brands become Title Case, and trademark signs and a repeated "- BRAND" tail are dropped (`YT® PROTEINYOGHURT VANILJE - YT®` becomes `YT Proteinyoghurt Vanilje`). Mixed-case names stay as the source wrote them.
@@ -167,3 +167,8 @@ The open variant has 24 products whose values were filled from non-open sources.
 1. **Which variant the friend beta ships:** `full` or `open`. Max's licence call (#15, decision 30).
 2. **Compounds:** decided 2026-11-09, added in the builder (#63).
 3. **`per_serving_only`:** are the per-100 values derived? Needs a look in `nutrition-data`.
+
+## Labels (2026-11-09, Max)
+
+- **Under the name:** brand, then sizes (`Tine · 1 L, 1,75 L`). A product from a food table (`source kind` government) has no brand and shows `Generic`. Nothing is invented for other rows with no brand.
+- **Names:** brands with at least 20 products lead the name. A percentage is always written `0,5%`. Milk, cream, sour cream, yoghurt and cheese follow Brand, product, variant, fat % (`Tine Lettmelk Laktosefri 0,5%`), set in `data/curated.json`.

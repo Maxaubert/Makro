@@ -2,7 +2,7 @@
 // display.json rounding). Unknown values show "?", never 0. Logging is never blocked: a product
 // without numbers can still be logged, or turned into a custom food with the label values.
 import { useState } from 'react';
-import type { Product } from '../data/products';
+import { productSubtext, type Product } from '../data/products';
 import { buildLogEntry, MEALS, parseAmount, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../domain/entry';
 import { formatNumber } from '../domain/format';
 import { resolveGrams, type AmountUnit } from '../domain/grams';
@@ -105,7 +105,7 @@ function PortionForm({ food }: { food: Food }) {
       <Header title="Add portion" back="/add" />
       <div className="pt-3">
         <div className="text-[22px] font-bold" data-testid="portion-name">{p.name}</div>
-        <div className="mt-0.5 text-[13px] text-secondary">{[p.brand, 'pack_size' in p ? p.pack_size : null].filter(Boolean).join(' · ')}</div>
+        <div className="mt-0.5 text-[13px] text-secondary">{'pack_size' in p ? productSubtext(p) : p.brand}</div>
         <div className="mt-1.5">
           <SourceBadge sourceName={food.sourceName} verified={food.verified} />
         </div>
