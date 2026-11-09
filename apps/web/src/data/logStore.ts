@@ -11,6 +11,12 @@ import type { Sql, SqlValue } from './sql';
 export type LocalLogEntry = LogEntryRow & { server_seq: number | null } & Record<`${Nutrient}_total`, number | null>;
 export type PushRow = Record<string, string | number | boolean | null>;
 
+export interface PopularityRow {
+  product_id: string;
+  users: number;
+  logs: number;
+}
+
 export interface OutboxItem {
   table: TableName;
   id: string;
@@ -170,6 +176,32 @@ export class LogStore {
         where n = 1 order by eaten_at desc limit ?`,
       [limit],
     );
+  }
+
+  /** How many live entries each product has, for ranking search. */
+  productCounts(): { product_id: string; n: number }[] {
+    return this.sql.all<{ product_id: string; n: number }>(
+      'select product_id, count(*) as n from log_entries where deleted_at is null and product_id is not null group by product_id order by product_id',
+    );
+  }
+
+  /** The last downloaded counts across all users; empty until the first download. */
+  popularity(): PopularityRow[] {
+    const v = this.sql.get<{ value: string }>("select value from sync_state where key = 'popularity'")?.value;
+    return v ? (JSON.parse(v) as PopularityRow[]) : [];
+  }
+
+  popularityStale(maxAgeMs: number): boolean {
+    const at = this.sql.get<{ value: string }>("select value from sync_state where key = 'popularity_at'")?.value;
+    return at === undefined || this.clock().getTime() - Number(at) > maxAgeMs;
+  }
+
+  savePopularity(rows: PopularityRow[]): void {
+    const put = "insert into sync_state (key, value) values (?, ?) on conflict (key) do update set value = excluded.value";
+    this.sql.tx(() => {
+      this.sql.run(put, ['popularity', JSON.stringify(rows)]);
+      this.sql.run(put, ['popularity_at', String(this.clock().getTime())]);
+    });
   }
 
   /** The amount and unit of the newest live entry for a food, so the portion screen can start there. */

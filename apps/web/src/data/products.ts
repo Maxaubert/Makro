@@ -89,24 +89,87 @@ function toProduct(r: ProductRow): Product {
   };
 }
 
+export interface PopularityScore {
+  /** How many of your own live log entries are this product. */
+  mine: number;
+  /** How many people log it, and how often (0 when under the privacy floor). */
+  users: number;
+  logs: number;
+}
+export type Popularity = Map<string, PopularityScore>;
+
+/** Counts keyed by the current product id: logs of a merged listing count for the product it became. */
+export function resolvePopularity(
+  sql: Sql,
+  mine: readonly { product_id: string; n: number }[],
+  global: readonly { product_id: string; users: number; logs: number }[],
+): Popularity {
+  const ids = [...new Set([...mine, ...global].map((r) => r.product_id))];
+  const moved = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 500) {
+    const part = ids.slice(i, i + 500);
+    const rows = sql.all<{ old_id: string; new_id: string }>(
+      `select old_id, new_id from redirects where old_id in (${part.map(() => '?').join(', ')})`,
+      part,
+    );
+    for (const r of rows) moved.set(r.old_id, r.new_id);
+  }
+  const out: Popularity = new Map();
+  const score = (id: string): PopularityScore => {
+    const key = moved.get(id) ?? id;
+    let s = out.get(key);
+    if (!s) out.set(key, (s = { mine: 0, users: 0, logs: 0 }));
+    return s;
+  };
+  for (const r of mine) score(r.product_id).mine += r.n;
+  for (const r of global) {
+    const s = score(r.product_id);
+    s.users = Math.max(s.users, r.users); // one person may have logged both listings
+    s.logs += r.logs;
+  }
+  return out;
+}
+
+/** How many popular products are looked for beyond the 500 best text matches. */
+const POPULAR_CANDIDATES = 800;
+
+const comparePopularity = (a: PopularityScore, b: PopularityScore): number =>
+  b.mine - a.mine || b.users - a.users || b.logs - a.logs;
+
+const NO_SCORE: PopularityScore = { mine: 0, users: 0, logs: 0 };
+
 /** Search with the contract's query and its total ranking order. */
-export function searchProducts(sql: Sql, query: string, limit = 20): Product[] {
+export function searchProducts(sql: Sql, query: string, limit = 20, popularity?: Popularity): Product[] {
   const match = buildMatchQuery(query);
   if (match === null) return [];
   const tokens = tokenise(query);
-  const rows = sql.all<ProductRow & { _bm25: number }>(
-    `select p.*, s.display_name as source_name, s.kind as source_kind, bm25(products_fts) as _bm25
+  const FROM = `select p.*, s.display_name as source_name, s.kind as source_kind, bm25(products_fts) as _bm25
        from products_fts f join products p on p.rowid = f.rowid left join sources s on s.slug = p.source
-      where products_fts match ?
-      order by bm25(products_fts), length(p.search_text), p.id limit 500`,
+      where products_fts match ?`;
+  const rows = sql.all<ProductRow & { _bm25: number }>(
+    `${FROM} order by bm25(products_fts), length(p.search_text), p.id limit 500`,
     [match],
   );
+  if (popularity && popularity.size > 0) {
+    // A much-logged food can sit outside the 500 best text matches of a common word.
+    const top = [...popularity.entries()]
+      .sort((a, b) => comparePopularity(a[1], b[1]))
+      .slice(0, POPULAR_CANDIDATES)
+      .map(([id]) => id);
+    const seen = new Set(rows.map((r) => String(r.id)));
+    const extra = sql.all<ProductRow & { _bm25: number }>(
+      `${FROM} and p.id in (${top.map(() => '?').join(', ')})`,
+      [match, ...top],
+    );
+    for (const r of extra) if (!seen.has(String(r.id))) rows.push(r);
+  }
   const ranked = rows.map((r) => {
     const words = new Set(String(r.search_text).split(/[^\p{L}\p{N}]+/u));
     return {
       r,
       whole: tokens.filter((t) => words.has(t)).length,
       hasKcal: r.kcal === null ? 1 : 0,
+      score: popularity?.get(String(r.id)) ?? NO_SCORE,
       len: String(r.search_text).length,
     };
   });
@@ -114,6 +177,7 @@ export function searchProducts(sql: Sql, query: string, limit = 20): Product[] {
     (a, b) =>
       b.whole - a.whole ||
       a.hasKcal - b.hasKcal ||
+      comparePopularity(a.score, b.score) ||
       a.r._bm25 - b.r._bm25 ||
       a.len - b.len ||
       (String(a.r.id) < String(b.r.id) ? -1 : String(a.r.id) > String(b.r.id) ? 1 : 0),

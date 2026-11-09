@@ -135,6 +135,18 @@ export class App {
     await this.refreshPending();
     if (report.pulled > 0 || report.pushed > 0) this.set({ dataVersion: this.state.dataVersion + 1 });
     await this.flushMisses();
+    await this.refreshPopularity();
+  }
+
+  /** Counts across all users, at most once a day. Only a ranking hint, so a failure is ignored. */
+  private async refreshPopularity(): Promise<void> {
+    try {
+      if (!(await this.db.popularityStale(24 * 60 * 60_000))) return;
+      const { data, error } = await this.supabase.rpc('product_popularity');
+      if (!error && Array.isArray(data)) await this.db.savePopularity(data);
+    } catch {
+      // Search works without it.
+    }
   }
 
   async loadProducts(): Promise<void> {

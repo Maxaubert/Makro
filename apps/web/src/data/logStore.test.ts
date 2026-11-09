@@ -22,6 +22,26 @@ beforeEach(async () => {
   store.migrate();
 });
 
+describe('popularity', () => {
+  it('counts your live log entries per product', () => {
+    store.saveLogEntry(entry());
+    store.saveLogEntry(entry(200));
+    const gone = entry(100);
+    store.saveLogEntry(gone);
+    store.tombstone('log_entries', gone.id);
+    expect(store.productCounts()).toEqual([{ product_id: skyr.id, n: 2 }]);
+  });
+  it('keeps the global counts and knows how old they are', () => {
+    expect(store.popularity()).toEqual([]);
+    expect(store.popularityStale(1000)).toBe(true);
+    store.savePopularity([{ product_id: 'a', users: 2, logs: 5 }]);
+    expect(store.popularity()).toEqual([{ product_id: 'a', users: 2, logs: 5 }]);
+    expect(store.popularityStale(1000)).toBe(false);
+    now = new Date(now.getTime() + 1001);
+    expect(store.popularityStale(1000)).toBe(true);
+  });
+});
+
 describe('local schema', () => {
   it('has the seven synced tables, the outbox and user_version 1', () => {
     expect(store.schemaVersion()).toBe(1);

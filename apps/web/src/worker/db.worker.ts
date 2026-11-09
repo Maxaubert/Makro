@@ -12,6 +12,7 @@ import {
   lookupBarcode,
   productAliases,
   readProductMeta,
+  resolvePopularity,
   searchProducts,
   type ProductMeta,
 } from '../data/products';
@@ -78,7 +79,12 @@ const api = {
   installProducts: (bytes: Uint8Array, expected: { db_version: string; schema_version: number } | null) =>
     slots.install(bytes, expected),
 
-  search: (q: string, limit?: number) => searchProducts(requireProducts(), q, limit),
+  search: (q: string, limit?: number) => {
+    const sql = requireProducts();
+    return searchProducts(sql, q, limit, resolvePopularity(sql, log.productCounts(), log.popularity()));
+  },
+  popularityStale: (maxAgeMs: number) => log.popularityStale(maxAgeMs),
+  savePopularity: (...a: Parameters<LogStore['savePopularity']>) => log.savePopularity(...a),
   product: (id: string) => getProduct(requireProducts(), id),
   barcode: (code: string) => lookupBarcode(requireProducts(), code),
 
