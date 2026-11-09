@@ -1,7 +1,8 @@
 -- Tighten product_popularity() (decision 37). The caller's own logs no longer count toward the
--- floor: at least 2 OTHER people must have logged a product, so nobody can log a food and read
--- back whether one specific other person logged it too. Over-long ids are left out, so one row
--- cannot grow every client's cache.
+-- floor: at least 2 OTHER accounts must have logged a product, so logging a food alone no longer
+-- shows whether one other person logged it too. This is not a strong guarantee: someone with a
+-- second account can still probe a product. Raise the floor before the app opens to many people
+-- (decision 37). Over-long ids are left out, so one row cannot grow every client's cache.
 create or replace function public.product_popularity()
 returns table (product_id text, users integer, logs integer)
 language sql
