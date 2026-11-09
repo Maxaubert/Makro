@@ -1,7 +1,7 @@
 // D_Goals: the goal type, target weight and pace, about you, and the targets with their macro split,
 // edited on one page. Same form, limits and save as the phone screens (screens/goalFields.tsx,
 // domain/goalForm.ts); every number is calculated there or typed by the user.
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { formatNumber } from '../../domain/format';
 import { buildGoalChange, prefillGoalForm, toNumber, type GoalForm, type Prefill, type TargetKey } from '../../domain/goalForm';
 import { macroSplit, type GoalType, type Sex } from '../../domain/goals';
@@ -24,7 +24,7 @@ const TILE_LABEL = 'block text-[12px] text-secondary';
 const MACRO_GRID = 'grid grid-cols-[minmax(0,1fr)_64px_64px_56px] gap-2 xl:grid-cols-[minmax(0,1fr)_90px_90px_90px]';
 
 /** A number field as wide as its text, so a unit can sit right after it as on the board. */
-function FitInput({ label, value, onChange, className, placeholder = '?', onFocus, onBlur }: {
+function FitInput({ label, value, onChange, className, placeholder = '?', onFocus, onBlur, inputRef }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
@@ -32,11 +32,13 @@ function FitInput({ label, value, onChange, className, placeholder = '?', onFocu
   placeholder?: string;
   onFocus?: () => void;
   onBlur?: () => void;
+  inputRef?: RefObject<HTMLInputElement>;
 }) {
   return (
     <span className="inline-grid min-w-0 max-w-full">
       <span aria-hidden="true" className={`num invisible col-start-1 row-start-1 whitespace-pre pr-px ${className}`}>{value || placeholder}</span>
       <input
+        ref={inputRef}
         size={1}
         inputMode="decimal"
         aria-label={label}
@@ -127,12 +129,19 @@ const gramsOf = (text: string): number | null => {
 /** The big number, with thousands separators while it is not being typed in. */
 function KcalField({ text, onChange }: { text: string; onChange: (v: string) => void }) {
   const [focused, setFocused] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  // Dropping the thousands separator on focus rewrites the text and loses the selection a Tab or click
+  // just made, so typing would append to the old number. Select it all again in the same commit.
+  useLayoutEffect(() => {
+    if (focused) ref.current?.select();
+  }, [focused]);
   const n = toNumber(text);
   const shown = !focused && Number.isInteger(n) ? formatNumber(n, 0) : text;
   return (
     <label className="mt-1 block text-[84px] font-bold leading-[1.05] tracking-[-3px]">
       <FitInput
         label="Daily calories"
+        inputRef={ref}
         value={shown}
         onChange={onChange}
         onFocus={() => setFocused(true)}
