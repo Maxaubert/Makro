@@ -64,6 +64,14 @@ Never put a service role key in a `VITE_` variable: everything `VITE_` ends up i
 - `src/worker/`, `src/lib/`: the database worker, its client, app services and hooks.
 - `src/screens/`, `src/ui/`: the screens and shared pieces of the B Night look (the canvas is the visual authority).
 
+## Barcode camera
+
+`#/scan` uses the browser's `BarcodeDetector` with `getUserMedia`, in `src/lib/scanner.ts`. Where either is missing, or the device has no EAN decoder, the same route shows Type the code. No library is added.
+
+Support (MDN browser-compat-data, read 2026-11-09): Chrome on Android from 83, and browsers that mirror it there (Samsung Internet, Opera, WebView). On desktop only Chrome on macOS and ChromeOS, and Edge and Opera on macOS. **Not** Safari or any iPhone browser (Safari has it only behind a preference), Firefox, or Chrome on Windows and Linux. The camera needs https or localhost.
+
+The camera is on only while the screen is open and the page is visible. A code counts after two matching reads. UPC-E is not scanned, because `canonicalEan` would treat its short form like an EAN-8.
+
 ## Vercel (not done yet)
 
 Static files only, all data stays in Supabase Frankfurt. When real logging is approved:
