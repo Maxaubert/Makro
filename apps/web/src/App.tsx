@@ -3,12 +3,14 @@ import { useApp, useAppState, useRoute } from './lib/hooks';
 import { ownerReady } from './lib/owner';
 import { Account } from './screens/Account';
 import { AddFood } from './screens/AddFood';
+import { BarcodeNoData, BarcodeNotFound } from './screens/BarcodeResults';
 import { CustomFood } from './screens/CustomFood';
 import { Diary } from './screens/Diary';
 import { EditEntry } from './screens/EditEntry';
 import { Onboarding } from './screens/Onboarding';
 import { Portion } from './screens/Portion';
 import { Privacy } from './screens/Privacy';
+import { Scan } from './screens/Scan';
 import { SignIn } from './screens/SignIn';
 import { Today } from './screens/Today';
 import { TypeCode } from './screens/TypeCode';
@@ -58,8 +60,14 @@ export function App() {
       return <AddFood />;
     case 'portion':
       return <Portion key={`${a}/${b}`} kind={a} id={b} />;
+    case 'scan':
+      return <Scan />;
     case 'code':
       return <TypeCode />;
+    case 'not-found':
+      return <BarcodeNotFound code={a ?? ''} />;
+    case 'no-data':
+      return <BarcodeNoData key={a} id={a} />;
     case 'custom':
       return <CustomFood />;
     case 'weight':
