@@ -2,6 +2,7 @@
 // A target shows only when a goals row exists (set during onboarding).
 import { formatNumber, formatTotal } from '../domain/format';
 import { href, useApp, useAppState, useData } from '../lib/hooks';
+import { canTryScan } from '../lib/scanner';
 import { Card, HalfGauge, Icon, Page, Ring, SyncPill, UnknownNote } from '../ui/kit';
 import { dayLabel, today, totalsOf } from './day';
 import { GuidanceCards } from './TodayGuidance';
@@ -99,9 +100,9 @@ export function Today() {
           <Icon name="search" size={20} stroke={2} />
           Search food
         </a>
-        <a href={href('code')} className="tap flex h-12 flex-1 items-center justify-center gap-2 rounded-full border border-border bg-raised text-sm font-semibold">
+        <a href={href(canTryScan() ? 'scan' : 'code')} className="tap flex h-12 flex-1 items-center justify-center gap-2 rounded-full border border-border bg-raised text-sm font-semibold">
           <Icon name="barcode" size={20} />
-          Type a code
+          {canTryScan() ? 'Scan a code' : 'Type a code'}
         </a>
       </div>
 

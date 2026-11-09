@@ -94,6 +94,15 @@ order by bm25(products_fts), length(p.search_text), p.id limit 500;
 
    Return the first 20 (or as many as the screen needs).
 
+6. **Correct typos** (proposed 2026-11-09, #22; built on the web first, iOS must match; cases in `packages/contracts/search/typos.json`). Only when the query in step 4 returned fewer than 3 products. Then, for each query token on its own:
+   - A token is corrected only if it has at least 4 characters, holds no number, and matches fewer than 3 products on its own (its prefix query from step 4).
+   - Its candidates are the terms of the FTS vocabulary (`fts5vocab` of `products_fts`, type `row`) that start with the same first character, hold no number, differ from the token, are at most 1 edit away (token of 4 to 7 characters) or 2 edits away (8 or more), and are held by more products than the token matches. An edit is inserting, deleting or replacing one character, or swapping two neighbours (optimal string alignment). Characters are Unicode code points.
+   - The best candidate is the one with the fewest edits, then the most products, then the lowest term by code point. No candidate means the token stays.
+
+   If any token changed, query again with the corrected tokens (step 4, with the same prefixes) and rank those rows with the order in step 5, whole-word matches counted against the corrected tokens. **Show what the original query found first, in its normal order, then the corrected rows it did not find**, up to the same limit. If nothing changed, the result is the plain query's. A correction is never applied to a query that finds 3 or more products, so it can only add rows, never take a good result away. It is computed by code from the file's own words, so no number comes from anywhere but the product database (accuracy rule 1).
+
+   The vocabulary table is not in the file and does not need to be: create it per connection in the temp schema (`create virtual table if not exists temp.products_vocab using fts5vocab(main, products_fts, row)`), which works on a read-only database, and read it only when a correction is possible (`where term >= first and term < next character`).
+
 The FTS table is `products_fts(search_text)` with the `unicode61` tokenizer and prefix indexes for 2 and 3 characters.
 
 What `search_text` contains: normalised name, brand and flavour. It does not contain `pack_size` or the category, so `tine melk 1l` returns nothing.

@@ -75,6 +75,11 @@ export interface GoalWriteRow extends SyncFields {
   weight_kg: number;
 }
 
+type GoalInputColumn = 'pace_kg_per_week' | 'sex' | 'birth_year' | 'height_cm' | 'activity_level' | 'weight_kg';
+
+/** A goal row as read back: a row from a phone may not hold the inputs (log-schema.md). */
+export type StoredGoal = Omit<GoalWriteRow, GoalInputColumn> & { [K in GoalInputColumn]: GoalWriteRow[K] | null };
+
 export type FoodRef =
   | { kind: 'product'; product: Product; db_version: string | null }
   | { kind: 'custom'; food: CustomFoodRow };
@@ -128,6 +133,99 @@ export function buildLogEntry(input: {
     db_version: f.kind === 'product' ? f.db_version : null,
     verified: f.kind === 'product' ? (f.product.verified ? 1 : 0) : null,
     per_100_unit: per.per_100_unit,
+    ...nutrients,
+  };
+}
+
+/** Which food a favourite or saved-meal item points at: exactly one of the two ids is set. */
+export interface FoodKey {
+  product_id: string | null;
+  custom_food_id: string | null;
+}
+
+export interface FavouriteRow extends SyncFields, FoodKey {}
+
+export interface SavedMealRow extends SyncFields {
+  name: string;
+}
+
+export interface SavedMealItemRow extends SyncFields, FoodKey {
+  saved_meal_id: string;
+  sort_order: number;
+  quantity: number;
+  unit: AmountUnit;
+  grams: number;
+  name: string;
+}
+
+export type RepeatItem = FoodKey & Pick<LogEntryRow, 'quantity' | 'unit' | 'grams' | 'name'>;
+export type EntrySnapshot = Pick<LogEntryRow, 'name' | 'brand' | 'source' | 'ean' | 'db_version' | 'verified' | 'per_100_unit' | Nutrient>;
+
+export function buildFavourite(key: FoodKey, at: Date): FavouriteRow {
+  if ((key.product_id === null) === (key.custom_food_id === null)) throw new Error('a favourite points at exactly one food');
+  return { ...syncFields(at), product_id: key.product_id, custom_food_id: key.custom_food_id };
+}
+
+/** A saved meal from diary entries. It holds amounts only: logging it takes fresh numbers (log-schema.md). */
+export function buildSavedMeal(name: string, entries: readonly RepeatItem[], at: Date): { meal: SavedMealRow; items: SavedMealItemRow[] } {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('a saved meal needs a name');
+  if (entries.length === 0) throw new Error('a saved meal needs at least one item');
+  const meal = { ...syncFields(at), name: trimmed };
+  const items = entries.map((e, sort_order) => ({
+    ...syncFields(at),
+    saved_meal_id: meal.id,
+    sort_order,
+    product_id: e.product_id,
+    custom_food_id: e.custom_food_id,
+    quantity: e.quantity,
+    unit: e.unit,
+    grams: e.grams,
+    name: e.name,
+  }));
+  return { meal, items };
+}
+
+/**
+ * A log entry repeating an earlier amount (a saved-meal item or yesterday's entry). The amount is
+ * kept as stored, grams included. The numbers come from the current food; if it is gone, from the
+ * last snapshot; with neither, they stay unknown (rules 2 and 3).
+ */
+export function buildRepeatedEntry(input: {
+  item: RepeatItem;
+  food: FoodRef | null;
+  snapshot: EntrySnapshot | null;
+  meal: Meal;
+  at: Date;
+  tz: string;
+}): LogEntryRow {
+  const { item, food, snapshot: snap, meal, at, tz } = input;
+  if (food) {
+    // Built on the weight, so a serving size the product no longer has cannot fail or change it.
+    return { ...buildLogEntry({ food, quantity: item.grams, unit: 'g', meal, at, tz }), quantity: item.quantity, unit: item.unit };
+  }
+  if (!MEALS.includes(meal)) throw new Error(`unknown meal: ${meal}`);
+  const nutrients = {} as NutrientColumns;
+  for (const n of NUTRIENTS) nutrients[n] = snap?.[n] ?? null;
+  const day = stampLocalDay(at, tz);
+  return {
+    ...syncFields(at),
+    eaten_at: at.toISOString(),
+    tz: day.tz,
+    local_date: day.local_date,
+    meal,
+    quantity: item.quantity,
+    unit: item.unit,
+    grams: item.grams,
+    product_id: item.product_id,
+    custom_food_id: item.custom_food_id,
+    name: snap?.name ?? item.name,
+    brand: snap?.brand ?? null,
+    source: snap?.source ?? 'unknown',
+    ean: snap?.ean ?? null,
+    db_version: snap?.db_version ?? null,
+    verified: snap?.verified ?? null,
+    per_100_unit: snap?.per_100_unit ?? (item.unit === 'ml' ? 'ml' : 'g'),
     ...nutrients,
   };
 }
@@ -213,11 +311,12 @@ export function buildGoal(input: {
   return { ...syncFields(at), effective_from: stampLocalDay(at, tz).local_date, ...targets, ...rest };
 }
 
-export function buildWeightEntry(input: { weight_kg: number; at: Date; tz: string }): WeightEntryRow {
+/** `at` is when it was measured; `now` (default `at`) is when the row is written, for a back-dated weight. */
+export function buildWeightEntry(input: { weight_kg: number; at: Date; tz: string; now?: Date }): WeightEntryRow {
   if (!Number.isFinite(input.weight_kg) || input.weight_kg <= 0) throw new Error('weight must be above 0 kg');
   const day = stampLocalDay(input.at, input.tz);
   return {
-    ...syncFields(input.at),
+    ...syncFields(input.now ?? input.at),
     measured_at: input.at.toISOString(),
     tz: day.tz,
     local_date: day.local_date,

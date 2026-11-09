@@ -1,9 +1,10 @@
 // The local log store: a SQLite file in OPFS with the log-schema v1 tables and an outbox.
 // Every save lands here first, so logging works without a connection (rule 5, decision 8).
 // The sync loop (sync.ts) drains the outbox through sync_push and applies sync_pull pages.
-import type { CustomFoodRow, GoalWriteRow, LogEntryRow, Meal, WeightEntryRow } from '../domain/entry';
+import type { CustomFoodRow, FavouriteRow, FoodKey, GoalWriteRow, LogEntryRow, Meal, SavedMealItemRow, SavedMealRow, StoredGoal, WeightEntryRow } from '../domain/entry';
 import { MEALS } from '../domain/entry';
 import type { AmountUnit } from '../domain/grams';
+import { stampLocalDay } from '../domain/localDate';
 import type { Nutrient } from '../domain/nutrients';
 import { columnsOf, isTableName, localSchemaSql, LOCAL_SCHEMA_VERSION, TABLE_NAMES, type Column, type TableName } from './logSchema';
 import type { Sql, SqlValue } from './sql';
@@ -81,6 +82,14 @@ export interface GoalRow {
   carbs_g_target: number;
   fat_g_target: number;
   fibre_g_target: number;
+  target_weight_kg: number | null;
+  goal_type: GoalWriteRow['goal_type'];
+}
+
+export interface SavedMeal {
+  id: string;
+  name: string;
+  items: SavedMealItemRow[];
 }
 
 export class LogStore {
@@ -135,6 +144,60 @@ export class LogStore {
     this.save('goals', row as unknown as Record<string, unknown>);
   }
 
+  /** Several entries at once: a whole meal is logged or none of it. */
+  saveLogEntries(rows: LogEntryRow[]): void {
+    this.sql.tx(() => {
+      for (const row of rows) this.saveLogEntry(row);
+    });
+  }
+
+  /** One live row per food (log-schema.md, Duplicates), so a double tap adds nothing. */
+  addFavourite(row: FavouriteRow): void {
+    this.sql.tx(() => {
+      const kind = row.product_id !== null ? 'product' : 'custom';
+      if (this.isFavourite(kind, [(row.product_id ?? row.custom_food_id) as string])) return;
+      this.save('favourites', row as unknown as Record<string, unknown>);
+    });
+  }
+
+  /** Remove a food from favourites under any of its ids, a merged product's old ids included. */
+  removeFavourites(kind: 'product' | 'custom', ids: string[]): void {
+    this.sql.tx(() => {
+      for (const { id } of this.liveFavourites(kind, ids)) this.tombstone('favourites', id);
+    });
+  }
+
+  /** A saved meal and its items, in one transaction. */
+  saveSavedMeal(meal: SavedMealRow, items: SavedMealItemRow[]): void {
+    this.sql.tx(() => {
+      this.save('saved_meals', meal as unknown as Record<string, unknown>);
+      for (const item of items) this.save('saved_meal_items', item as unknown as Record<string, unknown>);
+    });
+  }
+
+  /** Without foreign keys the server does not cascade, so every item gets a tombstone too (log-schema.md). */
+  deleteSavedMeal(id: string): void {
+    this.sql.tx(() => {
+      this.tombstone('saved_meals', id);
+      for (const item of this.savedMealItems(id)) this.tombstone('saved_meal_items', item.id);
+    });
+  }
+
+  /**
+   * A goal changed after onboarding, from its effective day on, so earlier days keep their target.
+   * effective_from is the natural key: a live row for that day is updated, never doubled.
+   */
+  saveGoalChange(goal: GoalWriteRow, weight: WeightEntryRow | null): void {
+    this.sql.tx(() => {
+      const same = this.sql.get<{ id: string; created_at: string; updated_at: string }>(
+        'select id, created_at, updated_at from goals where effective_from = ? and deleted_at is null order by updated_at desc, id desc limit 1',
+        [goal.effective_from],
+      );
+      this.saveGoal(same ? { ...goal, id: same.id, created_at: same.created_at, updated_at: this.nextUpdatedAt(same.updated_at) } : goal);
+      if (weight) this.saveWeight(weight);
+    });
+  }
+
   /** Every live row, for the user's own download of their data. */
   exportAll(): Record<TableName, Record<string, SqlValue>[]> {
     const out = {} as Record<TableName, Record<string, SqlValue>[]>;
@@ -181,6 +244,28 @@ export class LogStore {
       }
       next.updated_at = this.nextUpdatedAt(row.updated_at);
       this.save('log_entries', next);
+    });
+  }
+
+  /** Edit a weight. local_date stays fixed unless the user moves the measurement to another time. */
+  updateWeight(id: string, patch: { weight_kg?: number; moved?: { at: Date; tz: string } }): void {
+    this.sql.tx(() => {
+      const row = this.sql.get<Record<string, unknown>>('select * from weight_entries where id = ?', [id]);
+      if (!row || row.deleted_at) throw new Error(`no weight ${id}`);
+      if (patch.weight_kg === undefined && !patch.moved) return;
+      const next: Record<string, unknown> = { ...row };
+      if (patch.weight_kg !== undefined) {
+        if (!Number.isFinite(patch.weight_kg) || patch.weight_kg <= 0) throw new Error('weight must be above 0 kg');
+        next.weight_kg = patch.weight_kg;
+      }
+      if (patch.moved) {
+        const day = stampLocalDay(patch.moved.at, patch.moved.tz);
+        next.measured_at = patch.moved.at.toISOString();
+        next.tz = day.tz;
+        next.local_date = day.local_date;
+      }
+      next.updated_at = this.nextUpdatedAt(String(row.updated_at));
+      this.save('weight_entries', next);
     });
   }
 
@@ -253,6 +338,44 @@ export class LogStore {
     );
   }
 
+  /** Newest favourite first. Duplicates are possible until a sync settles them. */
+  favourites(): FoodKey[] {
+    return this.sql.all<FoodKey>('select product_id, custom_food_id from favourites where deleted_at is null order by created_at desc, id desc');
+  }
+
+  isFavourite(kind: 'product' | 'custom', ids: string[]): boolean {
+    return this.liveFavourites(kind, ids).length > 0;
+  }
+
+  private liveFavourites(kind: 'product' | 'custom', ids: string[]): { id: string }[] {
+    if (ids.length === 0) return [];
+    const col = kind === 'product' ? 'product_id' : 'custom_food_id';
+    return this.sql.all<{ id: string }>(`select id from favourites where ${col} in (${ids.map(() => '?').join(', ')}) and deleted_at is null`, ids);
+  }
+
+  /** Saved meals with at least one live item, newest first. */
+  savedMeals(): SavedMeal[] {
+    const meals = this.sql.all<{ id: string; name: string }>('select id, name from saved_meals where deleted_at is null order by created_at desc, id desc');
+    return meals.map((m) => ({ ...m, items: this.savedMealItems(m.id) })).filter((m) => m.items.length > 0);
+  }
+
+  savedMeal(id: string): SavedMeal | null {
+    const meal = this.sql.get<{ id: string; name: string }>('select id, name from saved_meals where id = ? and deleted_at is null', [id]);
+    return meal ? { ...meal, items: this.savedMealItems(id) } : null;
+  }
+
+  private savedMealItems(savedMealId: string): SavedMealItemRow[] {
+    return this.sql.all<SavedMealItemRow>('select * from saved_meal_items where saved_meal_id = ? and deleted_at is null order by sort_order, id', [savedMealId]);
+  }
+
+  /** The newest snapshot held for a food. A deleted entry still counts, but only after every live one. */
+  latestSnapshot(key: FoodKey): LocalLogEntry | null {
+    const [col, id] = key.product_id !== null ? ['product_id', key.product_id] : ['custom_food_id', key.custom_food_id];
+    return (
+      this.sql.get<LocalLogEntry>(`select * from log_entries where ${col} = ? order by deleted_at is not null, eaten_at desc, id desc limit 1`, [id]) ?? null
+    );
+  }
+
   /** How many live entries each product has, for ranking search. */
   productCounts(): { product_id: string; n: number }[] {
     return this.sql.all<{ product_id: string; n: number }>(
@@ -303,11 +426,21 @@ export class LogStore {
     return this.sql.all('select * from weight_entries where deleted_at is null order by measured_at desc, id desc limit ?', [limit]);
   }
 
-  /** The goal in force on a day (written by the phone; the web never sets goals). */
+  /** Every live weight, oldest first: the trend needs the days before the visible range too. */
+  weightHistory(): (WeightEntryRow & { server_seq: number | null })[] {
+    return this.sql.all('select * from weight_entries where deleted_at is null order by measured_at, id');
+  }
+
+  /** The newest live goal row with its inputs, to prefill the editing screens. */
+  latestGoal(): StoredGoal | null {
+    return this.sql.get<StoredGoal>('select * from goals where deleted_at is null order by effective_from desc, updated_at desc, id desc limit 1') ?? null;
+  }
+
+  /** The goal in force on a day. */
   goalFor(localDate: string): GoalRow | null {
     return (
       this.sql.get<GoalRow>(
-        `select effective_from, kcal_target, protein_g_target, carbs_g_target, fat_g_target, fibre_g_target
+        `select effective_from, kcal_target, protein_g_target, carbs_g_target, fat_g_target, fibre_g_target, target_weight_kg, goal_type
            from goals where deleted_at is null and effective_from <= ? order by effective_from desc limit 1`,
         [localDate],
       ) ?? null

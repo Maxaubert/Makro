@@ -12,8 +12,10 @@ Status: oracle split, owners, rounding and CI approved by Nima in review of #51 
 | `goals/*.json` (targets, calorie floor, loss rate) | yes, when iOS is built | no | The web app runs them first (decision 38) |
 | `goals/constants.json` (calorie floor, maximum loss rate, the other goal numbers, each with its source and status) | yes, when iOS is built | no | The web app checks it too (decision 38) |
 | `guidance/*.json` (week window, weekly average and verdict, what is left, end-of-day status, suggestions, #27, #53) | yes, when iOS is built | no | The web app runs them first; the numbers in `guidance/constants.json` are provisional |
+| `weight/*.json` (7-day trend with missing days and several entries a day, distance to goal) | yes, when iOS is built | no | The web app runs them first (#2) |
 | `search/normalise.json` (query text to normalised tokens: ø, æ, å, case, accents) | yes | yes | Both sides build or query the search index and must normalise alike |
 | `search/results.json` (query to expected product ids) | yes | no | Runs against a small pinned fixture database, not the full catalogue |
+| `search/typos.json` (query, counts and FTS vocabulary to corrected tokens) | yes, when iOS is built | no | The web app runs it first (#22). Needs no database, the runner feeds the vocabulary in |
 
 ## The server and the web app do not redo the maths
 
@@ -40,6 +42,7 @@ packages/contracts/
   search/normalise.json      done (22 cases, generated from the current build_slim.normalise)
   goals/                     not yet: needs the activity multipliers and fat minimum decided first
   constants.json             not yet: values must be looked up and cited
+  search/typos.json          done (24 cases, the rule in products-db.md Search step 6)
   search/results.json        not yet: needs the pinned fixture database
   fixtures/                  not yet
 ```

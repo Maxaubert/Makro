@@ -1,0 +1,272 @@
+{
+  "version": 1,
+  "description": "Body-weight summary over the calendar days from..to (local_date strings, inclusive). A day's weight_kg is the arithmetic mean of that day's live entries; entries counts them. A day with no entry has weight_kg null: it is unknown, never 0, and is never filled in or interpolated. trend_kg on day D is the arithmetic mean of the daily values (one per day, however many entries that day had) in the 7 calendar days D-6..D, leaving out days with no value from both the sum and the divisor. covered_days is how many of those 7 days have a value. trend_kg is null when covered_days is below 3, and it can exist on a day that has no entry itself. The window may reach back before from. stats (lowest_kg, highest_kg, average_kg) use the daily values inside from..to only and are null when there are none. change_7d_kg is trend_kg on to minus trend_kg on to-7 days, null if either is null. All values are unrounded.",
+  "cases": [
+    {
+      "id": "no-entries",
+      "input": { "entries": [], "from": "2026-10-01", "to": "2026-10-02" },
+      "expected": {
+        "days": [
+          { "date": "2026-10-01", "weight_kg": null, "entries": 0, "trend_kg": null, "covered_days": 0 },
+          { "date": "2026-10-02", "weight_kg": null, "entries": 0, "trend_kg": null, "covered_days": 0 }
+        ],
+        "stats": { "lowest_kg": null, "highest_kg": null, "average_kg": null },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "one-entry-is-not-a-trend",
+      "input": { "entries": [{ "local_date": "2026-10-01", "weight_kg": 80 }], "from": "2026-10-01", "to": "2026-10-01" },
+      "expected": {
+        "days": [{ "date": "2026-10-01", "weight_kg": 80, "entries": 1, "trend_kg": null, "covered_days": 1 }],
+        "stats": { "lowest_kg": 80, "highest_kg": 80, "average_kg": 80 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "trend-starts-at-three-days",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-01", "weight_kg": 80 },
+          { "local_date": "2026-10-02", "weight_kg": 81 },
+          { "local_date": "2026-10-03", "weight_kg": 82 }
+        ],
+        "from": "2026-10-01",
+        "to": "2026-10-03"
+      },
+      "expected": {
+        "days": [
+          { "date": "2026-10-01", "weight_kg": 80, "entries": 1, "trend_kg": null, "covered_days": 1 },
+          { "date": "2026-10-02", "weight_kg": 81, "entries": 1, "trend_kg": null, "covered_days": 2 },
+          { "date": "2026-10-03", "weight_kg": 82, "entries": 1, "trend_kg": 81, "covered_days": 3 }
+        ],
+        "stats": { "lowest_kg": 80, "highest_kg": 82, "average_kg": 81 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "full-window-then-slides",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-01", "weight_kg": 80 },
+          { "local_date": "2026-10-02", "weight_kg": 81 },
+          { "local_date": "2026-10-03", "weight_kg": 82 },
+          { "local_date": "2026-10-04", "weight_kg": 83 },
+          { "local_date": "2026-10-05", "weight_kg": 84 },
+          { "local_date": "2026-10-06", "weight_kg": 85 },
+          { "local_date": "2026-10-07", "weight_kg": 86 },
+          { "local_date": "2026-10-08", "weight_kg": 87 }
+        ],
+        "from": "2026-10-07",
+        "to": "2026-10-08"
+      },
+      "expected": {
+        "days": [
+          { "date": "2026-10-07", "weight_kg": 86, "entries": 1, "trend_kg": 83, "covered_days": 7 },
+          { "date": "2026-10-08", "weight_kg": 87, "entries": 1, "trend_kg": 84, "covered_days": 7 }
+        ],
+        "stats": { "lowest_kg": 86, "highest_kg": 87, "average_kg": 86.5 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "window-is-seven-calendar-days",
+      "note": "The 100 kg entry is on D-7, one day outside the window.",
+      "input": {
+        "entries": [
+          { "local_date": "2026-09-30", "weight_kg": 100 },
+          { "local_date": "2026-10-01", "weight_kg": 80 },
+          { "local_date": "2026-10-02", "weight_kg": 80 },
+          { "local_date": "2026-10-07", "weight_kg": 80 }
+        ],
+        "from": "2026-10-07",
+        "to": "2026-10-07"
+      },
+      "expected": {
+        "days": [{ "date": "2026-10-07", "weight_kg": 80, "entries": 1, "trend_kg": 80, "covered_days": 3 }],
+        "stats": { "lowest_kg": 80, "highest_kg": 80, "average_kg": 80 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "missing-days-are-left-out-never-zero",
+      "note": "Counting the missing days as 0 would put the 2026-10-04 trend near 48.6 kg.",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-01", "weight_kg": 80 },
+          { "local_date": "2026-10-02", "weight_kg": 81 },
+          { "local_date": "2026-10-04", "weight_kg": 82 }
+        ],
+        "from": "2026-10-01",
+        "to": "2026-10-05"
+      },
+      "expected": {
+        "days": [
+          { "date": "2026-10-01", "weight_kg": 80, "entries": 1, "trend_kg": null, "covered_days": 1 },
+          { "date": "2026-10-02", "weight_kg": 81, "entries": 1, "trend_kg": null, "covered_days": 2 },
+          { "date": "2026-10-03", "weight_kg": null, "entries": 0, "trend_kg": null, "covered_days": 2 },
+          { "date": "2026-10-04", "weight_kg": 82, "entries": 1, "trend_kg": 81, "covered_days": 3 },
+          { "date": "2026-10-05", "weight_kg": null, "entries": 0, "trend_kg": 81, "covered_days": 3 }
+        ],
+        "stats": { "lowest_kg": 80, "highest_kg": 82, "average_kg": 81 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "several-entries-on-one-day-count-as-one-day",
+      "note": "Weighting by entry instead of by day would give 81.75 on 2026-10-03.",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-01", "weight_kg": 80 },
+          { "local_date": "2026-10-01", "weight_kg": 82 },
+          { "local_date": "2026-10-02", "weight_kg": 81 },
+          { "local_date": "2026-10-03", "weight_kg": 84 }
+        ],
+        "from": "2026-10-01",
+        "to": "2026-10-03"
+      },
+      "expected": {
+        "days": [
+          { "date": "2026-10-01", "weight_kg": 81, "entries": 2, "trend_kg": null, "covered_days": 1 },
+          { "date": "2026-10-02", "weight_kg": 81, "entries": 1, "trend_kg": null, "covered_days": 2 },
+          { "date": "2026-10-03", "weight_kg": 84, "entries": 1, "trend_kg": 82, "covered_days": 3 }
+        ],
+        "stats": { "lowest_kg": 81, "highest_kg": 84, "average_kg": 82 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "window-reaches-before-from-but-stats-do-not",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-01", "weight_kg": 80 },
+          { "local_date": "2026-10-02", "weight_kg": 81 },
+          { "local_date": "2026-10-03", "weight_kg": 82 }
+        ],
+        "from": "2026-10-03",
+        "to": "2026-10-03"
+      },
+      "expected": {
+        "days": [{ "date": "2026-10-03", "weight_kg": 82, "entries": 1, "trend_kg": 81, "covered_days": 3 }],
+        "stats": { "lowest_kg": 82, "highest_kg": 82, "average_kg": 82 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "long-gap-breaks-the-trend",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-01", "weight_kg": 80 },
+          { "local_date": "2026-10-02", "weight_kg": 80 },
+          { "local_date": "2026-10-03", "weight_kg": 80 },
+          { "local_date": "2026-10-11", "weight_kg": 90 }
+        ],
+        "from": "2026-10-03",
+        "to": "2026-10-11"
+      },
+      "expected": {
+        "days": [
+          { "date": "2026-10-03", "weight_kg": 80, "entries": 1, "trend_kg": 80, "covered_days": 3 },
+          { "date": "2026-10-04", "weight_kg": null, "entries": 0, "trend_kg": 80, "covered_days": 3 },
+          { "date": "2026-10-05", "weight_kg": null, "entries": 0, "trend_kg": 80, "covered_days": 3 },
+          { "date": "2026-10-06", "weight_kg": null, "entries": 0, "trend_kg": 80, "covered_days": 3 },
+          { "date": "2026-10-07", "weight_kg": null, "entries": 0, "trend_kg": 80, "covered_days": 3 },
+          { "date": "2026-10-08", "weight_kg": null, "entries": 0, "trend_kg": null, "covered_days": 2 },
+          { "date": "2026-10-09", "weight_kg": null, "entries": 0, "trend_kg": null, "covered_days": 1 },
+          { "date": "2026-10-10", "weight_kg": null, "entries": 0, "trend_kg": null, "covered_days": 0 },
+          { "date": "2026-10-11", "weight_kg": 90, "entries": 1, "trend_kg": null, "covered_days": 1 }
+        ],
+        "stats": { "lowest_kg": 80, "highest_kg": 90, "average_kg": 85 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "change-over-seven-days",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-01", "weight_kg": 80 },
+          { "local_date": "2026-10-02", "weight_kg": 80 },
+          { "local_date": "2026-10-03", "weight_kg": 80 },
+          { "local_date": "2026-10-08", "weight_kg": 78 },
+          { "local_date": "2026-10-09", "weight_kg": 79 },
+          { "local_date": "2026-10-10", "weight_kg": 80 }
+        ],
+        "from": "2026-10-10",
+        "to": "2026-10-10"
+      },
+      "expected": {
+        "days": [{ "date": "2026-10-10", "weight_kg": 80, "entries": 1, "trend_kg": 79, "covered_days": 3 }],
+        "stats": { "lowest_kg": 80, "highest_kg": 80, "average_kg": 80 },
+        "change_7d_kg": -1
+      }
+    },
+    {
+      "id": "year-end",
+      "input": {
+        "entries": [
+          { "local_date": "2027-12-31", "weight_kg": 80 },
+          { "local_date": "2028-01-01", "weight_kg": 82 },
+          { "local_date": "2028-01-02", "weight_kg": 84 }
+        ],
+        "from": "2028-01-02",
+        "to": "2028-01-02"
+      },
+      "expected": {
+        "days": [{ "date": "2028-01-02", "weight_kg": 84, "entries": 1, "trend_kg": 82, "covered_days": 3 }],
+        "stats": { "lowest_kg": 84, "highest_kg": 84, "average_kg": 84 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "leap-day",
+      "input": {
+        "entries": [
+          { "local_date": "2028-02-28", "weight_kg": 80 },
+          { "local_date": "2028-02-29", "weight_kg": 81 },
+          { "local_date": "2028-03-01", "weight_kg": 82 }
+        ],
+        "from": "2028-03-01",
+        "to": "2028-03-01"
+      },
+      "expected": {
+        "days": [{ "date": "2028-03-01", "weight_kg": 82, "entries": 1, "trend_kg": 81, "covered_days": 3 }],
+        "stats": { "lowest_kg": 82, "highest_kg": 82, "average_kg": 82 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "input-order-does-not-matter",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-03", "weight_kg": 82 },
+          { "local_date": "2026-10-01", "weight_kg": 80 },
+          { "local_date": "2026-10-02", "weight_kg": 81 }
+        ],
+        "from": "2026-10-03",
+        "to": "2026-10-03"
+      },
+      "expected": {
+        "days": [{ "date": "2026-10-03", "weight_kg": 82, "entries": 1, "trend_kg": 81, "covered_days": 3 }],
+        "stats": { "lowest_kg": 82, "highest_kg": 82, "average_kg": 82 },
+        "change_7d_kg": null
+      }
+    },
+    {
+      "id": "values-are-not-rounded",
+      "input": {
+        "entries": [
+          { "local_date": "2026-10-01", "weight_kg": 80.1 },
+          { "local_date": "2026-10-02", "weight_kg": 80.2 },
+          { "local_date": "2026-10-03", "weight_kg": 80.4 }
+        ],
+        "from": "2026-10-03",
+        "to": "2026-10-03"
+      },
+      "expected": {
+        "days": [{ "date": "2026-10-03", "weight_kg": 80.4, "entries": 1, "trend_kg": 80.23333333333333, "covered_days": 3 }],
+        "stats": { "lowest_kg": 80.4, "highest_kg": 80.4, "average_kg": 80.4 },
+        "change_7d_kg": null
+      }
+    }
+  ]
+}

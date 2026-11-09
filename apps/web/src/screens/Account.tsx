@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { href, useApp, useAppState, useData } from '../lib/hooks';
 import { APP_VERSION } from '../lib/app';
 import { Card, Notice, Page, SecondaryButton, SyncPill } from '../ui/kit';
+import { aboutSummary, goalsSummary } from '../domain/goalForm';
 import { DeleteAccount } from './DeleteAccount';
-import { HelpNote } from './Onboarding';
+import { HelpNote } from './goalFields';
 
 export function Account() {
   const app = useApp();
@@ -14,6 +15,7 @@ export function Account() {
   const { data: popularOn } = useData(() => app.popularityOn(), []);
   const popular = popularChange ?? popularOn ?? null;
   const [dataError, setDataError] = useState<string | null>(null);
+  const { data: goal } = useData(() => app.db.latestGoal(), []);
 
   async function togglePopular() {
     if (popular === null) return;
@@ -53,7 +55,17 @@ export function Account() {
         <h1 className="text-[28px] font-bold tracking-[-0.02em]">Account</h1>
         <SyncPill sync={sync} pending={pending} />
       </header>
-      <Card className="mt-4 px-4 py-1 text-[15px]">
+      <Card className="mt-4 overflow-hidden">
+        <a href={href('profile', 'about')} className="tap flex items-center justify-between gap-4 p-4">
+          <span className="text-[16px] font-semibold">About you</span>
+          <span className="text-right text-[14px] text-secondary">{goal === undefined ? '' : aboutSummary(goal, new Date().getFullYear())}</span>
+        </a>
+        <a href={href('profile', 'goals')} className="tap flex items-center justify-between gap-4 border-t border-border p-4">
+          <span className="text-[16px] font-semibold">Goals</span>
+          <span className="text-right text-[14px] text-secondary">{goal === undefined ? '' : goalsSummary(goal)}</span>
+        </a>
+      </Card>
+      <Card className="mt-3 px-4 py-1 text-[15px]">
         {row('Signed in as', session?.user.email ?? '')}
         {row('Waiting to sync', String(pending))}
         {row('Last synced', sync.lastSyncedAt ? sync.lastSyncedAt.toLocaleTimeString('en-GB') : 'Not yet')}
