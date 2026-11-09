@@ -14,6 +14,7 @@ const paths = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
   weight: (
     <>
       <rect x="4" y="4" width="16" height="16" rx="3" />
