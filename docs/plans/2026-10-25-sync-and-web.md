@@ -165,3 +165,5 @@ Two Makro PRs (#34, then #46) and one nutrition-data PR. Each Makro PR waits for
 **2026-11-09, night:** #82 (Weight matches the boards) and #83 (end-of-day) merged and deployed. Curated names for meat, ready meals, snacks and drinks in `db-2026.11.09-4` (nutrition-data #17). A confirmed day is stored on the device only (`sync_state`, `day_complete:<date>`), and there is no undo yet.
 
 **2026-11-09, late:** desktop layout live (#85, #84): boards D1 to D8 from 1024 px up. Portion, entry, scan, code, custom food, end-of-day, privacy, onboarding and the goal editing pages still use the centred column; no board covers them.
+
+**2026-11-09, late:** clean-up rules in nutrition-data #18 (`tools/cleanup.py`), released as `db-2026.11.09-5`, 58,540 products. One spelling per brand, repaired names, impossible numbers left out, duplicates folded. Main numbers changed on none of the products that stay. Not done: 1,026 rows where kcal and macros disagree, which need a per-product look because many are correct (polyols, fibre).
