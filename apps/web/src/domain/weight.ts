@@ -137,14 +137,21 @@ export interface WeightLine {
   change_kg: number | null;
 }
 
-export function weightLine(days: TrendDay[]): WeightLine {
-  const known = days.flatMap((d) => (d.weight_kg === null ? [] : [d.weight_kg]));
-  if (known.length === 0) return { segments: [], latest: null, change_kg: null };
+function knownWeights(days: TrendDay[]): number[] {
+  return days.flatMap((d) => (d.weight_kg === null ? [] : [d.weight_kg]));
+}
+
+function lineScale(known: number[]): { yMin: number; yMax: number } {
   const lo = Math.min(...known);
   const hi = Math.max(...known);
   const pad = (hi - lo) * LINE_BOX.padShare || LINE_BOX.flatPadKg;
-  const yMin = lo - pad;
-  const yMax = hi + pad;
+  return { yMin: lo - pad, yMax: hi + pad };
+}
+
+export function weightLine(days: TrendDay[]): WeightLine {
+  const known = knownWeights(days);
+  if (known.length === 0) return { segments: [], latest: null, change_kg: null };
+  const { yMin, yMax } = lineScale(known);
   const segments: { x: number; y: number }[][] = [];
   let open = false;
   days.forEach((d, i) => {
@@ -163,6 +170,21 @@ export function weightLine(days: TrendDay[]): WeightLine {
     latest: lastSegment[lastSegment.length - 1],
     change_kg: known.length >= 2 ? known[known.length - 1] - known[0] : null,
   };
+}
+
+/** Three labelled kg lines for weightLine's scale, top first, `top` in percent of the box. */
+export function weightLineTicks(days: TrendDay[]): { kg: number; top: number }[] {
+  const known = knownWeights(days);
+  if (known.length === 0) return [];
+  const { yMin, yMax } = lineScale(known);
+  return [0, 0.5, 1].map((t) => ({ kg: yMax - (yMax - yMin) * t, top: t * 100 }));
+}
+
+type LinePoint = WeightLine['segments'][number][number];
+
+/** Pairs joining each segment's end to the next one's start, across days with no weigh-in. Drawn apart: no value exists there. */
+export function weightLineGaps(segments: WeightLine['segments']): [LinePoint, LinePoint][] {
+  return segments.slice(1).map((s, i) => [segments[i][segments[i].length - 1], s[0]]);
 }
 
 // ---- chart geometry, in the canvas's 326 x 116 box -------------------------------------------
@@ -248,4 +270,32 @@ export function chartLayout(days: TrendDay[]): ChartLayout {
   });
   const axis = sparse ? [ceiling, (ceiling + floor) / 2, floor].map((kg) => ({ kg, y: y(kg) })) : [];
   return { bars, trend, slots, axis };
+}
+
+// ---- weigh-in change and goal estimate, pinned by weight/*.json ------------------------------
+
+/** Each entry's change from the entry before it, oldest first; the first has nothing to compare with. */
+export function weighInChanges(entries: { weight_kg: number }[]): (number | null)[] {
+  return entries.map((e, i) => (i === 0 ? null : e.weight_kg - entries[i - 1].weight_kg));
+}
+
+export interface GoalEstimateInput {
+  weight_kg: number | null;
+  /** The weight the goal was set at. */
+  start_kg: number | null;
+  target_kg: number | null;
+  pace_kg_per_week: number | null;
+  goal_type: GoalType;
+}
+
+/** Whole weeks to the target at the goal's pace, and the share of the way there (0..1). Unknown stays null. */
+export function goalEstimate(i: GoalEstimateInput): { weeks: number | null; progress: number | null } {
+  const distance = toGoal(i.weight_kg, i.target_kg, i.goal_type);
+  if (distance.kg === null) return { weeks: null, progress: null };
+  if (distance.reached) return { weeks: 0, progress: 1 };
+  // Rounded before the ceiling so float noise (7.000000000000001) cannot add a week.
+  const weeks = i.pace_kg_per_week !== null && i.pace_kg_per_week > 0 ? Math.ceil(Math.round((distance.kg / i.pace_kg_per_week) * 1e6) / 1e6) : null;
+  if (i.start_kg === null || i.target_kg === null || i.start_kg === i.target_kg) return { weeks, progress: null };
+  const total = Math.abs(i.start_kg - i.target_kg);
+  return { weeks, progress: Math.min(1, Math.max(0, (total - distance.kg) / total)) };
 }

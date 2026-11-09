@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { expectClose, loadGolden } from './golden';
 import type { GoalType } from './goals';
-import { chartLayout, entryDayLabel, isPlausibleWeight, rangeStart, toGoal, weightLine, weightSummary, type TrendDay, type WeightSummary } from './weight';
+import { chartLayout, entryDayLabel, goalEstimate, isPlausibleWeight, rangeStart, toGoal, weighInChanges, weightLine, weightLineGaps, weightLineTicks, weightSummary, type TrendDay, type WeightSummary } from './weight';
 
 const trend = loadGolden<{ entries: { local_date: string; weight_kg: number }[]; from: string; to: string }, WeightSummary>('weight/trend.json');
 const goal = loadGolden<{ weight_kg: number | null; target_kg: number | null; goal_type: GoalType }, { kg: number | null; reached: boolean }>('weight/to_goal.json');
@@ -29,6 +29,70 @@ describe('weight/to_goal.json', () => {
     const actual = toGoal(c.input.weight_kg, c.input.target_kg, c.input.goal_type);
     expectClose(actual.kg, c.expected.kg, `${id} kg`);
     expect(actual.reached, `${id} reached`).toBe(c.expected.reached);
+  });
+});
+
+const rangeGolden = loadGolden<{ days: (number | null)[] }, { kg: number | null }>('weight/range_change.json');
+const weighIns = loadGolden<{ weights: number[] }, { changes: (number | null)[] }>('weight/weigh_in_change.json');
+const estimate = loadGolden<
+  { weight_kg: number | null; start_kg: number | null; target_kg: number | null; pace_kg_per_week: number | null; goal_type: GoalType },
+  { weeks: number | null; progress: number | null }
+>('weight/goal_estimate.json');
+
+describe('weight/range_change.json', () => {
+  it.each(rangeGolden.cases.map((c) => [c.id, c] as const))('%s', (id, c) => {
+    const days = c.input.days.map((weight_kg, i): TrendDay => ({ date: String(i), weight_kg, entries: weight_kg === null ? 0 : 1, trend_kg: null, covered_days: 0 }));
+    expectClose(weightLine(days).change_kg, c.expected.kg, id);
+  });
+});
+
+describe('weight/weigh_in_change.json', () => {
+  it.each(weighIns.cases.map((c) => [c.id, c] as const))('%s', (id, c) => {
+    const actual = weighInChanges(c.input.weights.map((weight_kg) => ({ weight_kg })));
+    expect(actual).toHaveLength(c.expected.changes.length);
+    c.expected.changes.forEach((e, i) => expectClose(actual[i], e, `${id} ${i}`));
+  });
+});
+
+describe('weight/goal_estimate.json', () => {
+  it.each(estimate.cases.map((c) => [c.id, c] as const))('%s', (id, c) => {
+    const actual = goalEstimate(c.input);
+    expect(actual.weeks, `${id} weeks`).toBe(c.expected.weeks);
+    expectClose(actual.progress, c.expected.progress, `${id} progress`);
+  });
+});
+
+describe('weightLineTicks and weightLineGaps', () => {
+  const at = (date: string, weight_kg: number | null): TrendDay => ({ date, weight_kg, entries: weight_kg === null ? 0 : 1, trend_kg: null, covered_days: 0 });
+
+  it('has no ticks with no weigh-ins', () => {
+    expect(weightLineTicks([at('2026-10-01', null), at('2026-10-02', null)])).toEqual([]);
+  });
+
+  it('labels three ticks from the top: highest, middle, lowest', () => {
+    const ticks = weightLineTicks([at('2026-10-01', 80), at('2026-10-02', 82)]);
+    expect(ticks.map((t) => t.top)).toEqual([0, 50, 100]);
+    expect(ticks[0].kg).toBeCloseTo(82.36);
+    expect(ticks[1].kg).toBeCloseTo(81);
+    expect(ticks[2].kg).toBeCloseTo(79.64);
+  });
+
+  it('pads one flat value without dividing by zero', () => {
+    const ticks = weightLineTicks([at('2026-10-01', null), at('2026-10-02', 80)]);
+    expect(ticks[0].kg).toBeCloseTo(80.5);
+    expect(ticks[2].kg).toBeCloseTo(79.5);
+  });
+
+  it('joins segments across a missing day without adding a point', () => {
+    const { segments } = weightLine([at('2026-10-01', 80), at('2026-10-02', 81), at('2026-10-03', null), at('2026-10-04', 82)]);
+    const gaps = weightLineGaps(segments);
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0][0]).toEqual(segments[0][1]);
+    expect(gaps[0][1]).toEqual(segments[1][0]);
+  });
+
+  it('has no gaps in an unbroken line', () => {
+    expect(weightLineGaps(weightLine([at('2026-10-01', 80), at('2026-10-02', 81)]).segments)).toEqual([]);
   });
 });
 

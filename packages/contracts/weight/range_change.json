@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "description": "Change over a chart range: the last known daily weight minus the first known one. Days with no weigh-in are skipped, never read as 0. With fewer than two known days the change is unknown (null). Values are unrounded.",
+  "cases": [
+    { "id": "down-over-range", "input": { "days": [83.0, 82.5, 81.5] }, "expected": { "kg": -1.5 } },
+    { "id": "up-over-range", "input": { "days": [80.9, 81.0, 81.5] }, "expected": { "kg": 0.6 } },
+    { "id": "gaps-are-skipped", "input": { "days": [null, 82.0, null, 81.0, null] }, "expected": { "kg": -1 } },
+    { "id": "no-change", "input": { "days": [80.0, 81.0, 80.0] }, "expected": { "kg": 0 } },
+    { "id": "one-known-day-is-unknown", "input": { "days": [null, 81.5, null] }, "expected": { "kg": null } },
+    { "id": "no-known-day-is-unknown", "input": { "days": [null, null] }, "expected": { "kg": null } }
+  ]
+}

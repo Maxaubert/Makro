@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "description": "Each weigh-in's change from the weigh-in before it. Input is every live entry, oldest first; output lines up with it. The first entry has nothing to compare with, so its change is null. Two entries on one day are compared with each other. Values are unrounded.",
+  "cases": [
+    { "id": "first-is-null", "input": { "weights": [81.5] }, "expected": { "changes": [null] } },
+    { "id": "each-from-the-one-before", "input": { "weights": [82.0, 81.5, 81.7] }, "expected": { "changes": [null, -0.5, 0.2] } },
+    { "id": "unchanged-is-zero", "input": { "weights": [80.0, 80.0] }, "expected": { "changes": [null, 0] } },
+    { "id": "empty", "input": { "weights": [] }, "expected": { "changes": [] } }
+  ]
+}

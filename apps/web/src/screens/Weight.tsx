@@ -9,17 +9,17 @@ import { Card, Chip, Header, Icon, Notice, Page } from '../ui/kit';
 import { dayLabel, today } from './day';
 import { Sheet, WeightSheet } from './WeightSheet';
 
-function shortDate(localDate: string): string {
+export function shortDate(localDate: string): string {
   const [y, m, d] = localDate.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-function timeIn(iso: string, timeZone: string): string {
+export function timeIn(iso: string, timeZone: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone });
 }
 
 /** Always one decimal, as on the board (81.0, not 81). Unknown stays "?". */
-function kgText(kg: number | null | undefined): string {
+export function kgText(kg: number | null | undefined): string {
   if (kg === null || kg === undefined) return '?';
   return (roundForDisplay(kg, 1) as number).toFixed(1);
 }
