@@ -6,6 +6,7 @@ import type { ProductMeta } from '../data/products';
 import { SyncScheduler, syncOnce, type SyncStatus } from '../data/sync';
 import { buildMissPayload, type CustomFoodRow, type GoalWriteRow, type MissType, type WeightEntryRow } from '../domain/entry';
 import { createDb, type Db } from './db';
+import { flushMissQueue } from './misses';
 import { guardOwner, ownerReady } from './owner';
 import { CONSENT_TEXT_VERSION, resolveSetup, type SetupState } from './setup';
 
@@ -298,16 +299,10 @@ export class App {
   }
 
   private async flushMisses(): Promise<void> {
-    const queue = readMissQueue();
-    if (queue.length === 0) return;
-    const left: unknown[] = [];
-    for (const body of queue) {
+    await flushMissQueue({ read: readMissQueue as () => { id?: string }[], write: writeMissQueue }, async (body) => {
       const { error } = await this.supabase.functions.invoke('submit-miss', { body: body as Record<string, unknown> });
-      // A 4xx means the payload itself is refused; keeping it would retry forever.
-      const status = (error as { context?: { status?: number } } | null)?.context?.status;
-      if (error && !(status && status >= 400 && status < 500)) left.push(body);
-    }
-    writeMissQueue(left);
+      return error;
+    });
   }
 
   async signOut(): Promise<void> {
