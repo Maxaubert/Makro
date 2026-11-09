@@ -1,7 +1,7 @@
 // The local log store: a SQLite file in OPFS with the log-schema v1 tables and an outbox.
 // Every save lands here first, so logging works without a connection (rule 5, decision 8).
 // The sync loop (sync.ts) drains the outbox through sync_push and applies sync_pull pages.
-import type { CustomFoodRow, GoalWriteRow, LogEntryRow, Meal, WeightEntryRow } from '../domain/entry';
+import type { CustomFoodRow, GoalWriteRow, LogEntryRow, Meal, StoredGoal, WeightEntryRow } from '../domain/entry';
 import { MEALS } from '../domain/entry';
 import type { AmountUnit } from '../domain/grams';
 import type { Nutrient } from '../domain/nutrients';
@@ -115,6 +115,21 @@ export class LogStore {
 
   saveGoal(row: GoalWriteRow): void {
     this.save('goals', row as unknown as Record<string, unknown>);
+  }
+
+  /**
+   * A goal changed after onboarding, from its effective day on, so earlier days keep their target.
+   * effective_from is the natural key: a live row for that day is updated, never doubled.
+   */
+  saveGoalChange(goal: GoalWriteRow, weight: WeightEntryRow | null): void {
+    this.sql.tx(() => {
+      const same = this.sql.get<{ id: string; created_at: string; updated_at: string }>(
+        'select id, created_at, updated_at from goals where effective_from = ? and deleted_at is null order by updated_at desc, id desc limit 1',
+        [goal.effective_from],
+      );
+      this.saveGoal(same ? { ...goal, id: same.id, created_at: same.created_at, updated_at: this.nextUpdatedAt(same.updated_at) } : goal);
+      if (weight) this.saveWeight(weight);
+    });
   }
 
   /** Every live row, for the user's own download of their data. */
@@ -264,7 +279,12 @@ export class LogStore {
     return this.sql.all('select * from weight_entries where deleted_at is null order by measured_at desc, id desc limit ?', [limit]);
   }
 
-  /** The goal in force on a day (written by the phone; the web never sets goals). */
+  /** The newest live goal row with its inputs, to prefill the editing screens. */
+  latestGoal(): StoredGoal | null {
+    return this.sql.get<StoredGoal>('select * from goals where deleted_at is null order by effective_from desc, updated_at desc, id desc limit 1') ?? null;
+  }
+
+  /** The goal in force on a day. */
   goalFor(localDate: string): GoalRow | null {
     return (
       this.sql.get<GoalRow>(
