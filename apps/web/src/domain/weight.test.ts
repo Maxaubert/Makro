@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { expectClose, loadGolden } from './golden';
 import type { GoalType } from './goals';
-import { chartLayout, entryDayLabel, goalEstimate, isPlausibleWeight, rangeStart, toGoal, weighInChanges, weightLine, weightLineGaps, weightLineTicks, weightSummary, type TrendDay, type WeightSummary } from './weight';
+import { chartLayout, entryDayLabel, goalEstimate, isPlausibleWeight, rangeStart, toGoal, weighInChanges, weightLine, weightLineFill, weightLineGaps, weightLineTicks, weightSummary, type TrendDay, type WeightSummary } from './weight';
 
 const trend = loadGolden<{ entries: { local_date: string; weight_kg: number }[]; from: string; to: string }, WeightSummary>('weight/trend.json');
 const goal = loadGolden<{ weight_kg: number | null; target_kg: number | null; goal_type: GoalType }, { kg: number | null; reached: boolean }>('weight/to_goal.json');
@@ -59,6 +59,27 @@ describe('weight/goal_estimate.json', () => {
     const actual = goalEstimate(c.input);
     expect(actual.weeks, `${id} weeks`).toBe(c.expected.weeks);
     expectClose(actual.progress, c.expected.progress, `${id} progress`);
+  });
+});
+
+describe('weightLineFill', () => {
+  it('is empty with no weigh-ins', () => {
+    expect(weightLineFill([])).toEqual([]);
+  });
+  it('turns one weigh-in into a flat line across the whole chart', () => {
+    expect(weightLineFill([[{ x: 700, y: 100 }]])).toEqual([{ x: 0, y: 100 }, { x: 700, y: 100 }]);
+  });
+  it('joins the weigh-ins across gaps and holds them flat to both edges', () => {
+    expect(weightLineFill([[{ x: 100, y: 50 }, { x: 200, y: 60 }], [{ x: 500, y: 80 }]])).toEqual([
+      { x: 0, y: 50 },
+      { x: 100, y: 50 },
+      { x: 200, y: 60 },
+      { x: 500, y: 80 },
+      { x: 700, y: 80 },
+    ]);
+  });
+  it('adds no extra point at an edge that already has a weigh-in', () => {
+    expect(weightLineFill([[{ x: 0, y: 50 }, { x: 700, y: 60 }]])).toEqual([{ x: 0, y: 50 }, { x: 700, y: 60 }]);
   });
 });
 

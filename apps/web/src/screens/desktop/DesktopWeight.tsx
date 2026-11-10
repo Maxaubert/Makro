@@ -4,7 +4,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { buildWeightEntry } from '../../domain/entry';
 import { browserTimeZone } from '../../domain/localDate';
-import { goalEstimate, rangeStart, signedKg, toGoal, weighInChanges, weightLine, weightLineGaps, weightLineTicks, weightSummary, type TrendDay, type WeightRange } from '../../domain/weight';
+import { goalEstimate, rangeStart, signedKg, toGoal, weighInChanges, weightLine, weightLineFill, weightLineGaps, weightLineTicks, weightSummary, type TrendDay, type WeightRange } from '../../domain/weight';
 import { roundForDisplay } from '../../domain/display';
 import { WEIGHT_RANGE_KG } from '../../domain/goals';
 import { href, useApp, useBack, useData, useRoute } from '../../lib/hooks';
@@ -28,6 +28,9 @@ const withUnit = (kg: number | null) => (kg === null ? '?' : `${kgText(kg)} kg`)
 function WeightChart({ days }: { days: TrendDay[] }) {
   const { segments: stretches, latest } = weightLine(days);
   const bridges = weightLineGaps(stretches);
+  const fill = weightLineFill(stretches);
+  // The flat lead-in and lead-out to the edges, drawn solid like the rest of the line.
+  const ends = fill.length > 0 && stretches.length > 0 ? [[fill[0], stretches[0][0]], [stretches[stretches.length - 1].at(-1)!, fill[fill.length - 1]]].filter(([a, b]) => a.x !== b.x) : [];
   const ticks = weightLineTicks(days);
   const known = days.filter((d) => d.weight_kg !== null).length;
   const middle = days[Math.floor(days.length / 2)];
@@ -44,11 +47,12 @@ function WeightChart({ days }: { days: TrendDay[] }) {
         ))}
         <div className="relative h-[270px]">
           <svg width="100%" height="270" viewBox="0 0 700 200" preserveAspectRatio="none" role="img" aria-label={`Weight over time. ${known} of ${days.length} days have a weigh-in.`} className="block overflow-visible">
-            {stretches
-              .filter((s) => s.length > 1)
-              .map((s) => (
-                <path key={s[0].x} d={`M${s[0].x.toFixed(1)},200 L${s.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L')} L${s[s.length - 1].x.toFixed(1)},200 Z`} fill="var(--color-accent)" fillOpacity="0.12" />
-              ))}
+            {fill.length > 0 && (
+              <path d={`M0,200 L${fill.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L')} L700,200 Z`} fill="var(--color-accent)" fillOpacity="0.12" />
+            )}
+            {ends.map(([a, b]) => (
+              <line key={`end-${a.x}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--color-accent)" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            ))}
             {bridges.map(([a, b]) => (
               <line key={a.x} data-testid="weight-gap" x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--color-accent)" strokeOpacity="0.5" strokeWidth="2" strokeDasharray="3 6" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
             ))}

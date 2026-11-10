@@ -182,6 +182,22 @@ export function weightLineTicks(days: TrendDay[]): { kg: number; top: number }[]
 
 type LinePoint = WeightLine['segments'][number][number];
 
+/**
+ * Every weigh-in joined up and held flat out to both edges, so the chart is always filled across its
+ * width. Drawing only: the stats and the change use the weigh-ins themselves.
+ */
+export function weightLineFill(segments: WeightLine['segments']): LinePoint[] {
+  const points = segments.flat();
+  if (points.length === 0) return [];
+  const first = points[0];
+  const last = points[points.length - 1];
+  return [
+    ...(first.x > 0 ? [{ x: 0, y: first.y }] : []),
+    ...points,
+    ...(last.x < LINE_BOX.width ? [{ x: LINE_BOX.width, y: last.y }] : []),
+  ];
+}
+
 /** Pairs joining each segment's end to the next one's start, across days with no weigh-in. Drawn apart: no value exists there. */
 export function weightLineGaps(segments: WeightLine['segments']): [LinePoint, LinePoint][] {
   return segments.slice(1).map((s, i) => [segments[i][segments[i].length - 1], s[0]]);
