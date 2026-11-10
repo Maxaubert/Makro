@@ -13,6 +13,7 @@ import {
   kcalOfGrams,
   profileProblem,
   sharesFromGrams,
+  sharesTotal,
   type ActivityLevel,
   type GoalProblem,
   type GoalTargets,
@@ -141,8 +142,10 @@ export interface GoalEvaluation {
   targets: GoalTargets | null;
   /** The text in each target field. */
   shown: Texts;
-  /** The split showing, adding up to 100, or null until there is something to split. */
+  /** The split showing, or null until there is something to split. */
   shares: Shares | null;
+  /** What the split adds up to. Only 100 may be saved. */
+  sharesTotal: number | null;
   /** Each macro's part of the calories, adding up to exactly the calories. */
   macroKcal: Shares | null;
   /** What the saved macros added up to, when that did not match the saved calories and the form corrected it. */
@@ -211,7 +214,8 @@ export function evaluateGoalForm(form: GoalForm, baseline: GoalBaseline | null):
         : form.goalType === 'gain' && target <= weightNow
           ? ('not_above' as const)
           : null;
-  const canSave = !!form.sex && !!targets && numbersOk && targetOk && paceOk && !problem && !targetIssue;
+  const splitOk = shares !== null && sharesTotal(shares) === 100;
+  const canSave = !!form.sex && !!targets && numbersOk && targetOk && paceOk && !problem && !targetIssue && splitOk;
 
   const savedTargetWeight = form.goalType === 'maintain' ? null : target;
   const unchanged =
@@ -225,6 +229,7 @@ export function evaluateGoalForm(form: GoalForm, baseline: GoalBaseline | null):
     targets,
     shown,
     shares,
+    sharesTotal: shares ? sharesTotal(shares) : null,
     macroKcal: kcalOk && shares ? kcalFromShares(kcal, shares) : null,
     repairedFromKcal,
     floored: !!targets?.floored && !problem && !useSaved && form.edits.kcal === undefined,

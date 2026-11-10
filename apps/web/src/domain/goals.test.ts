@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { expectClose, loadGolden } from './golden';
-import { GOAL_CONSTANTS, ageFromBirthYear, birthYearFromAge, calculateTargets, goalProblem, gramsFromShares, kcalFromShares, moveBoundary, profileProblem, setShare, sharesFromGrams, type GoalInput, type GoalTargets, type LimitInput, type MacroBoundary, type MacroGrams, type Shares } from './goals';
+import { GOAL_CONSTANTS, ageFromBirthYear, birthYearFromAge, calculateTargets, goalProblem, gramsFromShares, kcalFromShares, profileProblem, setShare, sharesFromGrams, sharesTotal, type GoalInput, type GoalTargets, type LimitInput, type MacroGrams, type Shares } from './goals';
 
 describe('goals/macro_shares.json', () => {
   const golden = loadGolden<MacroGrams, Shares | null>('goals/macro_shares.json');
@@ -22,13 +22,12 @@ describe('goals/macro_grams.json', () => {
 });
 
 describe('goals/macro_rebalance.json', () => {
-  type In = { mode: 'set' | 'boundary'; shares: Shares; key: string; value: number };
+  type In = { shares: Shares; key: keyof Shares; value: number };
   const golden = loadGolden<In, Shares>('goals/macro_rebalance.json');
   it.each(golden.cases.map((c) => [c.id, c] as const))('%s', (_id, c) => {
-    const { mode, shares, key, value } = c.input;
-    const out = mode === 'set' ? setShare(shares, key as keyof Shares, value) : moveBoundary(shares, key as MacroBoundary, value);
+    const out = setShare(c.input.shares, c.input.key, c.input.value);
     expect(out).toEqual(c.expected);
-    expect(out.protein + out.carbs + out.fat).toBe(100);
+    expect(sharesTotal(out)).toBe((c as unknown as { total: number }).total);
   });
 });
 

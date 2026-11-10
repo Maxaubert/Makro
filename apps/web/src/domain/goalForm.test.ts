@@ -127,6 +127,23 @@ describe('macros follow the calories', () => {
     expect(e.shown).toMatchObject({ protein: '', carbs: '', fat: '' });
     expect(e.canSave).toBe(false);
   });
+  it('saves only when the split adds up to 100', () => {
+    const { form, baseline } = prefillGoalForm(row, year);
+    const over = evaluateGoalForm({ ...form, shares: { protein: 35, carbs: 44, fat: 27 } }, baseline);
+    expect(over.sharesTotal).toBe(106);
+    expect(over.canSave).toBe(false);
+    expect(() => buildGoalChange({ ...form, shares: { protein: 35, carbs: 44, fat: 27 } }, baseline, at, 'UTC')).toThrow();
+    const under = evaluateGoalForm({ ...form, shares: { protein: 25, carbs: 44, fat: 27 } }, baseline);
+    expect(under.sharesTotal).toBe(96);
+    expect(under.canSave).toBe(false);
+    expect(evaluateGoalForm({ ...form, shares: { protein: 29, carbs: 44, fat: 27 } }, baseline).canSave).toBe(true);
+  });
+  it('still shows grams for each share while the total is off', () => {
+    const { form, baseline } = prefillGoalForm(row, year);
+    const e = evaluateGoalForm({ ...form, edits: { kcal: '2000' }, shares: { protein: 35, carbs: 44, fat: 27 } }, baseline);
+    expect(e.shown).toMatchObject({ protein: '175', carbs: '220', fat: '60' });
+    expect(e.macroKcal).toEqual({ protein: 700, carbs: 880, fat: 540 });
+  });
   it('keeps fibre outside the split', () => {
     const { form, baseline } = prefillGoalForm(row, year);
     expect(evaluateGoalForm({ ...form, edits: { fibre: '40' } }, baseline).shown).toMatchObject({ fibre: '40', protein: '170' });
