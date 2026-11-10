@@ -54,14 +54,18 @@ test('edit About you and Goals from Account: limits, new target, same-day update
   await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
   await shot(page, '03-goals-blocked');
 
-  // A valid new target: the macros follow the calories, and a chosen split adds up (decision 39).
+  // A valid new target: the macros follow the calories. Each share moves on its own, and Save waits for 100 (decision 40).
   await page.getByLabel('Daily calories').fill('2500');
   await page.getByLabel('Protein share').fill('35');
-  await expect(page.getByLabel('Carbs share')).not.toHaveValue('');
-  const shares = await Promise.all(['Protein', 'Carbs', 'Fat'].map(async (m) => Number(await page.getByLabel(`${m} share`).inputValue())));
-  expect(shares[0]).toBe(35);
-  expect(shares[0] + shares[1] + shares[2]).toBe(100);
-  await shot(page, '03b-goals-split');
+  await page.getByLabel('Carbs share').fill('45');
+  await page.getByLabel('Fat share').fill('25');
+  await expect(page.getByTestId('split-total')).toHaveText('105%');
+  await expect(page.getByText('5% over. Make it 100% to save.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
+  await shot(page, '03b-goals-split-over');
+  await page.getByLabel('Carbs share').fill('40');
+  await expect(page.getByTestId('split-total')).toHaveText('100%');
+  await shot(page, '03c-goals-split');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('heading', { name: 'Account' })).toBeVisible();
   await expect(goals).toContainText('2,500 kcal');

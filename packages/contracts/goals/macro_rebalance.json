@@ -1,16 +1,11 @@
 {
-  "version": 1,
-  "description": "Changing one macro's share keeps the three at 100. The new value is clamped to 0-100 and rounded to a whole percent. Another macro takes the difference: protein and fat are balanced by carbs, carbs by fat. If that macro reaches 0, the third one takes the rest. mode 'set' sets one macro. mode 'boundary' moves a divider on the split bar, where at is the position from the left in percent: protein_carbs changes only protein and carbs, carbs_fat changes only carbs and fat.",
+  "version": 2,
+  "description": "Changing one macro's share leaves the other two as they are (decision 40). The new value is clamped to 0-100 and rounded to a whole percent. The three may then add up to more or less than 100; the goal form only saves when they add up to exactly 100. Version 1 moved another macro to keep the total at 100.",
   "cases": [
-    { "id": "protein-up-takes-from-carbs", "input": { "mode": "set", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "protein", "value": 35 }, "expected": { "protein": 35, "carbs": 40, "fat": 25 } },
-    { "id": "fat-up-takes-from-carbs", "input": { "mode": "set", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "fat", "value": 30 }, "expected": { "protein": 30, "carbs": 40, "fat": 30 } },
-    { "id": "carbs-up-takes-from-fat", "input": { "mode": "set", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "carbs", "value": 50 }, "expected": { "protein": 30, "carbs": 50, "fat": 20 } },
-    { "id": "carbs-up-empties-fat-then-takes-protein", "input": { "mode": "set", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "carbs", "value": 80 }, "expected": { "protein": 20, "carbs": 80, "fat": 0 } },
-    { "id": "protein-down-goes-to-carbs", "input": { "mode": "set", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "protein", "value": 20 }, "expected": { "protein": 20, "carbs": 55, "fat": 25 } },
-    { "id": "over-100-is-clamped", "input": { "mode": "set", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "protein", "value": 140 }, "expected": { "protein": 100, "carbs": 0, "fat": 0 } },
-    { "id": "boundary-protein-carbs", "input": { "mode": "boundary", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "protein_carbs", "value": 40 }, "expected": { "protein": 40, "carbs": 35, "fat": 25 } },
-    { "id": "boundary-protein-carbs-stops-at-fat", "input": { "mode": "boundary", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "protein_carbs", "value": 90 }, "expected": { "protein": 75, "carbs": 0, "fat": 25 } },
-    { "id": "boundary-carbs-fat", "input": { "mode": "boundary", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "carbs_fat", "value": 60 }, "expected": { "protein": 30, "carbs": 30, "fat": 40 } },
-    { "id": "boundary-carbs-fat-stops-at-protein", "input": { "mode": "boundary", "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "carbs_fat", "value": 10 }, "expected": { "protein": 30, "carbs": 0, "fat": 70 } }
+    { "id": "protein-up-leaves-the-others", "input": { "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "protein", "value": 35 }, "expected": { "protein": 35, "carbs": 45, "fat": 25 }, "total": 105 },
+    { "id": "carbs-down-leaves-the-others", "input": { "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "carbs", "value": 40 }, "expected": { "protein": 30, "carbs": 40, "fat": 25 }, "total": 95 },
+    { "id": "fat-back-to-100", "input": { "shares": { "protein": 35, "carbs": 40, "fat": 20 }, "key": "fat", "value": 25 }, "expected": { "protein": 35, "carbs": 40, "fat": 25 }, "total": 100 },
+    { "id": "over-100-is-clamped", "input": { "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "protein", "value": 140 }, "expected": { "protein": 100, "carbs": 45, "fat": 25 }, "total": 170 },
+    { "id": "decimal-is-rounded", "input": { "shares": { "protein": 30, "carbs": 45, "fat": 25 }, "key": "fat", "value": 24.6 }, "expected": { "protein": 30, "carbs": 45, "fat": 25 }, "total": 100 }
   ]
 }

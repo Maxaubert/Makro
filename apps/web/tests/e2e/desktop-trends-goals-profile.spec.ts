@@ -95,10 +95,14 @@ test('desktop Goals: pick a goal type, the numbers follow, save writes one goal 
   expect(shares.reduce((a, b) => a + b, 0)).toBe(100);
   await expect(page.getByLabel('Fibre')).toHaveValue('30');
   if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/desktop-goals.png` });
-  // A step on one share moves another, and the total stays 100.
+  // A step on one share leaves the others; Save waits until the total is 100 again (decision 40).
   await page.getByRole('button', { name: 'More protein' }).click();
   await expect(page.getByLabel('Protein share')).toHaveValue(String(shares[0] + 1));
-  await expect(page.getByLabel('Carbs share')).toHaveValue(String(shares[1] - 1));
+  await expect(page.getByLabel('Carbs share')).toHaveValue(String(shares[1]));
+  await expect(page.getByTestId('split-total')).toHaveText('101%');
+  await expect(page.getByRole('button', { name: 'Save goal' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Less protein' }).click();
+  await expect(page.getByTestId('split-total')).toHaveText('100%');
   await expect(page.getByRole('button', { name: 'Save goal' })).toBeVisible();
 
   // Maintain: higher calories, no target or pace of its own.

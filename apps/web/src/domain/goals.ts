@@ -89,7 +89,7 @@ export interface MacroGrams {
   fat_g: number | null;
 }
 
-/** Whole percents of the calories. Always adds up to exactly 100. */
+/** Whole percents of the calories. A goal is saved only when they add up to exactly 100 (decision 40). */
 export interface Shares {
   protein: number;
   carbs: number;
@@ -97,7 +97,6 @@ export interface Shares {
 }
 
 export type MacroKey = keyof Shares;
-export type MacroBoundary = 'protein_carbs' | 'carbs_fat';
 
 const MACRO_ORDER: MacroKey[] = ['protein', 'carbs', 'fat'];
 
@@ -132,35 +131,26 @@ export function sharesFromGrams(g: MacroGrams): Shares | null {
 export function gramsFromShares(kcal: number, s: Shares): { protein_g: number; carbs_g: number; fat_g: number } {
   const protein_g = Math.round((kcal * s.protein) / 400);
   const fat_g = Math.round((kcal * s.fat) / 900);
-  const carbs_g = s.carbs === 0 ? 0 : Math.max(0, Math.round((kcal - protein_g * 4 - fat_g * 9) / 4));
+  // The kcal the three shares stand for: the calorie target itself when they add up to 100.
+  const covered = (kcal * sharesTotal(s)) / 100;
+  const carbs_g = s.carbs === 0 ? 0 : Math.max(0, Math.round((covered - protein_g * 4 - fat_g * 9) / 4));
   return { protein_g, carbs_g, fat_g };
 }
 
 /** Each macro's part of the calories in kcal, adding up to exactly the target (goals/macro_grams.json). */
 export function kcalFromShares(kcal: number, s: Shares): Shares {
-  const total = Math.round(kcal);
-  return largestRemainder({ protein: (total * s.protein) / 100, carbs: (total * s.carbs) / 100, fat: (total * s.fat) / 100 }, total);
+  const whole = Math.round(kcal);
+  const total = Math.round((whole * sharesTotal(s)) / 100);
+  return largestRemainder({ protein: (whole * s.protein) / 100, carbs: (whole * s.carbs) / 100, fat: (whole * s.fat) / 100 }, total);
 }
 
 const percent = (value: number, max = 100, min = 0): number => Math.min(max, Math.max(min, Math.round(value)));
 
-/** Change one macro and keep the three at 100 (goals/macro_rebalance.json). */
-export function setShare(s: Shares, key: MacroKey, value: number): Shares {
-  const v = percent(value);
-  const [first, second]: MacroKey[] = key === 'carbs' ? ['fat', 'protein'] : key === 'protein' ? ['carbs', 'fat'] : ['carbs', 'protein'];
-  const firstValue = s[first] + s[key] - v;
-  if (firstValue >= 0) return { ...s, [key]: v, [first]: firstValue };
-  return { ...s, [key]: v, [first]: 0, [second]: s[second] + firstValue } as Shares;
-}
+export const sharesTotal = (s: Shares): number => s.protein + s.carbs + s.fat;
 
-/** Move a divider on the split bar to a position from the left (goals/macro_rebalance.json). */
-export function moveBoundary(s: Shares, boundary: MacroBoundary, at: number): Shares {
-  if (boundary === 'protein_carbs') {
-    const protein = percent(at, s.protein + s.carbs);
-    return { protein, carbs: s.protein + s.carbs - protein, fat: s.fat };
-  }
-  const end = percent(at, 100, s.protein);
-  return { protein: s.protein, carbs: end - s.protein, fat: 100 - end };
+/** Change one macro's share; the others stay as they are (goals/macro_rebalance.json, decision 40). */
+export function setShare(s: Shares, key: MacroKey, value: number): Shares {
+  return { ...s, [key]: percent(value) };
 }
 
 export const WEIGHT_RANGE_KG = { min: 30, max: 400 };

@@ -1,10 +1,10 @@
-// The macro split on the goal form: a bar with two dividers to drag, and a percent field per macro.
-// The three shares always add up to 100 and the grams follow the calories (domain/goals.ts), so the
-// targets can never disagree with the calorie goal. Used by onboarding, Edit goals and desktop Goals.
-import { useRef, useState, type PointerEvent } from 'react';
+// The macro split on the goal form: a percent field per macro and a bar that shows the split.
+// Each share moves on its own; the goal saves only when the three add up to 100 (decision 40). The
+// grams follow the calories (domain/goals.ts). Used by onboarding, Edit goals and desktop Goals.
+import { useState } from 'react';
 import { formatNumber } from '../domain/format';
 import type { GoalEvaluation } from '../domain/goalForm';
-import { moveBoundary, setShare, type MacroBoundary, type MacroKey, type Shares } from '../domain/goals';
+import { setShare, sharesTotal, type MacroKey, type Shares } from '../domain/goals';
 import { Icon } from '../ui/kit';
 
 export const MACROS: { key: MacroKey; name: string; dot: string }[] = [
@@ -13,54 +13,17 @@ export const MACROS: { key: MacroKey; name: string; dot: string }[] = [
   { key: 'fat', name: 'Fat', dot: 'bg-accent-3' },
 ];
 
-/** Drag anywhere on the bar: the nearest divider follows. Keyboard users have the percent fields. */
-function SplitBar({ shares, onChange }: { shares: Shares | null; onChange: (s: Shares) => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [dragging, setDragging] = useState<MacroBoundary | null>(null);
-  const at = (e: PointerEvent) => {
-    const r = ref.current!.getBoundingClientRect();
-    return ((e.clientX - r.left) / r.width) * 100;
-  };
-  const down = (e: PointerEvent<HTMLDivElement>) => {
-    if (!shares) return;
-    const x = at(e);
-    const first = shares.protein;
-    const second = shares.protein + shares.carbs;
-    // When the dividers sit on top of each other, the side you press on decides which one moves.
-    const boundary: MacroBoundary = Math.abs(x - first) < Math.abs(x - second) || (first === second && x <= first) ? 'protein_carbs' : 'carbs_fat';
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setDragging(boundary);
-    onChange(moveBoundary(shares, boundary, x));
-  };
-  const move = (e: PointerEvent<HTMLDivElement>) => {
-    if (dragging && shares) onChange(moveBoundary(shares, dragging, at(e)));
-  };
-  const handle = (left: number) => (
-    <span
-      className={`pointer-events-none absolute top-1/2 h-7 w-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-text shadow-[0_2px_8px_rgb(0_0_0/0.6)] transition-transform ${dragging ? 'scale-y-110' : ''}`}
-      style={{ left: `${left}%` }}
-    />
-  );
+/** The split as a bar. Under 100 % the rest of the track stays empty; over 100 % the bar is scaled to fit. */
+function SplitBar({ shares }: { shares: Shares | null }) {
+  const scale = shares ? Math.max(sharesTotal(shares), 100) : 100;
   return (
-    <div
-      ref={ref}
-      aria-hidden="true"
-      data-testid="macro-split"
-      onPointerDown={down}
-      onPointerMove={move}
-      onPointerUp={() => setDragging(null)}
-      onPointerCancel={() => setDragging(null)}
-      className={`relative flex h-11 touch-none select-none items-center ${shares ? 'cursor-ew-resize' : ''}`}
-    >
-      <div className="flex h-3.5 w-full gap-[3px] overflow-hidden rounded-full">
-        {shares ? (
-          MACROS.filter((m) => shares[m.key] > 0).map((m) => <div key={m.key} className={`h-full ${m.dot}`} style={{ width: `${shares[m.key]}%` }} />)
-        ) : (
-          <div className="h-full w-full bg-border" />
-        )}
+    <div aria-hidden="true" data-testid="macro-split" className="flex h-11 items-center">
+      <div className="flex h-3.5 w-full gap-[3px] overflow-hidden rounded-full bg-border">
+        {shares &&
+          MACROS.filter((m) => shares[m.key] > 0).map((m) => (
+            <div key={m.key} className={`h-full ${m.dot} transition-[width] duration-200`} style={{ width: `${(shares[m.key] / scale) * 100}%` }} />
+          ))}
       </div>
-      {shares && handle(shares.protein)}
-      {shares && handle(shares.protein + shares.carbs)}
     </div>
   );
 }
@@ -107,11 +70,13 @@ function PercentStepper({ name, value, onChange }: { name: string; value: number
  */
 export function MacroEditor({ evaluation: e, onShares, wide = false }: { evaluation: GoalEvaluation; onShares: (s: Shares) => void; wide?: boolean }) {
   const shares = e.shares;
-  const grid = wide ? 'grid grid-cols-[minmax(0,1fr)_128px_72px_72px] gap-3' : 'grid grid-cols-[minmax(0,1fr)_128px_60px] gap-2.5';
+  const grid = wide ? 'grid grid-cols-[minmax(0,1fr)_128px_72px_72px] gap-3' : 'grid grid-cols-[minmax(0,1fr)_128px_minmax(60px,auto)] gap-2.5';
+  const total = e.sharesTotal;
+  const off = total !== null && total !== 100;
   const kcalText = (k: MacroKey) => (e.macroKcal ? `${formatNumber(e.macroKcal[k], 0)} kcal` : '– kcal');
   return (
     <div>
-      <SplitBar shares={shares} onChange={onShares} />
+      <SplitBar shares={shares} />
       <div className="mt-1">
         <div className={`${grid} pb-1.5 text-[11px] font-medium uppercase tracking-[0.06em] text-faint`}>
           <span>Macro</span>
@@ -138,11 +103,16 @@ export function MacroEditor({ evaluation: e, onShares, wide = false }: { evaluat
         ))}
         <div className={`${grid} items-center border-t border-border pt-2.5 text-[13px] text-secondary`}>
           <span>Total</span>
-          <span className="num text-center font-semibold text-text">{shares ? '100%' : '–'}</span>
+          <span className={`num text-center font-semibold ${off ? 'text-accent-2' : 'text-text'}`} data-testid="split-total">{total === null ? '–' : `${total}%`}</span>
           <span className="whitespace-nowrap text-right">{!wide && e.macroKcal ? <span className="num">{formatNumber(e.macroKcal.protein + e.macroKcal.carbs + e.macroKcal.fat, 0)} kcal</span> : null}</span>
           {wide && <span className="num text-right font-semibold text-text">{e.macroKcal ? formatNumber(e.macroKcal.protein + e.macroKcal.carbs + e.macroKcal.fat, 0) : '–'}</span>}
         </div>
       </div>
+      {off && (
+        <p className="mt-2 text-[13px] font-semibold text-accent-2" role="status">
+          {total! > 100 ? `${total! - 100}% over.` : `${100 - total!}% short.`} Make it 100% to save.
+        </p>
+      )}
     </div>
   );
 }
