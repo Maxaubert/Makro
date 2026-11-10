@@ -7,7 +7,7 @@ import { roundForDisplay } from '../../domain/display';
 import { MEALS } from '../../domain/entry';
 import { formatNumber, formatTotal } from '../../domain/format';
 import { remainingToday, weekWindow } from '../../domain/guidance';
-import { rangeStart, toGoal, weightLine, weightSummary, type WeightRange } from '../../domain/weight';
+import { rangeStart, toGoal, weightLine, weightLineFill, weightSummary, type WeightRange } from '../../domain/weight';
 import { href, useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
 import { Card, Icon, Notice, Ring, SourceBadge, UnknownNote } from '../../ui/kit';
@@ -147,7 +147,8 @@ function WeightCard({ date, weights, goal }: { date: string; weights: { local_da
   const sub = RANGES.find((r) => r.range === range)?.label ?? '';
   const middle = summary.days[Math.floor((summary.days.length - 1) / 2)];
   const weighIns = summary.days.filter((d) => d.weight_kg !== null).length;
-  const areaOf = (points: { x: number; y: number }[]) => `M${points[0].x},200 L${points.map((p) => `${p.x} ${p.y}`).join(' L')} L${points[points.length - 1].x},200 Z`;
+  const fill = weightLineFill(line.segments);
+  const pointsText = fill.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
   return (
     <Card className="flex flex-col p-6">
@@ -183,27 +184,14 @@ function WeightCard({ date, weights, goal }: { date: string; weights: { local_da
           viewBox="0 0 700 200"
           preserveAspectRatio="none"
           role="img"
-          aria-label={`Daily weight, ${sub}: ${weighIns} of ${summary.days.length} days have a weigh-in. A day without one breaks the line.`}
+          aria-label={`Daily weight, ${sub}: ${weighIns} of ${summary.days.length} days have a weigh-in.`}
           className="block overflow-visible"
         >
-          {line.segments.map(
-            (points) => points.length > 1 && <path key={`area-${points[0].x}`} d={areaOf(points)} fill="var(--color-accent)" fillOpacity="0.12" />,
-          )}
-          {line.segments.map((points) =>
-            points.length > 1 ? (
-              <polyline
-                key={points[0].x}
-                points={points.map((p) => `${p.x},${p.y}`).join(' ')}
-                fill="none"
-                stroke="var(--color-accent)"
-                strokeWidth="3"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-              />
-            ) : (
-              <line key={points[0].x} x1={points[0].x} y1={points[0].y} x2={points[0].x} y2={points[0].y} stroke="var(--color-accent)" strokeWidth="6" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            ),
+          {fill.length > 0 && (
+            <>
+              <path d={`M0,200 L${pointsText.replace(/ /g, ' L')} L700,200 Z`} fill="var(--color-accent)" fillOpacity="0.12" />
+              <polyline points={pointsText} fill="none" stroke="var(--color-accent)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            </>
           )}
         </svg>
         {line.latest && (

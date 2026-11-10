@@ -55,6 +55,7 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   await expect(page.getByTestId('quick-log-row').first()).toContainText('Verified');
   await page.getByRole('button', { name: '7D' }).click();
   await expect(page.getByText('Weight, last 7 days')).toBeVisible();
+  if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/desktop-today.png` });
 
   // D_Diary: pick the entry, change the amount, and the day total follows.
   await page.getByRole('link', { name: 'Open diary' }).click();
