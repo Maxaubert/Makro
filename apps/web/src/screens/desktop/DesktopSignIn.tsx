@@ -12,7 +12,7 @@ const PILL_FIELD =
 export function DesktopSignIn({ flow }: { flow: SignInFlow }) {
   const { email, setEmail, code, setCode, step, setStep, busy, error, sendCode, verify } = flow;
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(circle_at_50%_30%,#2A1308_0%,#0D0D0E_60%)] [line-height:normal]">
+    <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(circle_at_50%_30%,#2A1308_0%,#000000_62%)] [line-height:normal]">
       <div className="w-[420px] text-center">
         <span className="inline-flex h-[72px] w-[72px] items-center justify-center rounded-[22px] bg-accent text-[40px] font-bold text-ground" aria-hidden="true">
           M

@@ -14,9 +14,9 @@ import { averageTitle, axisLabels, coverageLine, onTargetText, rangeLabel, vsGoa
 // The bars ask for every day of the longest range at once, so switching range never waits on the database.
 const LONGEST_RANGE = TREND_RANGE_DAYS['90D'];
 
-const BAND_COLOR: Record<TrendBand, string> = { on_target: '#FF4C00', over: '#FF8A57', under: '#3A3A3E' };
+const BAND_COLOR: Record<TrendBand, string> = { on_target: '#FF4C00', over: '#FF8A57', under: '#36363B' };
 /** With no goal a bar is neither on, over nor under. */
-const NO_GOAL_COLOR = '#6A6A70';
+const NO_GOAL_COLOR = '#7C7C84';
 
 const CHART_GAP: Record<TrendRange, string> = { '7D': '14px', '30D': '4px', '90D': '10px' };
 
@@ -119,7 +119,7 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
               type="button"
               aria-pressed={r === range}
               onClick={() => onRange(r)}
-              className={`tap flex h-8 items-center rounded-full px-3.5 text-[13px] ${r === range ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-[#C8C8CC]'}`}
+              className={`tap flex h-8 items-center rounded-full px-3.5 text-[13px] ${r === range ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
             >
               {r}
             </button>
@@ -140,7 +140,7 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
         </div>
         {goal !== null && (
           <>
-            <div className="absolute inset-x-0 border-t border-dashed border-[#6A6A70]" style={{ bottom: percent(goal, summary.top) }} />
+            <div className="absolute inset-x-0 border-t border-dashed border-faint" style={{ bottom: percent(goal, summary.top) }} />
             <span className="num absolute right-0 text-[11px] text-secondary" style={{ bottom: percent(goal, summary.top) }}>
               Goal {formatNumber(goal, 0)}
             </span>

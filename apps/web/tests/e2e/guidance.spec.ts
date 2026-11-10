@@ -38,10 +38,11 @@ async function logSkyr(page: Page, grams: string) {
 test('end of day: warning, add to that day, confirm complete, unlogged day', async ({ page }) => {
   const email = `dayend-${Date.now()}@example.test`;
   const uid = await inviteUser(email);
+  // Sign up on Monday too: a goal starts the day it is set, so it must cover Monday.
+  await page.clock.setFixedTime(new Date(2026, 10, 9, 12, 0, 0));
   await onboard(page, email);
 
   // One meal at noon on Monday, then look back at it from Tuesday.
-  await page.clock.setFixedTime(new Date(2026, 10, 9, 12, 0, 0));
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
   await logSkyr(page, '100');
@@ -141,7 +142,7 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   await expect(page.getByText('From your history').first()).toBeVisible();
 
   // A suggestion opens the portion screen.
-  await page.getByText('Verified product').first().click();
+  await page.getByTestId('suggestion-verified').first().click();
   await expect(page.getByLabel('Amount')).not.toHaveValue('');
   await shot(page, 'portion-from-suggestion');
 });

@@ -5,14 +5,14 @@ import { Card, Notice, Page, SecondaryButton, SyncPill } from '../ui/kit';
 import { aboutSummary, goalsSummary } from '../domain/goalForm';
 import { useDataActions } from './accountActions';
 import { DeleteAccount } from './DeleteAccount';
-import { HelpNote } from './goalFields';
+import { HelpNote, loadGoal } from './goalFields';
 
 export function Account() {
   const app = useApp();
   const { session, sync, pending, products } = useAppState();
   const { data: rejected } = useData(() => app.db.rejected(), []);
   const { popular, togglePopular, download, dataError } = useDataActions();
-  const { data: goal } = useData(() => app.db.latestGoal(), []);
+  const { data: goal } = useData(() => loadGoal(app.db), []);
 
   const row = (label: string, value: string) => (
     <div className="flex justify-between gap-4 border-t border-border py-3 first:border-t-0">
@@ -49,7 +49,10 @@ export function Account() {
       {rejected && rejected.length > 0 && (
         <div className="mt-3">
           <Notice tone="error">
-            {rejected.length} change{rejected.length === 1 ? ' was' : 's were'} refused by the server: {rejected[0].reason}
+            {rejected.length} change{rejected.length === 1 ? ' was' : 's were'} refused by the server: {rejected[0].reason}{' '}
+            <button type="button" className="font-semibold text-text underline underline-offset-2" onClick={() => void app.db.clearRejected().then(() => app.changed())}>
+              Dismiss
+            </button>
           </Notice>
         </div>
       )}
@@ -65,7 +68,7 @@ export function Account() {
           className="flex w-full items-center justify-between gap-4 py-3 text-left disabled:opacity-50"
         >
           <span>Count toward popular foods</span>
-          <span className={`relative h-[26px] w-11 flex-none rounded-full ${popular ? 'bg-accent' : 'bg-[#3A3A3E]'}`}>
+          <span className={`relative h-[26px] w-11 flex-none rounded-full ${popular ? 'bg-accent' : 'bg-strong'}`}>
             <span className={`absolute top-[3px] h-5 w-5 rounded-full bg-ground ${popular ? 'left-[21px]' : 'left-[3px]'}`} />
           </span>
         </button>

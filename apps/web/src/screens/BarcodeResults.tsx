@@ -32,7 +32,7 @@ export function BarcodeNotFound({ code }: { code: string }) {
           <Icon name="noBarcode" size={52} stroke={1.6} />
         </span>
         <h2 className="mt-7 text-[30px] font-bold tracking-[-0.03em]">Not in the database</h2>
-        {ean && <div className="num mt-3.5 flex h-[34px] items-center rounded-full border border-border bg-card px-4 text-[15px] tracking-[0.07em] text-[#C8C8CC]">{grouped(ean)}</div>}
+        {ean && <div className="num mt-3.5 flex h-[34px] items-center rounded-full border border-border bg-card px-4 text-[15px] tracking-[0.07em] text-soft">{grouped(ean)}</div>}
       </div>
       <div className="flex flex-col gap-2 pt-3">
         <a href={customHref({ ean })} className={PRIMARY_LINK}>Add custom food</a>
@@ -64,7 +64,7 @@ export function BarcodeNoData({ id }: { id: string }) {
     <Page>
       <Header title="" back="/scan" />
       <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
-        <span className="flex h-28 w-28 items-center justify-center rounded-full border-[1.5px] border-dashed border-[#3A3A3E] bg-card text-secondary">
+        <span className="flex h-28 w-28 items-center justify-center rounded-full border-[1.5px] border-dashed border-strong bg-card text-secondary">
           <Icon name="alert" size={52} stroke={1.6} />
         </span>
         <h2 className="mt-7 text-[30px] font-bold tracking-[-0.03em]" data-testid="no-data-name">{p.name}</h2>

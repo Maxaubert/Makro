@@ -87,7 +87,7 @@ function Camera() {
 
   return (
     <Page>
-      <div className="fixed inset-0 -z-10 bg-[linear-gradient(165deg,#1B1B1E_0%,#0D0D0E_70%)]" aria-hidden="true" />
+      <div className="fixed inset-0 -z-10 bg-[linear-gradient(165deg,#161618_0%,#000000_70%)]" aria-hidden="true" />
       <header className="flex items-center gap-2 pt-2">
         <a href={href('today')} aria-label="Close scanner" className="tap -ml-2 flex h-11 w-11 items-center justify-center rounded-full">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>

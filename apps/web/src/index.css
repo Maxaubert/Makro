@@ -6,18 +6,26 @@
  * These become generated from packages/design/tokens.json once that is agreed with Nima.
  */
 :root {
-  --color-ground: #0d0d0e;
-  --color-card: #18181a;
-  --color-border: #2a2a2d;
+  /* Black ground, near-black cards, one orange accent (Max, 2026-11-10: "black and orange, bg black"). */
+  --color-ground: #000000;
+  --color-card: #111113;
+  --color-border: #232327;
   --color-text: #f4f4f5;
+  --color-text-soft: #c8c8cc;
   --color-text-secondary: #9a9aa0;
+  /* Hint text and disabled labels: still 4.5:1 on the black ground. */
+  --color-faint: #7c7c84;
   --color-accent: #ff4c00;
   --color-accent-soft: #ff7a40;
-  --color-accent-tint: rgb(255 76 0 / 0.16);
+  --color-accent-tint: rgb(255 76 0 / 0.14);
   /* Lighter orange tints used for the macro rings and small accents on the canvas. */
   --color-accent-2: #ff8a57;
   --color-accent-3: #ffb38f;
-  --color-raised: #1f1f22;
+  --color-raised: #19191c;
+  /* A selected row inside a card, and popovers. */
+  --color-raised-2: #212125;
+  /* Empty bars, switch tracks, dashed outlines. */
+  --color-strong: #36363b;
   --color-muted: #7a7a80;
   --color-danger: #d93f00;
   --radius-card: 20px;
@@ -39,6 +47,10 @@
   --color-accent-2: var(--color-accent-2);
   --color-accent-3: var(--color-accent-3);
   --color-raised: var(--color-raised);
+  --color-raised-2: var(--color-raised-2);
+  --color-strong: var(--color-strong);
+  --color-faint: var(--color-faint);
+  --color-soft: var(--color-text-soft);
   --color-muted: var(--color-muted);
   --color-danger: var(--color-danger);
   --radius-card: var(--radius-card);
@@ -105,7 +117,7 @@ textarea:focus-visible {
   font-size: 16px;
 }
 .field::placeholder {
-  color: #6a6a70;
+  color: var(--color-faint);
 }
 .field:focus {
   outline: none;
@@ -116,8 +128,11 @@ textarea:focus-visible {
   width: 8px;
 }
 .desktop-scroll::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--color-strong);
   border-radius: 4px;
+}
+html {
+  scrollbar-color: var(--color-strong) var(--color-ground);
 }
 /* The gauge fills once when Today opens. */
 @media (prefers-reduced-motion: no-preference) {

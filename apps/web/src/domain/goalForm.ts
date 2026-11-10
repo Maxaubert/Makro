@@ -8,17 +8,27 @@ import {
   birthYearFromAge,
   calculateTargets,
   goalProblem,
+  gramsFromShares,
+  kcalFromShares,
+  kcalOfGrams,
   profileProblem,
+  sharesFromGrams,
   type ActivityLevel,
   type GoalProblem,
   type GoalTargets,
   type GoalType,
   type ProfileProblem,
   type Sex,
+  type Shares,
 } from './goals';
 
 export type TargetKey = 'kcal' | 'protein' | 'carbs' | 'fat' | 'fibre';
+/** The targets typed directly. Protein, carbs and fat follow from the calories and the split. */
+export type EditKey = 'kcal' | 'fibre';
 type Texts = Record<TargetKey, string>;
+
+/** A saved goal whose macros are further than this from its calories gets repaired on the form. */
+export const MACRO_KCAL_TOLERANCE = 10;
 
 export interface GoalForm {
   sex: Sex | null;
@@ -30,7 +40,9 @@ export interface GoalForm {
   pace: string;
   targetWeight: string;
   /** Targets typed by hand; they win over the calculated and the saved numbers. */
-  edits: Partial<Texts>;
+  edits: Partial<Record<EditKey, string>>;
+  /** The split chosen by hand. Null follows the calculated or the saved macros. */
+  shares: Shares | null;
 }
 
 /** What the goal row said when editing began. Null on first run. */
@@ -49,7 +61,25 @@ export interface Prefill {
   complete: boolean;
 }
 
-export const toNumber = (text: string): number => (text.trim() === '' ? Number.NaN : Number(text.trim().replace(',', '.')));
+/** Typed text as a number. A comma is a decimal comma, except in thousands as the desktop field shows them (2,200 or 2 200). */
+export const toNumber = (text: string): number => {
+  const t = text.trim();
+  if (t === '') return Number.NaN;
+  if (/^\d{1,3}([, \u00a0]\d{3})+$/.test(t)) return Number(t.replace(/[, \u00a0]/g, ''));
+  return Number(t.replace(',', '.'));
+};
+
+/** The goal row with a weight logged after it, so the form never starts from an old weight. */
+export function withLatestWeight(goal: StoredGoal | null, latest: { weight_kg: number; measured_at: string } | null): StoredGoal | null {
+  if (!goal || !latest || latest.measured_at <= goal.updated_at) return goal;
+  return { ...goal, weight_kg: latest.weight_kg };
+}
+
+/** A change to About you. Calories typed by hand are dropped so the new estimate shows; the split and fibre stay. */
+export const profileChange = (form: GoalForm, patch: Partial<GoalForm>): Partial<GoalForm> => ({
+  ...patch,
+  edits: form.edits.fibre === undefined ? {} : { fibre: form.edits.fibre },
+});
 
 const textOf = (n: number | null): string => (n === null ? '' : String(n));
 
@@ -63,6 +93,7 @@ export const emptyGoalForm = (): GoalForm => ({
   pace: '0',
   targetWeight: '',
   edits: {},
+  shares: null,
 });
 
 /** Which inputs produce the calculated targets. Target weight is not one of them. */
@@ -82,6 +113,7 @@ export function prefillGoalForm(goal: StoredGoal | null, year: number): Prefill 
     pace: goal.goal_type === 'maintain' ? '0' : textOf(goal.pace_kg_per_week),
     targetWeight: textOf(goal.target_weight_kg),
     edits: {},
+    shares: null,
   };
   const complete = goal.sex !== null && goal.birth_year !== null && goal.height_cm !== null && goal.weight_kg !== null && goal.activity_level !== null;
   return {
@@ -109,9 +141,17 @@ export interface GoalEvaluation {
   targets: GoalTargets | null;
   /** The text in each target field. */
   shown: Texts;
+  /** The split showing, adding up to 100, or null until there is something to split. */
+  shares: Shares | null;
+  /** Each macro's part of the calories, adding up to exactly the calories. */
+  macroKcal: Shares | null;
+  /** What the saved macros added up to, when that did not match the saved calories and the form corrected it. */
+  repairedFromKcal: number | null;
   /** The calculation hit the calorie floor, and that number is the one showing. */
   floored: boolean;
   problem: GoalProblem | null;
+  /** The target weight is on the wrong side of the weight for the goal type. */
+  targetIssue: 'not_below' | 'not_above' | null;
   aboutOk: boolean;
   canSave: boolean;
   /** Saving would write nothing new. */
@@ -135,8 +175,26 @@ export function evaluateGoalForm(form: GoalForm, baseline: GoalBaseline | null):
     fat: targets?.fat_g_target,
     fibre: targets?.fibre_g_target,
   };
-  const textFor = (k: TargetKey): string => form.edits[k] ?? (useSaved ? baseline.targets[k] : calculated[k] === undefined ? '' : String(calculated[k]));
-  const shown: Texts = { kcal: textFor('kcal'), protein: textFor('protein'), carbs: textFor('carbs'), fat: textFor('fat'), fibre: textFor('fibre') };
+  const base = (k: TargetKey): string => (useSaved ? baseline.targets[k] : calculated[k] === undefined ? '' : String(calculated[k]));
+  const orNull = (text: string): number | null => (Number.isFinite(toNumber(text)) ? toNumber(text) : null);
+  const baseGrams = { protein_g: orNull(base('protein')), carbs_g: orNull(base('carbs')), fat_g: orNull(base('fat')) };
+  const baseKcal = toNumber(base('kcal'));
+  const baseSum = kcalOfGrams(baseGrams);
+  const matches = baseSum !== null && Math.abs(baseSum - baseKcal) <= MACRO_KCAL_TOLERANCE;
+  const shares = form.shares ?? sharesFromGrams(baseGrams) ?? (targets ? sharesFromGrams({ protein_g: targets.protein_g_target, carbs_g: targets.carbs_g_target, fat_g: targets.fat_g_target }) : null);
+
+  const kcalText = form.edits.kcal ?? base('kcal');
+  const kcal = toNumber(kcalText);
+  const kcalOk = Number.isFinite(kcal) && kcal >= 0;
+  // Untouched macros that already match stay as they are, so a calculated 2 g per kg is not rounded away.
+  const untouched = form.shares === null && (form.edits.kcal === undefined || kcal === baseKcal);
+  const grams = kcalOk && shares ? gramsFromShares(kcal, shares) : null;
+  const macroText = (key: 'protein' | 'carbs' | 'fat'): string => {
+    if (untouched && matches) return base(key);
+    return grams ? String(grams[`${key}_g`]) : '';
+  };
+  const shown: Texts = { kcal: kcalText, protein: macroText('protein'), carbs: macroText('carbs'), fat: macroText('fat'), fibre: form.edits.fibre ?? base('fibre') };
+  const repairedFromKcal = useSaved && form.shares === null && form.edits.kcal === undefined && baseSum !== null && !matches ? baseSum : null;
 
   const numbers = (Object.keys(shown) as TargetKey[]).map((k) => toNumber(shown[k]));
   const numbersOk = numbers.every((n) => Number.isFinite(n) && n >= 0);
@@ -144,7 +202,16 @@ export function evaluateGoalForm(form: GoalForm, baseline: GoalBaseline | null):
   const targetOk = target === null || (Number.isFinite(target) && target >= 30 && target <= 400);
   const paceOk = form.goalType === 'maintain' || (Number.isFinite(pace) && pace > 0);
   const problem = form.sex && numbersOk ? goalProblem({ sex: form.sex, goal_type: form.goalType, kcal_target: toNumber(shown.kcal), pace_kg_per_week: pace }) : null;
-  const canSave = !!form.sex && !!targets && numbersOk && targetOk && paceOk && !problem;
+  const weightNow = profile.weight_kg;
+  const targetIssue =
+    target === null || !Number.isFinite(target) || !Number.isFinite(weightNow) || form.goalType === 'maintain'
+      ? null
+      : form.goalType === 'lose' && target >= weightNow
+        ? ('not_below' as const)
+        : form.goalType === 'gain' && target <= weightNow
+          ? ('not_above' as const)
+          : null;
+  const canSave = !!form.sex && !!targets && numbersOk && targetOk && paceOk && !problem && !targetIssue;
 
   const savedTargetWeight = form.goalType === 'maintain' ? null : target;
   const unchanged =
@@ -157,8 +224,12 @@ export function evaluateGoalForm(form: GoalForm, baseline: GoalBaseline | null):
     profileIssue,
     targets,
     shown,
+    shares,
+    macroKcal: kcalOk && shares ? kcalFromShares(kcal, shares) : null,
+    repairedFromKcal,
     floored: !!targets?.floored && !problem && !useSaved && form.edits.kcal === undefined,
     problem,
+    targetIssue,
     aboutOk: !!form.sex && profileIssue === null,
     canSave,
     unchanged,

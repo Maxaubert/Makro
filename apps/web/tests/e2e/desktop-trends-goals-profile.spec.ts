@@ -89,9 +89,16 @@ test('desktop Goals: pick a goal type, the numbers follow, save writes one goal 
   await expect(page.getByLabel('Age')).toHaveValue('30');
   await expect(page.getByLabel('Height')).toHaveValue('182');
   await expect(page.getByLabel('Weight', { exact: true })).toHaveValue('81.5');
-  // The split adds up and fibre has no kcal of its own.
-  await expect(page.getByTestId('macro-split').locator('div')).toHaveCount(3);
-  await expect(page.getByText('n/a')).toBeVisible();
+  // The split adds up to 100 and fibre has no kcal of its own (decision 39).
+  await expect(page.getByTestId('macro-split').locator('div > div')).toHaveCount(3);
+  const shares = await Promise.all(['Protein', 'Carbs', 'Fat'].map(async (m) => Number(await page.getByLabel(`${m} share`).inputValue())));
+  expect(shares.reduce((a, b) => a + b, 0)).toBe(100);
+  await expect(page.getByText('not part of the calories')).toBeVisible();
+  if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/desktop-goals.png` });
+  // A step on one share moves another, and the total stays 100.
+  await page.getByRole('button', { name: 'More protein' }).click();
+  await expect(page.getByLabel('Protein share')).toHaveValue(String(shares[0] + 1));
+  await expect(page.getByLabel('Carbs share')).toHaveValue(String(shares[1] - 1));
   await expect(page.getByRole('button', { name: 'Save goal' })).toBeVisible();
 
   // Maintain: higher calories, no target or pace of its own.

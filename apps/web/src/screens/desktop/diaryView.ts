@@ -2,7 +2,7 @@
 // the live preview of an inline edit and the top sources. Unknown stays null (rule 2).
 import type { LocalLogEntry } from '../../data/logStore';
 import { roundForDisplay } from '../../domain/display';
-import { parseAmount, type Meal } from '../../domain/entry';
+import { parseQuantity, type Meal } from '../../domain/entry';
 import type { AmountUnit } from '../../domain/grams';
 import { NUTRIENTS, type Nutrient } from '../../domain/nutrients';
 import { portion } from '../../domain/portion';
@@ -62,11 +62,7 @@ export function steppedAmount(quantity: number, unit: AmountUnit, direction: -1 
 
 /** null when the text is empty or cannot be read. */
 export function parsedQuantity(text: string): number | null {
-  try {
-    return parseAmount(text);
-  } catch {
-    return null;
-  }
+  return parseQuantity(text);
 }
 
 /** The entry as it will be after Done, so totals and meals follow the edit. The snapshot is untouched. */

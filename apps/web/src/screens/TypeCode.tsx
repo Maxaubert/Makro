@@ -2,7 +2,7 @@
 // The lookup uses the canonical form of products-db.md (EAN-8 and UPC-A padded, GTIN-14 with a
 // leading 0 trimmed) and the same result screens as the camera.
 import { useEffect, useState, type FormEvent } from 'react';
-import { canonicalEan } from '../data/barcode';
+import { BARCODE_LENGTHS, canonicalEan } from '../data/barcode';
 import { barcodeDestination } from '../data/barcodeResult';
 import { href, navigate, useApp, useAppState } from '../lib/hooks';
 import { Header, Icon, Notice, Page, PrimaryButton } from '../ui/kit';
@@ -12,7 +12,7 @@ export function TypeCode() {
   const { products } = useAppState();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const valid = canonicalEan(code) !== null && code.length >= 8;
+  const valid = canonicalEan(code) !== null && BARCODE_LENGTHS.includes(code.length);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,7 +48,7 @@ export function TypeCode() {
         <label htmlFor="code" className="sr-only">Barcode</label>
         <input
           id="code"
-          className="card num mt-6 h-24 w-full bg-card text-center text-[32px] font-bold tracking-[0.08em] outline-none placeholder:text-[#6A6A70] focus:border-accent-2"
+          className="card num mt-6 h-24 w-full bg-card text-center text-[32px] font-bold tracking-[0.08em] outline-none placeholder:text-faint focus:border-accent-2"
           inputMode="numeric"
           placeholder="Barcode"
           autoComplete="off"

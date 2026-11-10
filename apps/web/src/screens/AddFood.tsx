@@ -54,7 +54,10 @@ export function AddFood() {
   const q = useDeferredValue(query);
   const ready = products.status === 'ready';
 
-  const { data: results, error } = useData(async () => (ready && q.trim() ? app.db.search(q, 30) : []), [q, ready]);
+  const { data: found, error } = useData(async () => ({ q, rows: ready && q.trim() ? await app.db.search(q, 30) : [] }), [q, ready]);
+  // Results of an older query are still showing while the new one loads; they must not count as 'no match'.
+  const results = found?.rows;
+  const resultsCurrent = found?.q === q;
   const { data: recents } = useData(() => app.db.recentFoods(20), []);
   const { data: mine } = useData(() => app.db.customFoods(), []);
   const { data: favourites } = useData(() => app.db.favouriteFoods(), [ready]);
@@ -97,7 +100,7 @@ export function AddFood() {
         <Icon name="search" size={20} className="text-secondary" />
         <input
           aria-label="Search foods"
-          className="h-full flex-1 bg-transparent text-[16px] outline-none placeholder:text-[#6A6A70]"
+          className="h-full flex-1 bg-transparent text-[16px] outline-none placeholder:text-faint"
           placeholder="Search foods"
           autoFocus
           enterKeyHint="search"
@@ -160,13 +163,16 @@ export function AddFood() {
         ))}
       </ul>
 
-      {tab === 'all' && q.trim() && results && results.length === 0 && rows.length === 0 && (
+      {tab === 'all' && q.trim() && resultsCurrent && results && results.length === 0 && rows.length === 0 && (
         <p className="mt-4 text-center text-sm text-secondary">No food matches "{q.trim()}".</p>
       )}
       {tab === 'recent' && recents && recents.length === 0 && <p className="mt-4 text-center text-sm text-secondary">Foods you log show up here.</p>}
       {tab === 'favourites' && favourites && favourites.length === 0 && <p className="mt-4 text-center text-sm text-secondary">Tap the heart on a food to keep it here.</p>}
+      {tab === 'mine' && mine && mine.length === 0 && !(savedMeals && savedMeals.length > 0) && (
+        <p className="mt-4 text-center text-sm text-secondary">Foods you add yourself, and meals you save from the diary, show up here.</p>
+      )}
 
-      <div className="mt-3 flex items-center gap-3 rounded-2xl border border-dashed border-[#3A3A3E] p-3.5">
+      <div className="mt-3 flex items-center gap-3 rounded-2xl border border-dashed border-strong p-3.5">
         <div className="flex-1 text-sm font-semibold">Can't find it?</div>
         <a
           href={withDay(`${href('custom')}?name=${encodeURIComponent(query.trim())}&q=${encodeURIComponent(query.trim())}`, day)}

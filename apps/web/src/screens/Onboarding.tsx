@@ -113,7 +113,7 @@ export function Onboarding({ hasConsent, hasGoal }: { hasConsent: boolean; hasGo
       <Page>
         <Progress step="consent" back={() => setStep('welcome')} />
         <h1 className="pt-4 text-[30px] font-bold leading-tight tracking-[-0.02em]">Your data</h1>
-        <div className="mt-4 rounded-[20px] border border-border bg-card p-4 text-[14px] leading-relaxed text-[#C8C8CC]">
+        <div className="mt-4 rounded-[20px] border border-border bg-card p-4 text-[14px] leading-relaxed text-soft">
           Weight, height, goals and what you eat can say something about your health, so Makro asks first. It is stored in the EU. You can download or delete it any time in Account.
           <button type="button" className="mt-2.5 block font-semibold text-accent-2" onClick={() => setShowPrivacy(true)}>Read the privacy notice</button>
         </div>

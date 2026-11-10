@@ -232,7 +232,7 @@ function DayList({
               <Icon name="next" size={18} />
             </a>
           ) : (
-            <span aria-hidden="true" className={`${chevron} text-[#3A3A3E]`}>
+            <span aria-hidden="true" className={`${chevron} text-strong`}>
               <Icon name="next" size={18} />
             </span>
           )}
@@ -245,7 +245,7 @@ function DayList({
           const summary = listed ? dayRowSummary(listed.filter((e) => e.local_date === d), goals?.[i]?.kcal_target ?? null) : null;
           const kcal = summary ? formatTotal(summary.kcal, 0) : null;
           const logged = summary !== null && summary.kcal.count > 0;
-          const bar = summary?.over ? 'bg-accent-2' : selected || d >= yesterday ? 'bg-accent' : 'bg-[#3A3A3E]';
+          const bar = summary?.over ? 'bg-accent-2' : selected || d >= yesterday ? 'bg-accent' : 'bg-strong';
           return (
             <a
               key={d}
@@ -432,7 +432,7 @@ function MealTable({
         return (
           <div key={meal} role="group" aria-label={MEAL_LABEL[meal]}>
             <div className={`${TABLE_COLUMNS} items-center border-t border-border bg-raised px-5 py-2.5`}>
-              <span className="text-[13px] font-bold text-[#C8C8CC]">{MEAL_LABEL[meal]}</span>
+              <span className="text-[13px] font-bold text-soft">{MEAL_LABEL[meal]}</span>
               <span className="num text-right text-[13px] font-bold">{withUnknown(formatTotal(totalsOf(rows).kcal, 0))}</span>
             </div>
             {rows.map((e) => {
@@ -447,7 +447,7 @@ function MealTable({
                       if (original) onPick(original);
                     }}
                     className={`${TABLE_COLUMNS} w-full items-center border-t border-border px-5 py-[11px] text-left text-[14px] ${
-                      isOpen ? 'bg-[#232326] shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-raised/60'
+                      isOpen ? 'bg-raised-2 shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-raised/60'
                     }`}
                     data-testid="diary-entry"
                   >
@@ -496,7 +496,7 @@ function EditRow({
   const step = (direction: -1 | 1) => onChange({ ...editing, quantity: String(steppedAmount(parsedQuantity(editing.quantity) ?? entry.quantity, entry.unit, direction)) });
   const stepButton = 'tap flex h-10 w-10 items-center justify-center rounded-full bg-border';
   return (
-    <div className="flex flex-wrap items-center gap-3.5 border-t border-border bg-[#232326] px-5 pb-[18px] pt-3.5 shadow-[inset_3px_0_0_var(--color-accent)]" data-testid="diary-edit">
+    <div className="flex flex-wrap items-center gap-3.5 border-t border-border bg-raised-2 px-5 pb-[18px] pt-3.5 shadow-[inset_3px_0_0_var(--color-accent)]" data-testid="diary-edit">
       {/* Accuracy rule 4: the snapshot's source and whether it is verified. */}
       <div className="flex basis-full flex-wrap items-center gap-x-2 text-[12px] text-secondary">
         {entry.brand && <span>{entry.brand}</span>}
@@ -540,7 +540,7 @@ function EditRow({
             type="button"
             aria-pressed={editing.meal === m}
             onClick={() => onChange({ ...editing, meal: m })}
-            className={`tap flex h-8 items-center rounded-full px-3 text-[12px] ${editing.meal === m ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-[#C8C8CC]'}`}
+            className={`tap flex h-8 items-center rounded-full px-3 text-[12px] ${editing.meal === m ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
           >
             {MEAL_LABEL[m]}
           </button>
@@ -551,7 +551,7 @@ function EditRow({
         <button type="button" onClick={onCancel} className="tap flex h-10 items-center rounded-full bg-border px-[18px] text-[14px] font-semibold">
           Cancel
         </button>
-        <button type="button" disabled={busy || !valid} onClick={onDone} className="tap flex h-10 items-center rounded-full bg-accent px-5 text-[14px] font-bold text-ground disabled:bg-border disabled:text-[#6A6A70]">
+        <button type="button" disabled={busy || !valid} onClick={onDone} className="tap flex h-10 items-center rounded-full bg-accent px-5 text-[14px] font-bold text-ground disabled:bg-border disabled:text-faint">
           Done
         </button>
       </div>
@@ -614,7 +614,7 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
           aria-label="Choose which nutrients to show"
           aria-expanded={menu === 'cfg'}
           onClick={() => setMenu(menu === 'cfg' ? null : 'cfg')}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-border text-[#C8C8CC] ${menu === 'cfg' ? 'bg-border' : 'bg-raised'}`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-border text-soft ${menu === 'cfg' ? 'bg-border' : 'bg-raised'}`}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3" />
@@ -626,7 +626,7 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
       {menu !== null && <div className="fixed inset-0 z-[4]" onClick={() => setMenu(null)} />}
 
       {menu === 'menu' && (
-        <div role="listbox" aria-label="Nutrient" className="desktop-scroll absolute inset-x-5 top-28 z-[5] max-h-[340px] overflow-auto rounded-[14px] border border-[#3A3A3E] bg-[#232326] p-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.55)]">
+        <div role="listbox" aria-label="Nutrient" className="desktop-scroll absolute inset-x-5 top-28 z-[5] max-h-[340px] overflow-auto rounded-[14px] border border-strong bg-raised-2 p-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.55)]">
           {enabled.map((o) => (
             <button
               key={o.key}
@@ -647,7 +647,7 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
       )}
 
       {menu === 'cfg' && (
-        <div className="desktop-scroll absolute inset-x-3 top-28 z-[6] max-h-[560px] overflow-auto rounded-2xl border border-[#3A3A3E] bg-[#232326] p-4 shadow-[0_14px_34px_rgba(0,0,0,0.55)]">
+        <div className="desktop-scroll absolute inset-x-3 top-28 z-[6] max-h-[560px] overflow-auto rounded-2xl border border-strong bg-raised-2 p-4 shadow-[0_14px_34px_rgba(0,0,0,0.55)]">
           <div className="flex items-center justify-between">
             <span className="text-[15px] font-bold">Show in the list</span>
             <button type="button" onClick={() => setMenu(null)} className="text-[13px] font-bold text-accent-2">
@@ -672,7 +672,7 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
                     className="flex w-full items-center justify-between border-t border-border py-[9px] text-left text-[14px]"
                   >
                     <span>{o.label}</span>
-                    <span className={`flex h-[22px] w-[22px] items-center justify-center rounded-[7px] ${on ? 'bg-accent text-ground' : 'border-[1.5px] border-[#3A3A3E]'}`}>
+                    <span className={`flex h-[22px] w-[22px] items-center justify-center rounded-[7px] ${on ? 'bg-accent text-ground' : 'border-[1.5px] border-strong'}`}>
                       {on && <Icon name="check" size={13} stroke={3.2} />}
                     </span>
                   </button>
@@ -703,10 +703,10 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
       </div>
 
       <div className="relative mt-3.5 h-[120px]" role="img" aria-label={bars.map((b) => `${weekday(b.date)} ${amountText(b.value, key)} ${unit}`).join(', ')}>
-        {target !== null && <div className="absolute inset-x-0 border-t border-dashed border-[#6A6A70]" style={{ bottom: heightOf(target) }} />}
+        {target !== null && <div className="absolute inset-x-0 border-t border-dashed border-faint" style={{ bottom: heightOf(target) }} />}
         <div className="absolute inset-0 flex items-end gap-2">
           {bars.map((b) => (
-            <div key={b.date} className={`min-w-0 flex-1 rounded-[5px_5px_2px_2px] ${b.picked ? 'bg-accent' : 'bg-[#3A3A3E]'}`} style={{ height: heightOf(b.value) }} />
+            <div key={b.date} className={`min-w-0 flex-1 rounded-[5px_5px_2px_2px] ${b.picked ? 'bg-accent' : 'bg-strong'}`} style={{ height: heightOf(b.value) }} />
           ))}
         </div>
       </div>

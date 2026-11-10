@@ -1,9 +1,11 @@
 // The About you and Your goals fields, shared by first-run setup and the editing screens
 // (B_Onboarding and B_Goals on the canvas). The rules live in domain/goalForm.ts.
 import { useMemo, useState } from 'react';
-import { emptyGoalForm, evaluateGoalForm, type GoalEvaluation, type GoalForm, type Prefill, type TargetKey } from '../domain/goalForm';
+import { emptyGoalForm, evaluateGoalForm, profileChange, withLatestWeight, type EditKey, type GoalEvaluation, type GoalForm, type Prefill } from '../domain/goalForm';
+import type { Db } from '../lib/db';
 import { kcalFloor, GOAL_CONSTANTS, type ActivityLevel, type GoalType } from '../domain/goals';
 import { Chip, Notice } from '../ui/kit';
+import { MacroEditor, RepairedNote } from './macroEditor';
 
 export const ACTIVITY: { value: ActivityLevel; label: string }[] = [
   { value: 'sedentary', label: 'Mostly sitting' },
@@ -17,7 +19,10 @@ export const GOAL_TYPES: { value: GoalType; label: string; pace: number }[] = [
 ];
 
 /** Picking a goal type starts from its usual pace and drops targets typed by hand. */
-export const pickGoalType = (g: (typeof GOAL_TYPES)[number]): Partial<GoalForm> => ({ goalType: g.value, pace: String(g.pace), edits: {} });
+export const pickGoalType = (g: (typeof GOAL_TYPES)[number]): Partial<GoalForm> => ({ goalType: g.value, pace: String(g.pace), edits: {}, shares: null });
+
+/** A new pace recalculates the goal, so targets typed by hand are dropped. */
+export const changePace = (pace: string): Partial<GoalForm> => ({ pace, edits: {}, shares: null });
 
 /** Chips that share the row evenly and are tall enough to tap, as on the canvas. */
 const FULL_CHIPS = 'flex gap-2 [&>button]:h-12 [&>button]:flex-1 [&>button]:justify-center [&>button]:text-[15px]';
@@ -27,6 +32,28 @@ export interface GoalFormState {
   set: (patch: Partial<GoalForm>) => void;
   evaluation: GoalEvaluation;
   prefill: Prefill;
+}
+
+/** The latest goal, with a weight logged since then (the form must not start from an old weight). */
+export async function loadGoal(db: Db) {
+  const [goal, weights] = await Promise.all([db.latestGoal(), db.weights(1)]);
+  return withLatestWeight(goal, weights[0] ?? null);
+}
+
+const PROFILE_NOTE = {
+  age: 'Type your age in whole years.',
+  height: 'Height must be between 100 and 250 cm.',
+  weight: 'Weight must be between 30 and 400 kg.',
+} as const;
+
+/** Why Continue is disabled: a value outside the limits. Nothing while a field is still empty. */
+export function ProfileNote({ state }: { state: GoalFormState }) {
+  const { form, evaluation } = state;
+  const issue = evaluation.profileIssue;
+  if (issue === null || issue === 'under_18') return null;
+  const text = { age: form.age, height: form.height, weight: form.weight }[issue];
+  if (text.trim() === '') return null;
+  return <div className="mt-3"><Notice>{PROFILE_NOTE[issue]}</Notice></div>;
 }
 
 const FIRST_RUN: Prefill = { form: emptyGoalForm(), baseline: null, complete: false };
@@ -71,7 +98,8 @@ export function Under18Note({ state }: { state: GoalFormState }) {
 }
 
 export function AboutFields({ state }: { state: GoalFormState }) {
-  const { form, set } = state;
+  const { form } = state;
+  const set = (patch: Partial<GoalForm>) => state.set(profileChange(form, patch));
   return (
     <>
       <div className={`mt-4 ${FULL_CHIPS}`}>
@@ -85,6 +113,7 @@ export function AboutFields({ state }: { state: GoalFormState }) {
         <NumberField label="Weight" unit="kg" value={form.weight} onChange={(weight) => set({ weight })} />
       </div>
       <Under18Note state={state} />
+      <ProfileNote state={state} />
       <p className="mt-4 text-[13px] text-secondary">How active are you?</p>
       <div className="mt-2 flex flex-col gap-2">
         {ACTIVITY.map((a) => (
@@ -112,6 +141,8 @@ export function GoalNotes({ state, error }: { state: GoalFormState; error: strin
       {e.problem === 'below_floor' && form.sex && <div className="mt-3"><Notice>Makro doesn't set goals under {kcalFloor(form.sex)} kcal a day.</Notice></div>}
       {e.problem === 'pace_too_fast' && <div className="mt-3"><Notice>Makro doesn't set a pace above {GOAL_CONSTANTS.max_loss_kg_per_week} kg a week.</Notice></div>}
       {e.floored && <div className="mt-3"><Notice>This is the lowest goal Makro sets for you.</Notice></div>}
+      {e.targetIssue === 'not_below' && <div className="mt-3"><Notice>To lose weight, the target weight must be below your weight now.</Notice></div>}
+      {e.targetIssue === 'not_above' && <div className="mt-3"><Notice>To gain weight, the target weight must be above your weight now.</Notice></div>}
       {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
       <p className="mt-3 text-center text-[12px] text-secondary">
         An estimate you can change.{' '}
@@ -124,7 +155,7 @@ export function GoalNotes({ state, error }: { state: GoalFormState; error: strin
 
 export function GoalFields({ state, error }: { state: GoalFormState; error: string | null }) {
   const { form, set, evaluation: e } = state;
-  const edit = (key: TargetKey) => (v: string) => set({ edits: { ...form.edits, [key]: v } });
+  const edit = (key: EditKey) => (v: string) => set({ edits: { ...form.edits, [key]: v } });
   return (
     <>
       <div className={`mt-4 ${FULL_CHIPS}`}>
@@ -137,16 +168,15 @@ export function GoalFields({ state, error }: { state: GoalFormState; error: stri
       {form.goalType !== 'maintain' && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <NumberField label="Target weight" unit="kg, optional" value={form.targetWeight} onChange={(targetWeight) => set({ targetWeight })} />
-          <NumberField label="Pace" unit="kg / week" value={form.pace} onChange={(pace) => set({ pace, edits: {} })} />
+          <NumberField label="Pace" unit="kg / week" value={form.pace} onChange={(pace) => set(changePace(pace))} />
         </div>
       )}
       <div className="mt-3"><NumberField label="Daily calories" unit="kcal" value={e.shown.kcal} onChange={edit('kcal')} /></div>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <NumberField label="Protein" unit="g" value={e.shown.protein} onChange={edit('protein')} />
-        <NumberField label="Carbs" unit="g" value={e.shown.carbs} onChange={edit('carbs')} />
-        <NumberField label="Fat" unit="g" value={e.shown.fat} onChange={edit('fat')} />
-        <NumberField label="Fibre" unit="g" value={e.shown.fibre} onChange={edit('fibre')} />
+      <RepairedNote evaluation={e} />
+      <div className="mt-4 rounded-[20px] border border-border bg-card px-4 pb-3 pt-1">
+        <MacroEditor evaluation={e} onShares={(shares) => set({ shares })} />
       </div>
+      <div className="mt-2 w-1/2 pr-1"><NumberField label="Fibre" unit="g" value={e.shown.fibre} onChange={edit('fibre')} /></div>
       <GoalNotes state={state} error={error} />
     </>
   );

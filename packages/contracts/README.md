@@ -9,7 +9,7 @@ Status: oracle split, owners, rounding and CI approved by Nima in review of #51 
 | Files | Swift suite | Python suite | Why |
 |---|---|---|---|
 | `nutrition/*.json` (per-100 g to portion, totals with unknowns) | yes | no | Maths lives in Swift only (`docs/MVP.md`, `AGENTS.md`) |
-| `goals/*.json` (targets, calorie floor, loss rate, macro split) | yes, when iOS is built | no | The web app runs them first (decision 38) |
+| `goals/*.json` (targets, calorie floor, loss rate; the macro split in whole percents that add up to 100, grams from a calorie target and a split, and changing one share: `macro_shares`, `macro_grams`, `macro_rebalance`, decision 39) | yes, when iOS is built | no | The web app runs them first (decision 38) |
 | `goals/constants.json` (calorie floor, maximum loss rate, the other goal numbers, each with its source and status) | yes, when iOS is built | no | The web app checks it too (decision 38) |
 | `guidance/*.json` (week window, weekly average and verdict, what is left, end-of-day status, suggestions, #27, #53; the logging streak; the Trends summary) | yes, when iOS is built | no | The web app runs them first; the numbers in `guidance/constants.json` are provisional |
 | `weight/*.json` (7-day trend with missing days and several entries a day, change of the trend over a range, distance to goal, range and weigh-in change, time and progress to goal) | yes, when iOS is built | no | The web app runs them first (#2) |

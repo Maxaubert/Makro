@@ -3,12 +3,12 @@
 // Missing values stay unknown (rule 2), every row shows source and verified (rule 4), and "Add
 // custom food" is always there (rule 5).
 import { useDeferredValue, useState, type FormEvent, type ReactNode } from 'react';
-import { canonicalEan } from '../../data/barcode';
+import { BARCODE_LENGTHS, canonicalEan } from '../../data/barcode';
 import { resolveBarcode, type BarcodeResult } from '../../data/barcodeResult';
 import type { RecentFood, SavedMeal } from '../../data/logStore';
 import { productSubtext, type Product } from '../../data/products';
 import { roundForDisplay } from '../../domain/display';
-import { buildFavourite, buildLogEntry, MEALS, mealTimeOn, parseAmount, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../../domain/entry';
+import { buildFavourite, buildLogEntry, MEALS, mealTimeOn, parseQuantity, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../../domain/entry';
 import { formatNumber } from '../../domain/format';
 import { resolveGrams, type AmountUnit } from '../../domain/grams';
 import { browserTimeZone, pastLocalDate } from '../../domain/localDate';
@@ -17,7 +17,7 @@ import { NUTRIENTS } from '../../domain/nutrients';
 import { portion } from '../../domain/portion';
 import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../../lib/hooks';
 import { DesktopSidebar, StreakPill } from '../../ui/desktop';
-import { Icon, Notice } from '../../ui/kit';
+import { Icon, Notice, VerifiedSeal } from '../../ui/kit';
 import { dayLabel, MEAL_LABEL, mealForNow, today, withDay } from '../day';
 
 type Tab = 'recent' | 'favourites' | 'mine' | 'all';
@@ -74,7 +74,7 @@ function Pill({ selected, onClick, small = false, children }: { selected: boolea
       aria-pressed={selected}
       onClick={onClick}
       className={`tap flex h-8 shrink-0 items-center rounded-full ${small ? 'px-2.5 text-[12px]' : 'px-3.5 text-[13px]'} ${
-        selected ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-[#C8C8CC]'
+        selected ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'
       }`}
     >
       {children}
@@ -86,7 +86,7 @@ function Pill({ selected, onClick, small = false, children }: { selected: boolea
 const COLUMNS = 'grid grid-cols-[minmax(0,1fr)_52px_40px_40px_40px] gap-1.5 px-3 min-[1360px]:grid-cols-[minmax(0,1fr)_64px_64px_64px_64px_130px] min-[1360px]:gap-2 min-[1360px]:px-5';
 
 function VerifiedText({ verified }: { verified: boolean | null }) {
-  if (verified === true) return <span className="text-[#7FD99A]">Verified</span>;
+  if (verified === true) return <span className="inline-flex items-center gap-1 font-semibold text-accent-2"><VerifiedSeal size={13} />Verified</span>;
   if (verified === false) return <span>Not verified</span>;
   return null;
 }
@@ -102,7 +102,7 @@ function FoodRow({ row, selected, onPick }: { row: Row; selected: boolean; onPic
         aria-pressed={selected}
         onClick={onPick}
         data-testid="food-row"
-        className={`${COLUMNS} w-full items-center border-t border-border py-[13px] text-left text-[14px] ${selected ? 'bg-[#232326] shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-raised'}`}
+        className={`${COLUMNS} w-full items-center border-t border-border py-[13px] text-left text-[14px] ${selected ? 'bg-raised-2 shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-raised'}`}
       >
         <span className="min-w-0">
           <span className="block truncate text-[15px] font-semibold">{row.name}</span>
@@ -186,7 +186,7 @@ export function DesktopLog() {
     setTypingCode(false);
   }
 
-  const codeValid = canonicalEan(code) !== null && code.length >= 8;
+  const codeValid = canonicalEan(code) !== null && BARCODE_LENGTHS.includes(code.length);
 
   async function find(e: FormEvent) {
     e.preventDefault();
@@ -261,7 +261,7 @@ export function DesktopLog() {
                         setCodeError(null);
                       }}
                     />
-                    <button type="submit" disabled={!codeValid} className="tap flex h-[38px] shrink-0 items-center rounded-full bg-accent px-4 text-[13px] font-bold text-ground disabled:bg-border disabled:text-[#6A6A70]">
+                    <button type="submit" disabled={!codeValid} className="tap flex h-[38px] shrink-0 items-center rounded-full bg-accent px-4 text-[13px] font-bold text-ground disabled:bg-border disabled:text-faint">
                       Find product
                     </button>
                     <button type="button" onClick={() => setTypingCode(false)} className="tap flex h-[38px] shrink-0 items-center rounded-full bg-border px-4 text-[13px] font-semibold">
@@ -330,7 +330,7 @@ export function DesktopLog() {
                 </ul>
               </div>
 
-              <div className="flex items-center gap-3 rounded-2xl border border-dashed border-[#3A3A3E] px-5 py-4">
+              <div className="flex items-center gap-3 rounded-2xl border border-dashed border-strong px-5 py-4">
                 <span className="grow text-sm font-semibold">Can't find it?</span>
                 <a href={customHref} className="tap flex h-11 shrink-0 items-center rounded-full bg-text px-[18px] text-sm font-bold text-ground">
                   Add custom food
@@ -466,7 +466,7 @@ function MacroBar({ values }: { values: Record<string, number | null> }) {
   );
 }
 
-const PRIMARY = 'tap mt-5 flex h-[54px] w-full items-center justify-center rounded-full bg-accent text-base font-bold text-ground disabled:bg-border disabled:text-[#6A6A70]';
+const PRIMARY = 'tap mt-5 flex h-[54px] w-full items-center justify-center rounded-full bg-accent text-base font-bold text-ground disabled:bg-border disabled:text-faint';
 
 function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null; scannedEan: string | null }) {
   const app = useApp();
@@ -480,12 +480,7 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
   const [saving, setSaving] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
 
-  let quantity: number | null = null;
-  try {
-    quantity = parseAmount(qty);
-  } catch {
-    quantity = null;
-  }
+  const quantity = parseQuantity(qty);
   const grams = quantity === null ? null : resolveGrams({ quantity, unit, serving_g: food.per.serving_g }).grams;
   const values = grams === null ? null : portion(food.values, grams);
   const noData = NUTRIENTS.every((n) => food.values[n] === null);
@@ -573,12 +568,12 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
       </div>
       <div className="mt-3.5 flex flex-wrap gap-2">
         <span className={`flex h-[26px] items-center rounded-full px-2.5 text-[12px] font-semibold ${tag.cls}`}>{tag.text}</span>
-        <span className="flex h-[26px] items-center rounded-full border border-border bg-raised px-2.5 text-[12px] text-[#C8C8CC]">{food.sourceName}</span>
+        <span className="flex h-[26px] items-center rounded-full border border-border bg-raised px-2.5 text-[12px] text-soft">{food.sourceName}</span>
       </div>
 
       {noData ? (
         <div>
-          <div className="mt-5 rounded-2xl bg-raised p-4 text-[14px] leading-normal text-[#C8C8CC]">This product has no nutrition data yet. It will be saved without numbers, and unknown stays unknown, never zero.</div>
+          <div className="mt-5 rounded-2xl bg-raised p-4 text-[14px] leading-normal text-soft">This product has no nutrition data yet. It will be saved without numbers, and unknown stays unknown, never zero.</div>
           <button type="button" className={PRIMARY} disabled={grams === null || saving} onClick={() => void add()}>Log without numbers</button>
           <a href={labelHref} className="tap mt-2.5 flex h-[50px] items-center justify-center rounded-full border border-border bg-raised text-[15px] font-semibold">Enter numbers from the label</a>
           {status}
@@ -586,7 +581,7 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
       ) : (
         <div>
           <div className="mt-5 flex items-center justify-between rounded-2xl bg-raised p-3">
-            <button type="button" aria-label="Less" disabled={quantity === null || quantity <= step} onClick={() => stepBy(-step)} className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-border disabled:text-[#6A6A70]">
+            <button type="button" aria-label="Less" disabled={quantity === null || quantity <= step} onClick={() => stepBy(-step)} className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-border disabled:text-faint">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
             </button>
             <div className="min-w-0 text-center">
@@ -594,7 +589,7 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
               <div className="flex items-baseline justify-center gap-1">
                 <input
                   id="desktop-qty"
-                  className="num rounded-lg bg-transparent text-center text-[44px] font-bold leading-[1.1] tracking-[-1.5px] outline-none focus:bg-ground"
+                  className="num rounded-lg bg-transparent text-center text-[44px] font-bold leading-[1.1] tracking-[-1.5px] outline-none focus:bg-raised"
                   style={{ width: `${Math.max(qty.length, 1) + 0.6}ch` }}
                   inputMode="decimal"
                   value={qty}

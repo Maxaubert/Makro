@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "description": "Whole-percent shares of the calories from the macro gram targets. kcal = grams * 4 for protein and carbs, grams * 9 for fat. The three always add up to exactly 100: each share is rounded down, then the leftover points go to the largest remainders, and a tie goes to protein, then carbs, then fat. A missing gram target, or a total of 0, gives no shares (null). Replaces goals/macro_split.json, where the three could add up to 99 or 101.",
+  "cases": [
+    { "id": "on-the-board", "input": { "protein_g": 180, "carbs_g": 260, "fat_g": 71 }, "expected": { "protein": 30, "carbs": 43, "fat": 27 } },
+    { "id": "row-that-does-not-match-its-calories", "input": { "protein_g": 179, "carbs_g": 283, "fat_g": 69 }, "expected": { "protein": 29, "carbs": 46, "fat": 25 } },
+    { "id": "two-way-tie-goes-to-protein", "input": { "protein_g": 1, "carbs_g": 7, "fat_g": 0 }, "expected": { "protein": 13, "carbs": 87, "fat": 0 } },
+    { "id": "three-way-tie", "input": { "protein_g": 9, "carbs_g": 9, "fat_g": 4 }, "expected": { "protein": 34, "carbs": 33, "fat": 33 } },
+    { "id": "only-fat", "input": { "protein_g": 0, "carbs_g": 0, "fat_g": 10 }, "expected": { "protein": 0, "carbs": 0, "fat": 100 } },
+    { "id": "all-zero-has-no-shares", "input": { "protein_g": 0, "carbs_g": 0, "fat_g": 0 }, "expected": null },
+    { "id": "one-unknown-has-no-shares", "input": { "protein_g": 180, "carbs_g": null, "fat_g": 71 }, "expected": null }
+  ]
+}

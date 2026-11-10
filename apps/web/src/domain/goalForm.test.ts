@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadGolden } from './golden';
 import type { StoredGoal } from './entry';
-import { aboutSummary, buildGoalChange, canStartAtGoals, emptyGoalForm, evaluateGoalForm, goalsSummary, prefillGoalForm, type GoalForm } from './goalForm';
+import { aboutSummary, buildGoalChange, canStartAtGoals, emptyGoalForm, evaluateGoalForm, goalsSummary, prefillGoalForm, profileChange, toNumber, withLatestWeight, type GoalForm } from './goalForm';
 import type { LimitInput } from './goals';
 
 const at = new Date('2026-11-09T10:00:00.000Z');
@@ -9,7 +9,7 @@ const year = 2026;
 const row: StoredGoal = {
   id: '0192f000-0000-7000-8000-000000000001', created_at: '2026-10-01T08:00:00.000Z', updated_at: '2026-10-01T08:00:00.000Z', deleted_at: null,
   effective_from: '2026-10-01', goal_type: 'lose',
-  kcal_target: 2345, protein_g_target: 170, carbs_g_target: 250, fat_g_target: 70, fibre_g_target: 32,
+  kcal_target: 2345, protein_g_target: 170, carbs_g_target: 259, fat_g_target: 70, fibre_g_target: 32,
   target_weight_kg: 78, pace_kg_per_week: 0.5, sex: 'male', birth_year: 1996, height_cm: 182, activity_level: 'active', weight_kg: 81.5,
 };
 
@@ -25,7 +25,7 @@ describe('prefill from the latest goal row', () => {
   });
   it('shows the saved targets, also when they were set by hand', () => {
     const { form, baseline } = prefillGoalForm(row, year);
-    expect(evaluateGoalForm(form, baseline).shown).toEqual({ kcal: '2345', protein: '170', carbs: '250', fat: '70', fibre: '32' });
+    expect(evaluateGoalForm(form, baseline).shown).toEqual({ kcal: '2345', protein: '170', carbs: '259', fat: '70', fibre: '32' });
   });
   it('leaves what a phone row does not hold empty, never 0', () => {
     const { form, complete } = prefillGoalForm({ ...row, sex: null, birth_year: null, height_cm: null, weight_kg: null, activity_level: null, target_weight_kg: null, pace_kg_per_week: null }, year);
@@ -78,10 +78,65 @@ describe('editing', () => {
   });
 });
 
+describe('macros follow the calories', () => {
+  const mismatched: StoredGoal = { ...row, kcal_target: 1900, protein_g_target: 179, carbs_g_target: 283, fat_g_target: 69, fibre_g_target: 30 };
+
+  it('shows shares that add up to 100', () => {
+    const { form, baseline } = prefillGoalForm(row, year);
+    const e = evaluateGoalForm(form, baseline);
+    expect(e.shares).toEqual({ protein: 29, carbs: 44, fat: 27 });
+  });
+  it('scales the grams when the calories are typed', () => {
+    const { form, baseline } = prefillGoalForm(row, year);
+    const e = evaluateGoalForm({ ...form, edits: { kcal: '2000' } }, baseline);
+    expect(e.shares).toEqual({ protein: 29, carbs: 44, fat: 27 });
+    expect(e.shown).toMatchObject({ kcal: '2000', protein: '145', fat: '60', carbs: '220' });
+    expect(e.macroKcal).toEqual({ protein: 580, carbs: 880, fat: 540 });
+  });
+  it('sets the grams from a chosen split', () => {
+    const { form, baseline } = prefillGoalForm(row, year);
+    const e = evaluateGoalForm({ ...form, shares: { protein: 40, carbs: 30, fat: 30 } }, baseline);
+    expect(e.shown).toMatchObject({ kcal: '2345', protein: '235', fat: '78' });
+    expect(e.unchanged).toBe(false);
+    expect(buildGoalChange({ ...form, shares: { protein: 40, carbs: 30, fat: 30 } }, baseline, at, 'UTC').goal.protein_g_target).toBe(235);
+  });
+  it('keeps calculated grams when nothing was touched', () => {
+    const e = evaluateGoalForm(filled(), null);
+    expect(e.shown.protein).toBe(String(e.targets?.protein_g_target));
+    expect(e.shown.carbs).toBe(String(e.targets?.carbs_g_target));
+  });
+  it('repairs a saved goal whose macros do not match its calories, and says so', () => {
+    const { form, baseline } = prefillGoalForm(mismatched, year);
+    const e = evaluateGoalForm(form, baseline);
+    expect(e.shares).toEqual({ protein: 29, carbs: 46, fat: 25 });
+    expect(e.shown).toMatchObject({ kcal: '1900', protein: '138', carbs: '218', fat: '53' });
+    expect(e.repairedFromKcal).toBe(2469);
+    expect(e.unchanged).toBe(false);
+    expect(e.canSave).toBe(true);
+  });
+  it('does not call a goal repaired once it is typed over', () => {
+    const { form, baseline } = prefillGoalForm(mismatched, year);
+    expect(evaluateGoalForm({ ...form, shares: { protein: 30, carbs: 40, fat: 30 } }, baseline).repairedFromKcal).toBeNull();
+  });
+  it('tolerates a few kcal of rounding on a saved goal', () => {
+    const { form, baseline } = prefillGoalForm(row, year);
+    expect(evaluateGoalForm(form, baseline).repairedFromKcal).toBeNull();
+  });
+  it('leaves the grams empty while the calories are not a number', () => {
+    const e = evaluateGoalForm(filled({ edits: { kcal: '' } }), null);
+    expect(e.shown).toMatchObject({ protein: '', carbs: '', fat: '' });
+    expect(e.canSave).toBe(false);
+  });
+  it('keeps fibre outside the split', () => {
+    const { form, baseline } = prefillGoalForm(row, year);
+    expect(evaluateGoalForm({ ...form, edits: { fibre: '40' } }, baseline).shown).toMatchObject({ fibre: '40', protein: '170' });
+  });
+});
+
 describe('limits cannot be bypassed by editing (#23)', () => {
   const golden = loadGolden<LimitInput, { problem: string | null }>('goals/limits.json');
   const formFor = (c: LimitInput): GoalForm =>
-    filled({ sex: c.sex, goalType: c.goal_type, pace: String(c.pace_kg_per_week), edits: { kcal: String(c.kcal_target), protein: '100', carbs: '100', fat: '50', fibre: '30' } });
+    filled({ sex: c.sex, goalType: c.goal_type, pace: String(c.pace_kg_per_week), edits: { kcal: String(c.kcal_target), fibre: '30' } });
 
   it.each(golden.cases.map((c) => [c.id, c] as const))('%s', (_id, c) => {
     const form = formFor(c.input);
@@ -115,7 +170,7 @@ describe('the rows a change writes', () => {
   it('is a goal effective from today, birth year unchanged', () => {
     const { form, baseline } = prefillGoalForm(row, year);
     const { goal } = buildGoalChange({ ...form, edits: { kcal: '2500' } }, baseline, at, 'UTC');
-    expect(goal).toMatchObject({ effective_from: '2026-11-09', goal_type: 'lose', kcal_target: 2500, protein_g_target: 170, birth_year: 1996, target_weight_kg: 78 });
+    expect(goal).toMatchObject({ effective_from: '2026-11-09', goal_type: 'lose', kcal_target: 2500, protein_g_target: 181, birth_year: 1996, target_weight_kg: 78 });
     expect(goal.id).not.toBe(row.id);
   });
   it('uses the local day of the time zone', () => {
@@ -150,6 +205,51 @@ describe('the Account rows', () => {
     expect(aboutSummary({ ...row, birth_year: null, height_cm: null, weight_kg: null }, year)).toBe('Not set');
     expect(aboutSummary(null, year)).toBe('Not set');
     expect(goalsSummary(null)).toBe('Not set');
+  });
+});
+
+describe('review fixes 2026-11-10', () => {
+  it('reads thousands separators as the desktop field shows them', () => {
+    expect(toNumber('2,200')).toBe(2200);
+    expect(toNumber('12,500')).toBe(12500);
+    expect(toNumber('2 200')).toBe(2200);
+    expect(toNumber('81,5')).toBe(81.5);
+    expect(toNumber('0,25')).toBe(0.25);
+  });
+  it('uses a weight logged after the goal, without writing it again', () => {
+    const latest = { weight_kg: 80, measured_at: '2026-11-05T07:00:00.000Z' };
+    const goal = withLatestWeight(row, latest);
+    expect(goal?.weight_kg).toBe(80);
+    expect(aboutSummary(goal, year)).toBe('30 · 182 cm · 80 kg');
+    const { form, baseline } = prefillGoalForm(goal, year);
+    expect(form.weight).toBe('80');
+    const e = evaluateGoalForm(form, baseline);
+    expect(e.shown.kcal).toBe('2345');
+    expect(e.unchanged).toBe(true);
+    expect(buildGoalChange({ ...form, edits: { kcal: '2400' } }, baseline, at, 'UTC').weight).toBeNull();
+  });
+  it('keeps the goal weight when the latest weight is older than the goal', () => {
+    expect(withLatestWeight(row, { weight_kg: 90, measured_at: '2026-09-01T07:00:00.000Z' })?.weight_kg).toBe(81.5);
+    expect(withLatestWeight(row, null)?.weight_kg).toBe(81.5);
+    expect(withLatestWeight(null, { weight_kg: 90, measured_at: '2026-11-01T07:00:00.000Z' })).toBeNull();
+  });
+  it('drops typed calories when the profile changes, so the new estimate shows', () => {
+    const { form, baseline } = prefillGoalForm(row, year);
+    const typed: GoalForm = { ...form, edits: { kcal: '2200', fibre: '35' }, shares: { protein: 40, carbs: 30, fat: 30 } };
+    const next = { ...typed, ...profileChange(typed, { weight: '70' }) };
+    const e = evaluateGoalForm(next, baseline);
+    expect(e.shown.kcal).toBe(String(e.targets?.kcal_target));
+    expect(e.shown.fibre).toBe('35');
+    expect(e.shares).toEqual({ protein: 40, carbs: 30, fat: 30 });
+  });
+  it('says why About you cannot continue', () => {
+    expect(evaluateGoalForm(filled({ height: '90' }), null).profileIssue).toBe('height');
+  });
+  it('wants a target below the weight to lose and above it to gain', () => {
+    expect(evaluateGoalForm(filled({ goalType: 'lose', pace: '0.5', targetWeight: '120' }), null)).toMatchObject({ targetIssue: 'not_below', canSave: false });
+    expect(evaluateGoalForm(filled({ goalType: 'gain', pace: '0.25', targetWeight: '70' }), null)).toMatchObject({ targetIssue: 'not_above', canSave: false });
+    expect(evaluateGoalForm(filled({ goalType: 'lose', pace: '0.5', targetWeight: '75' }), null)).toMatchObject({ targetIssue: null, canSave: true });
+    expect(evaluateGoalForm(filled({ goalType: 'lose', pace: '0.5', targetWeight: '' }), null).targetIssue).toBeNull();
   });
 });
 
