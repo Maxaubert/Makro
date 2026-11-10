@@ -86,7 +86,7 @@ function Pill({ selected, onClick, small = false, children }: { selected: boolea
 const COLUMNS = 'grid grid-cols-[minmax(0,1fr)_52px_40px_40px_40px] gap-1.5 px-3 min-[1360px]:grid-cols-[minmax(0,1fr)_64px_64px_64px_64px_130px] min-[1360px]:gap-2 min-[1360px]:px-5';
 
 function VerifiedText({ verified }: { verified: boolean | null }) {
-  if (verified === true) return <span className="inline-flex items-center gap-1 font-semibold text-accent-2"><VerifiedSeal size={13} />Verified</span>;
+  if (verified === true) return <VerifiedSeal size={15} />;
   if (verified === false) return <span>Not verified</span>;
   return null;
 }
@@ -231,9 +231,11 @@ export function DesktopLog() {
         {/* The board's header has the streak but not the Add food button of the other screens. */}
         <header className="flex h-[88px] shrink-0 items-center gap-4 px-8">
           <div className="mr-auto min-w-0">
-            <div className={`text-[13px] ${day ? 'font-semibold text-accent-2' : 'text-secondary'}`} data-testid={day ? 'adding-to-day' : undefined}>
-              {day ? `Adding to ${dayLabel(day)}` : 'Recent foods, or search the product database'}
-            </div>
+            {day && (
+              <div className="text-[13px] font-semibold text-accent-2" data-testid="adding-to-day">
+                Adding to {dayLabel(day)}
+              </div>
+            )}
             <h1 className="mt-0.5 text-[30px] font-bold leading-[1.1] tracking-[-0.8px]">Add food</h1>
           </div>
           <StreakPill />
@@ -567,7 +569,11 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
         </button>
       </div>
       <div className="mt-3.5 flex flex-wrap gap-2">
-        <span className={`flex h-[26px] items-center rounded-full px-2.5 text-[12px] font-semibold ${tag.cls}`}>{tag.text}</span>
+        {food.verified && !noData ? (
+          <VerifiedSeal size={22} />
+        ) : (
+          <span className={`flex h-[26px] items-center rounded-full px-2.5 text-[12px] font-semibold ${tag.cls}`}>{tag.text}</span>
+        )}
         <span className="flex h-[26px] items-center rounded-full border border-border bg-raised px-2.5 text-[12px] text-soft">{food.sourceName}</span>
       </div>
 

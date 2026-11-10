@@ -106,7 +106,6 @@ export function AboutFields({ state }: { state: GoalFormState }) {
         <Chip selected={form.sex === 'male'} onClick={() => set({ sex: 'male' })}>Male</Chip>
         <Chip selected={form.sex === 'female'} onClick={() => set({ sex: 'female' })}>Female</Chip>
       </div>
-      <p className="mt-1.5 text-[12px] text-secondary">Used only for the calorie estimate</p>
       <div className="mt-3 grid grid-cols-3 gap-2">
         <NumberField label="Age" value={form.age} onChange={(age) => set({ age })} />
         <NumberField label="Height" unit="cm" value={form.height} onChange={(height) => set({ height })} />
@@ -145,7 +144,6 @@ export function GoalNotes({ state, error }: { state: GoalFormState; error: strin
       {e.targetIssue === 'not_above' && <div className="mt-3"><Notice>To gain weight, the target weight must be above your weight now.</Notice></div>}
       {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
       <p className="mt-3 text-center text-[12px] text-secondary">
-        An estimate you can change.{' '}
         <button type="button" className="font-semibold text-accent-2" onClick={() => setShowHelp(!showHelp)}>Need help?</button>
       </p>
       {showHelp && <div className="mt-2"><HelpNote /></div>}

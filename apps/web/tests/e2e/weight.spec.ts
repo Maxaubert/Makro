@@ -143,7 +143,6 @@ test('weight: the graph and layout of the board, with one weigh-in and many, on 
   await expect.soft(page.getByTestId('weight-axis')).toContainText('80');
   await expect.soft(page.getByText('3.5 kg to goal')).toBeVisible();
   await expect.soft(page.getByText('Entries', { exact: true })).toBeVisible();
-  await expect.soft(page.getByText('Tap one to edit')).toBeVisible();
   const rows = page.getByRole('list', { name: 'Weights' }).getByRole('link');
   await expect.soft(rows.first()).toHaveAccessibleName(/^Edit weight 81\.5 kg, Today \d\d:\d\d$/);
   await expect.soft(page.getByRole('link', { name: 'Back to Today' })).toBeVisible();

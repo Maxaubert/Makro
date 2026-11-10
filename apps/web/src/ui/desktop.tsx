@@ -101,11 +101,11 @@ export function AddFoodButton() {
   );
 }
 
-export function DesktopHeader({ subtitle, title }: { subtitle: string; title: string }) {
+export function DesktopHeader({ subtitle, title }: { subtitle?: string; title: string }) {
   return (
     <header className="flex h-[88px] shrink-0 items-center gap-4 px-8">
       <div className="mr-auto min-w-0">
-        <div className="text-[13px] text-secondary">{subtitle}</div>
+        {subtitle && <div className="text-[13px] text-secondary">{subtitle}</div>}
         <h1 className="mt-0.5 text-[30px] font-bold leading-[1.1] tracking-[-0.8px]">{title}</h1>
       </div>
       <StreakPill />
@@ -115,7 +115,7 @@ export function DesktopHeader({ subtitle, title }: { subtitle: string; title: st
 }
 
 /** `active` marks the sidebar entry, or the user card for 'account'. */
-export function DesktopShell({ active, subtitle, title, children }: { active?: DesktopNavItem; subtitle: string; title: string; children?: ReactNode }) {
+export function DesktopShell({ active, subtitle, title, children }: { active?: DesktopNavItem; subtitle?: string; title: string; children?: ReactNode }) {
   return (
     <div className="desktop-shell flex h-dvh overflow-hidden [line-height:normal]">
       <DesktopSidebar active={active} />

@@ -124,7 +124,7 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   // Skyr: 11 g protein and 62 kcal per 100 g, so 11 g on day one and 22 g on day two, which averages 16.5 and shows as 17.
   const week = page.getByTestId('weekly-average');
   await expect(week).toContainText('17');
-  await expect(page.getByTestId('weekly-coverage')).toContainText('Covers all 2 entries');
+  await expect(page.getByTestId('weekly-coverage')).toHaveCount(0);
   await shot(page, 'today-wednesday');
   await page.getByRole('button', { name: 'Show Fibre' }).click();
   await expect(week).toContainText('?');

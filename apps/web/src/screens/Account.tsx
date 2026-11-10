@@ -84,7 +84,6 @@ export function Account() {
         <SecondaryButton onClick={() => void app.scheduler.runNow()}>Sync now</SecondaryButton>
         <SecondaryButton onClick={() => void app.signOut()}>Sign out</SecondaryButton>
       </div>
-      <p className="mt-4 text-[12px] text-secondary">Your log stays on this device until it syncs. Signing out keeps it here for next time.</p>
     </Page>
   );
 }

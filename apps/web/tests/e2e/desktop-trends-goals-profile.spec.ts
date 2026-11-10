@@ -93,7 +93,7 @@ test('desktop Goals: pick a goal type, the numbers follow, save writes one goal 
   await expect(page.getByTestId('macro-split').locator('div > div')).toHaveCount(3);
   const shares = await Promise.all(['Protein', 'Carbs', 'Fat'].map(async (m) => Number(await page.getByLabel(`${m} share`).inputValue())));
   expect(shares.reduce((a, b) => a + b, 0)).toBe(100);
-  await expect(page.getByText('not part of the calories')).toBeVisible();
+  await expect(page.getByLabel('Fibre')).toHaveValue('30');
   if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/desktop-goals.png` });
   // A step on one share moves another, and the total stays 100.
   await page.getByRole('button', { name: 'More protein' }).click();

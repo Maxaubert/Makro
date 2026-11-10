@@ -225,10 +225,11 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
   );
 }
 
-/** The verified seal: a scalloped orange badge with a black tick. */
+/** The verified seal: a scalloped orange badge with a black tick. Named "Verified" for screen readers and on hover. */
 export function VerifiedSeal({ size = 14, className = '' }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className={`shrink-0 ${className}`}>
+    <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label="Verified" className={`shrink-0 ${className}`}>
+      <title>Verified</title>
       <path
         fill="var(--color-accent)"
         d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"
@@ -243,11 +244,7 @@ export function SourceBadge({ sourceName, verified }: { sourceName: string; veri
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-secondary">
       {verified === true && (
-        <>
-          <VerifiedSeal />
-          <span className="font-semibold text-accent-2">Verified</span>
-          <span aria-hidden="true" className="text-faint">·</span>
-        </>
+        <VerifiedSeal />
       )}
       {verified === false && (
         <>

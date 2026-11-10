@@ -6,13 +6,13 @@ import type { GoalRow, LocalLogEntry, RecentFood } from '../../data/logStore';
 import { roundForDisplay } from '../../domain/display';
 import { MEALS } from '../../domain/entry';
 import { formatNumber, formatTotal } from '../../domain/format';
-import { remainingToday, weeklyAverage, weekWindow } from '../../domain/guidance';
+import { remainingToday, weekWindow } from '../../domain/guidance';
 import { rangeStart, toGoal, weightLine, weightSummary, type WeightRange } from '../../domain/weight';
 import { href, useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
 import { Card, Icon, Notice, Ring, SourceBadge, UnknownNote } from '../../ui/kit';
 import { addDays, amountLabel, longDayLabel, MEAL_LABEL, today, totalsOf } from '../day';
-import { VERDICT_LABEL, amountText, coverageNote, dayLine, weekRange, weekday, weeklyHeadline } from '../guidanceCopy';
+import { amountText, dayLine, weekday } from '../guidanceCopy';
 
 const MACROS = [
   { key: 'protein_g', label: 'Protein', color: 'var(--color-accent)', goal: 'protein_g_target' },
@@ -362,7 +362,7 @@ function QuickLog({ foods }: { foods: RecentFood[] }) {
 const BAR_AREA = 110;
 const BAR_LABEL = 20;
 
-/** Monday to Sunday of the week holding `date`, with the guidance card's weekly average underneath. */
+/** Monday to Sunday of the week holding `date`. */
 function ThisWeek({ date, entries, goal }: { date: string; entries: LocalLogEntry[]; goal: GoalRow | null }) {
   const earlier = weekWindow(date);
   const monday = earlier[0] ?? date;
@@ -375,16 +375,6 @@ function ThisWeek({ date, entries, goal }: { date: string; entries: LocalLogEntr
   const top = Math.max(target !== null ? target * 1.25 : 0, ...known, 1);
   const px = (v: number) => Math.max(4, Math.round((v / top) * BAR_AREA));
 
-  const week = weeklyAverage(
-    {
-      today: date,
-      targets: { kcal: target },
-      days: earlier.map((d) => ({ local_date: d, items: entries.filter((e) => e.local_date === d).map((e) => ({ kcal: e.kcal_total })) })),
-    },
-    ['kcal'],
-  );
-  const measure = week.measures.kcal;
-  const head = weeklyHeadline(measure, 'kcal');
   const dayText = (d: (typeof days)[number]) =>
     d.date > date ? `${weekday(d.date)}: not yet` : !d.logged ? `${weekday(d.date)}: no logged meal` : `${weekday(d.date)}: ${formatNumber(d.value, 0)} kcal${d.unknown > 0 ? `, ${d.unknown} without a value` : ''}`;
 
@@ -408,32 +398,6 @@ function ThisWeek({ date, entries, goal }: { date: string; entries: LocalLogEntr
             </div>
           ))}
         </div>
-      </div>
-      <div className="mt-3 text-[12px] text-secondary">
-        {week.dates.length === 0 ? (
-          <p>The week starts today. The average begins tomorrow.</p>
-        ) : week.counted_days === 0 ? (
-          <p>No logged meals earlier this week.</p>
-        ) : (
-          <>
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="min-w-0">
-                {head.caption}, {weekRange(week.dates)}
-              </span>
-              <span className="shrink-0">
-                <b className="num text-text" data-testid="weekly-average">
-                  {head.value} kcal
-                </b>
-                {measure.verdict && <span data-testid="weekly-verdict"> · {VERDICT_LABEL[measure.verdict]}</span>}
-              </span>
-            </div>
-            {measure.covered < measure.count && (
-              <p className="mt-1 leading-[1.4]" data-testid="weekly-coverage">
-                {coverageNote(measure, 'kcal')}
-              </p>
-            )}
-          </>
-        )}
       </div>
     </Card>
   );
