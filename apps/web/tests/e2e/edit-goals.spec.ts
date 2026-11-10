@@ -54,12 +54,23 @@ test('edit About you and Goals from Account: limits, new target, same-day update
   await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
   await shot(page, '03-goals-blocked');
 
-  // A valid new target saves and shows on Account.
+  // A valid new target: the macros follow the calories, and a chosen split adds up (decision 39).
   await page.getByLabel('Daily calories').fill('2500');
+  await page.getByLabel('Protein share').fill('35');
+  await expect(page.getByLabel('Carbs share')).not.toHaveValue('');
+  const shares = await Promise.all(['Protein', 'Carbs', 'Fat'].map(async (m) => Number(await page.getByLabel(`${m} share`).inputValue())));
+  expect(shares[0]).toBe(35);
+  expect(shares[0] + shares[1] + shares[2]).toBe(100);
+  await shot(page, '03b-goals-split');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('heading', { name: 'Account' })).toBeVisible();
   await expect(goals).toContainText('2,500 kcal');
   await expect.poll(() => goalRows(userId).map((r) => r.kcal_target), { timeout: 15_000 }).toEqual([2500]);
+  const saved = pgRows<{ protein_g_target: number; carbs_g_target: number; fat_g_target: number }>(
+    `select protein_g_target, carbs_g_target, fat_g_target from public.goals where user_id = '${userId}' and deleted_at is null`,
+  )[0];
+  expect(saved.protein_g_target).toBe(219);
+  expect(Math.abs(saved.protein_g_target * 4 + saved.carbs_g_target * 4 + saved.fat_g_target * 9 - 2500)).toBeLessThanOrEqual(10);
 
   // About you: change the weight, continue to goals, save the same day: still one live row.
   await about.click();

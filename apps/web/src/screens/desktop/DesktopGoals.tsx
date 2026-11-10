@@ -3,14 +3,15 @@
 // domain/goalForm.ts); every number is calculated there or typed by the user.
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { formatNumber } from '../../domain/format';
-import { buildGoalChange, prefillGoalForm, toNumber, type GoalForm, type Prefill, type TargetKey } from '../../domain/goalForm';
-import { macroSplit, type GoalType, type Sex } from '../../domain/goals';
+import { buildGoalChange, prefillGoalForm, profileChange, toNumber, type EditKey, type GoalForm, type Prefill } from '../../domain/goalForm';
+import type { GoalType, Sex } from '../../domain/goals';
 import type { StoredGoal } from '../../domain/entry';
 import { browserTimeZone } from '../../domain/localDate';
 import { useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
 import { Notice } from '../../ui/kit';
-import { ACTIVITY, GOAL_TYPES, GoalNotes, Under18Note, pickGoalType, useGoalForm } from '../goalFields';
+import { ACTIVITY, GOAL_TYPES, GoalNotes, ProfileNote, Under18Note, changePace, loadGoal, pickGoalType, useGoalForm } from '../goalFields';
+import { MacroEditor, RepairedNote } from '../macroEditor';
 
 const GOAL_SUB: Record<GoalType, string> = {
   lose: 'Eat a little less than you burn',
@@ -21,7 +22,6 @@ const GOAL_SUB: Record<GoalType, string> = {
 const CARD = 'rounded-[20px] border border-border bg-card';
 const TILE = 'block rounded-[14px] bg-raised px-3.5 py-3 focus-within:outline-1 focus-within:outline-accent-2';
 const TILE_LABEL = 'block text-[12px] text-secondary';
-const MACRO_GRID = 'grid grid-cols-[minmax(0,1fr)_64px_64px_56px] gap-2 xl:grid-cols-[minmax(0,1fr)_90px_90px_90px]';
 
 /** A number field as wide as its text, so a unit can sit right after it as on the board. */
 function FitInput({ label, value, onChange, className, placeholder = '?', onFocus, onBlur, inputRef }: {
@@ -113,18 +113,12 @@ function PlanTiles({ form, set }: { form: GoalForm; set: (patch: Partial<GoalFor
       <label className={TILE}>
         <span className={TILE_LABEL}>Pace</span>
         <PlanValue unit="kg / week">
-          <FitInput label="Pace" value={form.pace} onChange={(pace) => set({ pace, edits: {} })} className={input} />
+          <FitInput label="Pace" value={form.pace} onChange={(pace) => set(changePace(pace))} className={input} />
         </PlanValue>
       </label>
     </div>
   );
 }
-
-/** Typed text as a number the split can use; anything else is unknown, not 0. */
-const gramsOf = (text: string): number | null => {
-  const n = toNumber(text);
-  return Number.isFinite(n) && n >= 0 ? n : null;
-};
 
 /** The big number, with thousands separators while it is not being typed in. */
 function KcalField({ text, onChange }: { text: string; onChange: (v: string) => void }) {
@@ -153,15 +147,6 @@ function KcalField({ text, onChange }: { text: string; onChange: (v: string) => 
   );
 }
 
-function GramsField({ name, text, onChange }: { name: string; text: string; onChange: (v: string) => void }) {
-  return (
-    <label className="flex items-baseline justify-end font-bold">
-      <FitInput label={name} value={text} onChange={onChange} className="text-right text-[15px] font-bold" />
-      <span className="whitespace-pre"> g</span>
-    </label>
-  );
-}
-
 function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: boolean; onSaved: (goal: StoredGoal | null) => void }) {
   const app = useApp();
   const state = useGoalForm(initial);
@@ -174,7 +159,8 @@ function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: 
     state.set(patch);
     setSaved(false);
   };
-  const edit = (key: TargetKey) => (v: string) => set({ edits: { ...form.edits, [key]: v } });
+  const about = (patch: Partial<GoalForm>) => set(profileChange(form, patch));
+  const edit = (key: EditKey) => (v: string) => set({ edits: { ...form.edits, [key]: v } });
 
   async function save() {
     setBusy(true);
@@ -187,7 +173,7 @@ function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: 
         await app.db.saveGoalChange(goal, weight);
         await app.changed();
         // The form starts over from the row just written, so the next save compares against it.
-        onSaved(await app.db.latestGoal());
+        onSaved(await loadGoal(app.db));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -195,14 +181,6 @@ function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: 
       setBusy(false);
     }
   }
-
-  const split = macroSplit({ protein_g: gramsOf(e.shown.protein), carbs_g: gramsOf(e.shown.carbs), fat_g: gramsOf(e.shown.fat) });
-  const macros = [
-    { key: 'protein', name: 'Protein', color: 'bg-accent', part: split.protein },
-    { key: 'carbs', name: 'Carbs', color: 'bg-accent-2', part: split.carbs },
-    { key: 'fat', name: 'Fat', color: 'bg-accent-3', part: split.fat },
-  ] as const;
-  const segments = macros.filter((m) => (m.part.share ?? 0) > 0);
 
   return (
     <div className="grid grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-start gap-5">
@@ -220,7 +198,7 @@ function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: 
                   onClick={() => set(pickGoalType(g))}
                   className={`tap flex items-center gap-3.5 rounded-2xl bg-raised p-4 text-left ${on ? 'border-[1.5px] border-accent' : 'border border-border'}`}
                 >
-                  <span className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 ${on ? 'border-accent' : 'border-[#3A3A3E]'}`}>
+                  <span className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 ${on ? 'border-accent' : 'border-strong'}`}>
                     {on && <span className="h-2.5 w-2.5 rounded-full bg-accent" />}
                   </span>
                   <span className="grow">
@@ -240,55 +218,38 @@ function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: 
             <span className="text-[13px] font-semibold text-accent-2">Used for the calculation</span>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2.5">
-            <TileSelect<Sex> label="Sex" value={form.sex} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} onChange={(sex) => set({ sex })} />
-            <AboutTile label="Age" value={form.age} onChange={(age) => set({ age })} />
-            <AboutTile label="Height" unit="cm" value={form.height} onChange={(height) => set({ height })} />
-            <AboutTile label="Weight" unit="kg" value={form.weight} onChange={(weight) => set({ weight })} />
+            <TileSelect<Sex> label="Sex" value={form.sex} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} onChange={(sex) => about({ sex })} />
+            <AboutTile label="Age" value={form.age} onChange={(age) => about({ age })} />
+            <AboutTile label="Height" unit="cm" value={form.height} onChange={(height) => about({ height })} />
+            <AboutTile label="Weight" unit="kg" value={form.weight} onChange={(weight) => about({ weight })} />
           </div>
           <div className="mt-2.5">
-            <TileSelect label="Activity" value={form.activity} options={ACTIVITY} onChange={(activity) => set({ activity })} />
+            <TileSelect label="Activity" value={form.activity} options={ACTIVITY} onChange={(activity) => about({ activity })} />
           </div>
           <Under18Note state={state} />
+          <ProfileNote state={state} />
         </div>
       </section>
 
       <section className={`${CARD} p-7`}>
         <div className="text-[13px] text-secondary">Daily calories</div>
         <KcalField text={e.shown.kcal} onChange={edit('kcal')} />
-        <div className="mt-[22px] flex h-3.5 gap-[3px] overflow-hidden rounded-[7px]" data-testid="macro-split">
-          {segments.length === 0 ? (
-            <div className="h-3.5 w-full bg-border" />
-          ) : (
-            segments.map((m) => <div key={m.key} className={`h-3.5 ${m.color}`} style={{ width: `${m.part.share}%` }} />)
-          )}
+        <RepairedNote evaluation={e} />
+        <div className="mt-4">
+          <MacroEditor wide evaluation={e} onShares={(shares) => set({ shares })} />
         </div>
-        <div className="mt-[22px] border-t border-border">
-          <div className={`${MACRO_GRID} pb-2 pt-3 text-[11px] text-secondary`}>
-            <span>Macro</span>
-            <span className="text-right">Grams</span>
-            <span className="text-right">kcal</span>
-            <span className="text-right">Share</span>
-          </div>
-          {macros.map((m) => (
-            <div key={m.key} className={`${MACRO_GRID} items-center border-t border-border py-3.5 text-[15px]`}>
-              <span className="flex items-center gap-2.5 font-semibold"><span className={`h-2.5 w-2.5 rounded-full ${m.color}`} />{m.name}</span>
-              <GramsField name={m.name} text={e.shown[m.key]} onChange={edit(m.key)} />
-              <span className="num text-right text-secondary">{formatNumber(m.part.kcal, 0)}</span>
-              <span className="num text-right text-secondary">{m.part.share === null ? '?' : `${m.part.share}%`}</span>
-            </div>
-          ))}
-          <div className={`${MACRO_GRID} items-center border-t border-border py-3.5 text-[15px]`}>
-            <span className="flex items-center gap-2.5 font-semibold"><span className="h-2.5 w-2.5 rounded-full bg-muted" />Fibre</span>
-            <GramsField name="Fibre" text={e.shown.fibre} onChange={edit('fibre')} />
-            <span className="text-right text-secondary">n/a</span>
-            <span />
-          </div>
-        </div>
+        <label className="mt-3 flex items-center justify-between rounded-[14px] bg-raised px-3.5 py-3">
+          <span className="flex items-center gap-2.5 text-[15px] font-semibold"><span className="h-2.5 w-2.5 rounded-full bg-muted" />Fibre<span className="text-[12px] font-normal text-secondary">not part of the calories</span></span>
+          <span className="flex items-baseline font-bold">
+            <FitInput label="Fibre" value={e.shown.fibre} onChange={edit('fibre')} className="text-right text-[16px] font-bold" />
+            <span className="whitespace-pre text-secondary"> g</span>
+          </span>
+        </label>
         <button
           type="button"
           disabled={!e.canSave || busy}
           onClick={() => void save()}
-          className={`tap mt-6 flex h-[54px] w-full items-center justify-center rounded-full text-[16px] font-bold disabled:bg-raised disabled:text-[#6A6A70] ${saved ? 'bg-border text-secondary' : 'bg-accent text-ground'}`}
+          className={`tap mt-6 flex h-[54px] w-full items-center justify-center rounded-full text-[16px] font-bold disabled:bg-raised disabled:text-faint ${saved ? 'bg-border text-secondary' : 'bg-accent text-ground'}`}
         >
           {saved ? 'Saved' : 'Save goal'}
         </button>
@@ -300,7 +261,7 @@ function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: 
 
 export function DesktopGoals() {
   const app = useApp();
-  const { data: loaded, error } = useData(() => app.db.latestGoal(), []);
+  const { data: loaded, error } = useData(() => loadGoal(app.db), []);
   const [saves, setSaves] = useState<{ goal: StoredGoal | null; count: number } | null>(null);
   const goal = saves ? saves.goal : loaded;
   return (

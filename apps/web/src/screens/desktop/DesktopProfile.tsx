@@ -9,7 +9,7 @@ import { DesktopShell } from '../../ui/desktop';
 import { Icon, Notice } from '../../ui/kit';
 import { syncLabel } from '../../ui/syncLabel';
 import { useDataActions, useDeleteAccount } from '../accountActions';
-import { ACTIVITY, HelpNote } from '../goalFields';
+import { ACTIVITY, HelpNote, loadGoal } from '../goalFields';
 
 const CARD = 'rounded-[20px] border border-border bg-card p-6';
 const CARD_TITLE = 'text-[17px] font-bold';
@@ -59,7 +59,7 @@ export function DesktopProfile() {
   const app = useApp();
   const { session, sync, pending, products } = useAppState();
   const { data: rejected } = useData(() => app.db.rejected(), []);
-  const { data: goal } = useData(() => app.db.latestGoal(), []);
+  const { data: goal } = useData(() => loadGoal(app.db), []);
   const { popular, togglePopular, download, downloaded, dataError } = useDataActions();
   const [confirming, setConfirming] = useState(false);
 
@@ -99,7 +99,10 @@ export function DesktopProfile() {
             {rejected && rejected.length > 0 && (
               <div className="mt-4">
                 <Notice tone="error">
-                  {rejected.length} change{rejected.length === 1 ? ' was' : 's were'} refused by the server: {rejected[0].reason}
+                  {rejected.length} change{rejected.length === 1 ? ' was' : 's were'} refused by the server: {rejected[0].reason}{' '}
+                  <button type="button" className="font-semibold text-text underline underline-offset-2" onClick={() => void app.db.clearRejected().then(() => app.changed())}>
+                    Dismiss
+                  </button>
                 </Notice>
               </div>
             )}
@@ -143,7 +146,7 @@ export function DesktopProfile() {
               className={`${ROW} py-4 disabled:opacity-50`}
             >
               <span>Count toward popular foods</span>
-              <span className={`relative h-7 w-12 flex-none rounded-full ${popular ? 'bg-accent' : 'bg-[#3A3A3E]'}`}>
+              <span className={`relative h-7 w-12 flex-none rounded-full ${popular ? 'bg-accent' : 'bg-strong'}`}>
                 <span className={`absolute top-[3px] h-[22px] w-[22px] rounded-full bg-text ${popular ? 'left-[23px]' : 'left-[3px]'}`} />
               </span>
             </button>

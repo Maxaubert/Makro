@@ -90,7 +90,7 @@ function Stat({ label, accent, children }: { label: string; accent?: boolean; ch
 
 function StepButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: ReactNode }) {
   return (
-    <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className="tap flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-border disabled:text-[#6A6A70]">
+    <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className="tap flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-border disabled:text-faint">
       {children}
     </button>
   );
@@ -148,7 +148,7 @@ function LogWeightPanel({ suggestedKg }: { suggestedKg: number | null }) {
     }
   }
 
-  let saveStyle = 'border border-border bg-raised text-[#6A6A70]';
+  let saveStyle = 'border border-border bg-raised text-faint';
   if (saved) saveStyle = 'bg-border text-secondary';
   else if (canSave) saveStyle = 'bg-accent text-ground';
 
@@ -156,7 +156,7 @@ function LogWeightPanel({ suggestedKg }: { suggestedKg: number | null }) {
     <div className={`${CARD} p-[22px]`}>
       <div className="flex items-center justify-between">
         <h2 className="text-[17px] font-bold">Log weight</h2>
-        <span className="relative flex h-7 items-center rounded-full border border-border bg-raised px-3 text-[12px] text-[#C8C8CC] focus-within:border-accent-2">
+        <span className="relative flex h-7 items-center rounded-full border border-border bg-raised px-3 text-[12px] text-soft focus-within:border-accent-2">
           {whenLabel(at)}
           <input
             type="datetime-local"
@@ -193,7 +193,7 @@ function LogWeightPanel({ suggestedKg }: { suggestedKg: number | null }) {
             placeholder="--.-"
             value={text}
             onChange={(e) => changeText(e.target.value)}
-            className="block w-[150px] border-b-2 border-transparent bg-transparent text-center text-[48px] font-bold leading-[1.05] tracking-[-1.5px] outline-none placeholder:text-[#3A3A3E] focus:border-accent"
+            className="block w-[150px] border-b-2 border-transparent bg-transparent text-center text-[48px] font-bold leading-[1.05] tracking-[-1.5px] outline-none placeholder:text-strong focus:border-accent"
           />
           <div className="text-[13px] text-secondary">kg</div>
         </div>
@@ -321,7 +321,7 @@ export function DesktopWeight() {
                     type="button"
                     aria-pressed={range === r.id}
                     onClick={() => setRange(r.id)}
-                    className={`tap flex h-8 items-center rounded-full px-3.5 text-[13px] ${range === r.id ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-[#C8C8CC]'}`}
+                    className={`tap flex h-8 items-center rounded-full px-3.5 text-[13px] ${range === r.id ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
                   >
                     {r.id}
                   </button>

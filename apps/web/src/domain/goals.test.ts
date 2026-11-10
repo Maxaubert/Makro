@@ -2,26 +2,33 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { expectClose, loadGolden } from './golden';
-import { GOAL_CONSTANTS, ageFromBirthYear, birthYearFromAge, calculateTargets, goalProblem, macroSplit, profileProblem, type GoalInput, type GoalTargets, type LimitInput, type MacroGrams } from './goals';
+import { GOAL_CONSTANTS, ageFromBirthYear, birthYearFromAge, calculateTargets, goalProblem, gramsFromShares, kcalFromShares, moveBoundary, profileProblem, setShare, sharesFromGrams, type GoalInput, type GoalTargets, type LimitInput, type MacroBoundary, type MacroGrams, type Shares } from './goals';
 
-describe('goals/macro_split.json', () => {
-  type Split = Record<'protein_kcal' | 'carbs_kcal' | 'fat_kcal' | 'protein_share' | 'carbs_share' | 'fat_share', number | null>;
-  const golden = loadGolden<MacroGrams, Split>('goals/macro_split.json');
-  it.each(golden.cases.map((c) => [c.id, c] as const))('%s', (id, c) => {
-    const s = macroSplit(c.input);
-    const actual: Split = {
-      protein_kcal: s.protein.kcal,
-      carbs_kcal: s.carbs.kcal,
-      fat_kcal: s.fat.kcal,
-      protein_share: s.protein.share,
-      carbs_share: s.carbs.share,
-      fat_share: s.fat.share,
-    };
-    for (const k of Object.keys(c.expected) as (keyof Split)[]) {
-      const want = c.expected[k];
-      if (want === null) expect(actual[k], `${id} ${k}`).toBeNull();
-      else expectClose(actual[k] as number, want, `${id} ${k}`);
-    }
+describe('goals/macro_shares.json', () => {
+  const golden = loadGolden<MacroGrams, Shares | null>('goals/macro_shares.json');
+  it.each(golden.cases.map((c) => [c.id, c] as const))('%s', (_id, c) => {
+    expect(sharesFromGrams(c.input)).toEqual(c.expected);
+  });
+});
+
+describe('goals/macro_grams.json', () => {
+  type Out = { protein_g: number; carbs_g: number; fat_g: number; protein_kcal: number; carbs_kcal: number; fat_kcal: number };
+  const golden = loadGolden<{ kcal: number; shares: Shares }, Out>('goals/macro_grams.json');
+  it.each(golden.cases.map((c) => [c.id, c] as const))('%s', (_id, c) => {
+    const parts = kcalFromShares(c.input.kcal, c.input.shares);
+    expect({ ...gramsFromShares(c.input.kcal, c.input.shares), protein_kcal: parts.protein, carbs_kcal: parts.carbs, fat_kcal: parts.fat }).toEqual(c.expected);
+    expect(parts.protein + parts.carbs + parts.fat).toBe(c.input.kcal);
+  });
+});
+
+describe('goals/macro_rebalance.json', () => {
+  type In = { mode: 'set' | 'boundary'; shares: Shares; key: string; value: number };
+  const golden = loadGolden<In, Shares>('goals/macro_rebalance.json');
+  it.each(golden.cases.map((c) => [c.id, c] as const))('%s', (_id, c) => {
+    const { mode, shares, key, value } = c.input;
+    const out = mode === 'set' ? setShare(shares, key as keyof Shares, value) : moveBoundary(shares, key as MacroBoundary, value);
+    expect(out).toEqual(c.expected);
+    expect(out.protein + out.carbs + out.fat).toBe(100);
   });
 });
 

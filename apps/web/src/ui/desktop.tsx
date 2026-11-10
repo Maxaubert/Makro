@@ -85,7 +85,7 @@ export function StreakPill() {
   const { data: days } = useData(() => app.db.loggedDays(), []);
   if (days === undefined) return null;
   return (
-    <span data-testid="streak" className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-border bg-[#1A1A1C] px-3.5 text-[13px] font-semibold">
+    <span data-testid="streak" className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-border bg-raised px-3.5 text-[13px] font-semibold">
       <span className="h-[7px] w-[7px] rounded-full bg-accent" />
       {streakLabel(loggingStreak(days, today()))}
     </span>

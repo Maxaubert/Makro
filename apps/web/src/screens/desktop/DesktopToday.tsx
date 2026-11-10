@@ -168,7 +168,7 @@ function WeightCard({ date, weights, goal }: { date: string; weights: { local_da
               type="button"
               aria-pressed={range === r.range}
               onClick={() => setRange(r.range)}
-              className={`tap flex h-8 items-center rounded-full px-3.5 text-[13px] ${range === r.range ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-[#C8C8CC]'}`}
+              className={`tap flex h-8 items-center rounded-full px-3.5 text-[13px] ${range === r.range ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
             >
               {r.range}
             </button>
@@ -281,7 +281,7 @@ function TodayTable({ date, entries }: { date: string; entries: LocalLogEntry[] 
             return (
               <section key={meal} aria-label={MEAL_LABEL[meal]}>
                 <div className={`grid ${TABLE_COLUMNS} items-center gap-2 border-t border-border bg-raised px-5 py-2.5`}>
-                  <span className="text-[13px] font-bold text-[#C8C8CC]">{MEAL_LABEL[meal]}</span>
+                  <span className="text-[13px] font-bold text-soft">{MEAL_LABEL[meal]}</span>
                   <span />
                   <span className="num text-right text-[13px] font-bold">
                     {total.text}
@@ -395,12 +395,12 @@ function ThisWeek({ date, entries, goal }: { date: string; entries: LocalLogEntr
         <span className="text-[12px] text-secondary">{target !== null ? `Goal ${formatNumber(target, 0)} kcal` : 'No goal set'}</span>
       </div>
       <div className="relative mt-4" role="img" aria-label={days.map(dayText).join(', ')}>
-        {target !== null && <div className="absolute inset-x-0 border-t border-dashed border-[#3A3A3E]" style={{ bottom: BAR_LABEL + px(target) }} />}
+        {target !== null && <div className="absolute inset-x-0 border-t border-dashed border-strong" style={{ bottom: BAR_LABEL + px(target) }} />}
         <div className="flex items-end gap-2.5">
           {days.map((d) => (
             <div key={d.date} title={dayText(d)} className="flex h-[130px] flex-1 flex-col items-center justify-end gap-1.5">
               {d.value !== null ? (
-                <div className={`w-full rounded-md ${d.date === date ? 'bg-accent' : 'bg-[#3A3A3E]'}`} style={{ height: px(d.value) }} />
+                <div className={`w-full rounded-md ${d.date === date ? 'bg-accent' : 'bg-strong'}`} style={{ height: px(d.value) }} />
               ) : (
                 <div className="h-1 w-full rounded-sm bg-border" />
               )}

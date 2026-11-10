@@ -139,7 +139,7 @@ export function Weight() {
           {summary.days.length > 1 && <span>{shortDate(from)}</span>}
           <span>Today</span>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] text-[#C8C8CC]">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] text-soft">
           <span className="flex items-center gap-1.5">
             <span aria-hidden="true" className="h-2.5 w-2.5 rounded-[2px] bg-accent opacity-70" />
             Daily weight

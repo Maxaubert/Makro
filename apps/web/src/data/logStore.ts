@@ -244,7 +244,7 @@ export class LogStore {
         next.meal = patch.meal;
       }
       if (patch.quantity !== undefined) {
-        if (!Number.isFinite(patch.quantity) || patch.quantity < 0) throw new Error('amount must be 0 or more');
+        if (!Number.isFinite(patch.quantity) || patch.quantity <= 0) throw new Error('The amount must be more than 0. To remove the food, delete the entry.');
         const perUnit =
           row.unit === 'g' || row.unit === 'ml' ? 1 : row.quantity > 0 ? row.grams / row.quantity : null;
         if (perUnit === null) throw new Error('cannot rescale an entry with no amount; log it again');
@@ -469,6 +469,11 @@ export class LogStore {
 
   rejected(): { table_name: string; row_id: string; reason: string; rejected_at: string }[] {
     return this.sql.all('select * from outbox_rejected order by rejected_at desc');
+  }
+
+  /** The user has read the refusal message. */
+  clearRejected(): void {
+    this.sql.run('delete from outbox_rejected');
   }
 
   // ---- sync -------------------------------------------------------------------------------

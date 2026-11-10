@@ -3,7 +3,7 @@
 // without numbers can still be logged, or turned into a custom food with the label values.
 import { useState } from 'react';
 import { productSubtext, type Product } from '../data/products';
-import { buildFavourite, buildLogEntry, MEALS, mealTimeOn, parseAmount, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../domain/entry';
+import { buildFavourite, buildLogEntry, MEALS, mealTimeOn, parseQuantity, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../domain/entry';
 import { formatNumber } from '../domain/format';
 import { resolveGrams, type AmountUnit } from '../domain/grams';
 import { browserTimeZone, pastLocalDate } from '../domain/localDate';
@@ -72,12 +72,7 @@ function PortionForm({ food }: { food: Food }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  let quantity: number | null = null;
-  try {
-    quantity = parseAmount(qty);
-  } catch {
-    quantity = null;
-  }
+  const quantity = parseQuantity(qty);
   const grams = quantity === null ? null : resolveGrams({ quantity, unit, serving_g: food.per.serving_g }).grams;
   const values = grams === null ? null : portion(food.values, grams);
   const noData = NUTRIENTS.every((n) => food.values[n] === null);
@@ -148,7 +143,7 @@ function PortionForm({ food }: { food: Food }) {
         <div className="flex items-baseline justify-center gap-1">
           <input
             id="qty"
-            className="num w-40 rounded-xl bg-transparent text-right text-6xl font-bold tracking-[-0.03em] outline-none focus:bg-ground"
+            className="num w-40 rounded-xl bg-transparent text-right text-6xl font-bold tracking-[-0.03em] outline-none focus:bg-raised"
             inputMode="decimal"
             autoFocus
             value={qty}

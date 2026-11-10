@@ -65,7 +65,7 @@ export function CustomFood() {
       <span className="text-[15px]">{n.label}</span>
       <span className="flex items-baseline gap-1.5">
         <input
-          className="num w-24 rounded-xl border border-border bg-ground px-3 py-2 text-right text-[16px] outline-none placeholder:text-[#6A6A70] focus:border-accent-2"
+          className="num w-24 rounded-xl border border-border bg-ground px-3 py-2 text-right text-[16px] outline-none placeholder:text-faint focus:border-accent-2"
           inputMode="decimal"
           placeholder="?"
           aria-label={`${n.label} per 100 ${form.per_100_unit}`}
@@ -93,7 +93,7 @@ export function CustomFood() {
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-[13px] text-secondary">Barcode (optional)</span>
-              <input className="field num" inputMode="numeric" value={form.ean} onChange={(e) => set({ ean: e.target.value.replace(/\D/g, '') })} />
+              <input className="field num" inputMode="numeric" maxLength={14} value={form.ean} onChange={(e) => set({ ean: e.target.value.replace(/\D/g, '') })} />
             </label>
           </div>
         </Card>

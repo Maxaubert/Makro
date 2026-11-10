@@ -94,7 +94,7 @@ export function DayEnd({ date: param }: { date?: string }) {
         )}
 
         {notLogged ? (
-          <p className="mt-2.5 text-[14px] leading-[1.45] text-[#C8C8CC]">
+          <p className="mt-2.5 text-[14px] leading-[1.45] text-soft">
             Nothing was logged this day. A day with no entries is never counted as fasting, so it has no status against your goal.
           </p>
         ) : (
@@ -133,7 +133,7 @@ export function DayEnd({ date: param }: { date?: string }) {
                 <Icon name="info" size={22} stroke={2} className="shrink-0 text-accent-2" />
                 <h2 className="text-[17px] font-bold">This day may be incomplete</h2>
               </div>
-              <p className="mt-2.5 text-[14px] leading-[1.45] text-[#C8C8CC]">
+              <p className="mt-2.5 text-[14px] leading-[1.45] text-soft">
                 {incompleteText({ status, meals, lastMinutes: minutes.length > 0 ? Math.max(...minutes) : null })}
               </p>
             </>

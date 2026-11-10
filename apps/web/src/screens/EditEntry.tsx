@@ -1,6 +1,6 @@
 // Edit entry: change the amount or meal, or delete (a tombstone). The snapshot never changes.
 import { useEffect, useState } from 'react';
-import { MEALS, parseAmount, type Meal } from '../domain/entry';
+import { MEALS, parseQuantity, type Meal } from '../domain/entry';
 import { formatNumber } from '../domain/format';
 import { NUTRIENTS } from '../domain/nutrients';
 import { portion } from '../domain/portion';
@@ -16,12 +16,15 @@ export function EditEntry({ id }: { id: string }) {
   const [meal, setMeal] = useState<Meal>('lunch');
   const [error, setError] = useState<string | null>(null);
 
+  // Fill the fields once per entry. A sync re-reads the entry, and that must not overwrite what is typed.
+  const loadedId = entry?.id;
   useEffect(() => {
     if (entry) {
       setQty(String(entry.quantity));
       setMeal(entry.meal);
     }
-  }, [entry]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedId]);
 
   if (entry === undefined) return <Page><Header title="Edit entry" back="/diary" /></Page>;
   if (entry === null || entry.deleted_at) {
@@ -33,12 +36,7 @@ export function EditEntry({ id }: { id: string }) {
     );
   }
 
-  let quantity: number | null = null;
-  try {
-    quantity = parseAmount(qty);
-  } catch {
-    quantity = null;
-  }
+  const quantity = parseQuantity(qty);
   const perUnit = entry.unit === 'g' || entry.unit === 'ml' ? 1 : entry.quantity > 0 ? entry.grams / entry.quantity : null;
   const grams = quantity !== null && perUnit !== null ? quantity * perUnit : null;
   const per100 = Object.fromEntries(NUTRIENTS.map((n) => [n, entry[n]]));
@@ -79,7 +77,7 @@ export function EditEntry({ id }: { id: string }) {
         </label>
         <input
           id="qty"
-          className="num mx-auto mt-1 block w-48 rounded-xl bg-transparent text-center text-6xl font-bold tracking-[-0.03em] outline-none focus:bg-ground"
+          className="num mx-auto mt-1 block w-48 rounded-xl bg-transparent text-center text-6xl font-bold tracking-[-0.03em] outline-none focus:bg-raised"
           inputMode="decimal"
           value={qty}
           onChange={(e) => setQty(e.target.value)}
@@ -103,7 +101,7 @@ export function EditEntry({ id }: { id: string }) {
         <PrimaryButton onClick={save} disabled={quantity === null}>
           Save changes
         </PrimaryButton>
-        <button type="button" onClick={remove} className="tap h-12 rounded-full text-[15px] font-semibold text-[#FF6B3D]">
+        <button type="button" onClick={remove} className="tap h-12 rounded-full text-[15px] font-semibold text-[#FF6B3D] hover:bg-[#FF6B3D]/10">
           Delete entry
         </button>
       </div>

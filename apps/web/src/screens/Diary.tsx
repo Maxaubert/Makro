@@ -59,7 +59,7 @@ export function Diary({ date: dateParam }: { date?: string }) {
           type="button"
           aria-label="Next day"
           disabled={date >= now}
-          className="tap -mr-2.5 flex h-11 w-11 items-center justify-center text-secondary disabled:text-[#3A3A3E]"
+          className="tap -mr-2.5 flex h-11 w-11 items-center justify-center text-secondary disabled:text-strong"
           onClick={() => navigate(`/diary/${addDays(date, 1)}`)}
         >
           <Icon name="next" size={22} stroke={2} />
@@ -123,7 +123,10 @@ export function Diary({ date: dateParam }: { date?: string }) {
                   Save meal
                 </button>
               </div>
-              <span className="num text-sm text-secondary">{t.text} kcal</span>
+              <span className="num text-sm text-secondary">
+                {t.text} kcal
+                <UnknownNote count={t.unknown} className="ml-1.5" />
+              </span>
             </div>
             <div className="overflow-hidden rounded-2xl border border-border bg-card">
               {rows.map((e, i) => (
@@ -195,7 +198,7 @@ function RepeatSheet({ entries, from, onClose }: { entries: LocalLogEntry[]; fro
               onClick={() => setPicked(on ? picked.filter((p) => p !== m) : [...picked, m])}
               className={`tap flex min-h-11 w-full items-center gap-3 px-4 py-3 text-[15px] ${i > 0 ? 'border-t border-border' : ''}`}
             >
-              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${on ? 'bg-accent text-ground' : 'border border-[#3A3A3E]'}`}>
+              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${on ? 'bg-accent text-ground' : 'border border-strong'}`}>
                 {on && <Icon name="check" size={12} stroke={3.5} />}
               </span>
               <span className="flex-1 text-left">{MEAL_LABEL[m]}</span>

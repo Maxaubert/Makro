@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "description": "Gram targets and kcal parts from a calorie target and whole-percent shares. protein_g = round(kcal * protein% / 400). fat_g = round(kcal * fat% / 900). carbs_g takes the rounding: round((kcal - protein_g * 4 - fat_g * 9) / 4), never below 0, and 0 when the carbs share is 0. The kcal parts are each share of the rounded calorie target, rounded down, with the leftover going to the largest remainders (tie: protein, then carbs, then fat), so they add up to exactly the calorie target.",
+  "cases": [
+    { "id": "typed-down-to-1900", "input": { "kcal": 1900, "shares": { "protein": 29, "carbs": 46, "fat": 25 } }, "expected": { "protein_g": 138, "carbs_g": 218, "fat_g": 53, "protein_kcal": 551, "carbs_kcal": 874, "fat_kcal": 475 } },
+    { "id": "even-split", "input": { "kcal": 2000, "shares": { "protein": 30, "carbs": 40, "fat": 30 } }, "expected": { "protein_g": 150, "carbs_g": 199, "fat_g": 67, "protein_kcal": 600, "carbs_kcal": 800, "fat_kcal": 600 } },
+    { "id": "kcal-tie-goes-to-protein", "input": { "kcal": 2005, "shares": { "protein": 30, "carbs": 40, "fat": 30 } }, "expected": { "protein_g": 150, "carbs_g": 201, "fat_g": 67, "protein_kcal": 602, "carbs_kcal": 802, "fat_kcal": 601 } },
+    { "id": "all-protein", "input": { "kcal": 1500, "shares": { "protein": 100, "carbs": 0, "fat": 0 } }, "expected": { "protein_g": 375, "carbs_g": 0, "fat_g": 0, "protein_kcal": 1500, "carbs_kcal": 0, "fat_kcal": 0 } },
+    { "id": "all-fat-leaves-no-carbs", "input": { "kcal": 1500, "shares": { "protein": 0, "carbs": 0, "fat": 100 } }, "expected": { "protein_g": 0, "carbs_g": 0, "fat_g": 167, "protein_kcal": 0, "carbs_kcal": 0, "fat_kcal": 1500 } }
+  ]
+}

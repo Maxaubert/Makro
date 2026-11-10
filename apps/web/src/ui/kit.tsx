@@ -1,6 +1,6 @@
 // Shared pieces of the B Night look (canvas https://claude.ai/artifact/K6QcNcoePkCkXds6arS4fo):
 // dark ground, 20 px cards with a 1 px border, one orange accent, Space Grotesk.
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import type { SyncStatus } from '../data/sync';
 import { href, useBack, useRoute } from '../lib/hooks';
 
@@ -165,7 +165,7 @@ export function PrimaryButton({ children, disabled, onClick, type = 'button' }: 
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="tap flex h-14 w-full items-center justify-center rounded-full bg-accent text-base font-bold text-ground disabled:border disabled:border-border disabled:bg-raised disabled:text-[#6A6A70]"
+      className="tap flex h-14 w-full items-center justify-center rounded-full bg-accent text-base font-bold text-ground disabled:border disabled:border-border disabled:bg-raised disabled:text-faint"
     >
       {children}
     </button>
@@ -191,8 +191,8 @@ export function Chip({ selected, children, onClick, compact = false }: { selecte
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`tap flex shrink-0 items-center rounded-full ${compact ? 'h-[30px] px-3 text-[12px]' : 'h-[34px] px-3.5 text-[13px]'} ${
-        selected ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-[#C8C8CC]'
+      className={`tap relative flex shrink-0 items-center rounded-full after:absolute after:inset-x-0 after:-inset-y-[7px] after:content-[''] ${compact ? 'h-[30px] px-3 text-[12px]' : 'h-[34px] px-3.5 text-[13px]'} ${
+        selected ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'
       }`}
     >
       {children}
@@ -202,11 +202,22 @@ export function Chip({ selected, children, onClick, compact = false }: { selecte
 
 /** The bottom sheet of the canvas (B_Portion meal picker, B_Diary repeat). */
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    ref.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      before?.focus?.();
+    };
+  }, [onClose]);
   return (
-    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-20" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+    <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-20 outline-none">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[440px] rounded-t-[28px] border-t border-border bg-card px-4 pb-10 pt-2.5">
-        <div className="mx-auto h-1 w-10 rounded-sm bg-[#3A3A3E]" />
+        <div className="mx-auto h-1 w-10 rounded-sm bg-strong" />
         <h2 className="mt-4 text-xl font-bold">{title}</h2>
         {children}
       </div>
@@ -214,18 +225,38 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
   );
 }
 
+/** The verified seal: a scalloped orange badge with a black tick. */
+export function VerifiedSeal({ size = 14, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className={`shrink-0 ${className}`}>
+      <path
+        fill="var(--color-accent)"
+        d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"
+      />
+      <path d="m8.5 12.2 2.4 2.4 4.6-5" fill="none" stroke="var(--color-ground)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /** Where the numbers come from and whether they are verified (accuracy rule 4). */
 export function SourceBadge({ sourceName, verified }: { sourceName: string; verified: boolean | null }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12px] text-secondary">
-      <span>{sourceName}</span>
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-secondary">
       {verified === true && (
-        <span className="inline-flex items-center gap-0.5 rounded-full bg-accent-tint px-1.5 py-px font-semibold text-accent-2">
-          <Icon name="check" size={11} stroke={3} />
-          Verified
-        </span>
+        <>
+          <VerifiedSeal />
+          <span className="font-semibold text-accent-2">Verified</span>
+          <span aria-hidden="true" className="text-faint">·</span>
+        </>
       )}
-      {verified === false && <span className="rounded-full border border-border px-1.5 py-px">Not verified</span>}
+      {verified === false && (
+        <>
+          <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full border-[1.5px] border-dashed border-faint" />
+          <span>Not verified</span>
+          <span aria-hidden="true" className="text-faint">·</span>
+        </>
+      )}
+      <span className="truncate">{sourceName}</span>
     </span>
   );
 }
@@ -302,7 +333,7 @@ export function SyncPill({ sync, pending }: { sync: SyncStatus; pending: number 
       role="status"
       data-testid="sync-status"
       title={sync.error ?? undefined}
-      className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-[#1A1A1C] px-3 text-[13px] font-semibold"
+      className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-raised px-3 text-[13px] font-semibold"
     >
       <span className={`h-2 w-2 rounded-full ${dot}`} />
       {text}

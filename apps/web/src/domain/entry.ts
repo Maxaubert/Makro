@@ -249,6 +249,29 @@ export function parseAmount(text: string): number | null {
   return n;
 }
 
+/** An amount to log: a number above 0, or null when empty, 0 or not a number. */
+export function parseQuantity(text: string): number | null {
+  try {
+    const n = parseAmount(text);
+    return n !== null && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Per-100 values that cannot be true on a label (the product database leaves these rows out too). */
+export function customFoodProblem(n: Partial<Record<Nutrient, number | null>>): string | null {
+  const g = (k: Nutrient) => n[k] ?? null;
+  if ((g('kcal') ?? 0) > 930) return 'Calories cannot be above 930 per 100. Check the label.';
+  for (const k of ['protein_g', 'fat_g', 'sat_fat_g', 'carbs_g', 'sugars_g', 'fibre_g', 'salt_g'] as const) {
+    if ((g(k) ?? 0) > 100) return 'A value per 100 cannot be above 100 g. Check the label.';
+  }
+  if ((g('protein_g') ?? 0) + (g('carbs_g') ?? 0) + (g('fat_g') ?? 0) > 105) return 'Protein, carbs and fat together cannot be above 100 g per 100. Check the label.';
+  if (g('sat_fat_g') !== null && g('fat_g') !== null && g('sat_fat_g')! > g('fat_g')!) return 'Saturated fat cannot be more than fat.';
+  if (g('sugars_g') !== null && g('carbs_g') !== null && g('sugars_g')! > g('carbs_g')!) return 'Sugars cannot be more than carbs.';
+  return null;
+}
+
 export interface CustomFoodForm {
   name: string;
   brand: string;
@@ -263,12 +286,16 @@ export function buildCustomFood(form: CustomFoodForm, at: Date): CustomFoodRow {
   if (!name) throw new Error('a custom food needs a name');
   const nutrients = {} as NutrientColumns;
   for (const n of NUTRIENTS) nutrients[n] = parseAmount(form.nutrients[n] ?? '');
+  const problem = customFoodProblem(nutrients);
+  if (problem) throw new Error(problem);
   const serving = parseAmount(form.serving_g);
+  const ean = form.ean.trim() ? canonicalEan(form.ean) : null;
+  if (form.ean.trim() && ean === null) throw new Error('That barcode is too long. A barcode has 8 to 14 digits.');
   return {
     ...syncFields(at),
     name,
     brand: form.brand.trim() || null,
-    ean: form.ean.trim() ? canonicalEan(form.ean) : null,
+    ean,
     serving_g: serving === 0 ? null : serving,
     per_100_unit: form.per_100_unit,
     ...nutrients,

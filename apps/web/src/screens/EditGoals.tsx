@@ -5,7 +5,7 @@ import { buildGoalChange, canStartAtGoals, prefillGoalForm, type Prefill } from 
 import { browserTimeZone } from '../domain/localDate';
 import { useApp, useBack, useData } from '../lib/hooks';
 import { Icon, Notice, Page, PrimaryButton } from '../ui/kit';
-import { AboutFields, GoalFields, useGoalForm } from './goalFields';
+import { AboutFields, GoalFields, loadGoal, useGoalForm } from './goalFields';
 
 type Step = 'about' | 'goals';
 
@@ -58,7 +58,7 @@ function Editor({ initial, start }: { initial: Prefill; start: Step }) {
 
 export function EditGoals({ start }: { start: Step }) {
   const app = useApp();
-  const { data: goal, error } = useData(() => app.db.latestGoal(), []);
+  const { data: goal, error } = useData(() => loadGoal(app.db), []);
   if (error) {
     return (
       <Page>

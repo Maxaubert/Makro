@@ -136,6 +136,7 @@ const api = {
   claimOwner: (userId: string) => log.claimOwner(userId),
   pendingCount: () => log.pendingCount(),
   rejected: () => log.rejected(),
+  clearRejected: () => log.clearRejected(),
   outboxBatch: (n: number) => log.outboxBatch(n),
   ackPush: (...a: Parameters<LogStore['ackPush']>) => log.ackPush(...a),
   cursor: () => log.cursor(),

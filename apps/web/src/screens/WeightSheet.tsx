@@ -60,7 +60,7 @@ export function Sheet({ labelId, onClose, children }: { labelId: string; onClose
         tabIndex={-1}
         className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[440px] rounded-t-[28px] border-t border-border bg-card px-4 pb-[max(env(safe-area-inset-bottom),36px)] pt-2.5 outline-none"
       >
-        <div className="mx-auto h-1 w-10 rounded-sm bg-[#3A3A3E]" />
+        <div className="mx-auto h-1 w-10 rounded-sm bg-strong" />
         {children}
       </div>
     </div>
@@ -74,7 +74,7 @@ function Stepper({ label, icon, disabled, onClick }: { label: string; icon: 'plu
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="tap flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border bg-raised disabled:text-[#6A6A70]"
+      className="tap flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border bg-raised disabled:text-faint"
     >
       {icon === 'plus' ? (
         <Icon name="plus" stroke={2.2} />
@@ -180,7 +180,7 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
             placeholder="--.-"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="mx-auto block w-[190px] max-w-full border-b-2 border-accent bg-transparent pb-0.5 text-center text-[72px] font-bold leading-none tracking-[-2.5px] outline-none placeholder:text-[#3A3A3E]"
+            className="mx-auto block w-[190px] max-w-full border-b-2 border-accent bg-transparent pb-0.5 text-center text-[72px] font-bold leading-none tracking-[-2.5px] outline-none placeholder:text-strong"
           />
           <div className="mt-1.5 text-base text-secondary">kg</div>
         </div>
@@ -217,7 +217,7 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
           type="button"
           onClick={save}
           disabled={!canSave}
-          className="tap flex h-14 flex-1 items-center justify-center rounded-full bg-accent text-base font-bold text-ground disabled:border disabled:border-border disabled:bg-raised disabled:text-[#6A6A70]"
+          className="tap flex h-14 flex-1 items-center justify-center rounded-full bg-accent text-base font-bold text-ground disabled:border disabled:border-border disabled:bg-raised disabled:text-faint"
         >
           {entry ? 'Save changes' : 'Save weight'}
         </button>

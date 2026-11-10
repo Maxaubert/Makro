@@ -1,7 +1,6 @@
 // Daily targets from a profile, and the limits on a goal (decision 38). Deterministic code only:
 // AI never produces a number (accuracy rule 1). Checked by packages/contracts/goals/*.json, which
 // also says how far each constant is confirmed; the floors and the loss cap are provisional.
-import { roundForDisplay } from './display';
 
 export type Sex = 'male' | 'female';
 export type ActivityLevel = 'sedentary' | 'active' | 'very_active';
@@ -90,26 +89,78 @@ export interface MacroGrams {
   fat_g: number | null;
 }
 
-export interface MacroPart {
-  kcal: number | null;
-  /** A whole percent of the three together, or null when that total is unknown or 0. */
-  share: number | null;
+/** Whole percents of the calories. Always adds up to exactly 100. */
+export interface Shares {
+  protein: number;
+  carbs: number;
+  fat: number;
 }
 
-export type MacroSplit = Record<'protein' | 'carbs' | 'fat', MacroPart>;
+export type MacroKey = keyof Shares;
+export type MacroBoundary = 'protein_carbs' | 'carbs_fat';
 
-/** What each macro target is worth in kcal and its share (goals/macro_split.json). Unknown stays unknown. */
-export function macroSplit(g: MacroGrams): MacroSplit {
-  const kcal = (grams: number | null, perGram: number) => (grams === null ? null : grams * perGram);
-  const protein = kcal(g.protein_g, 4);
-  const carbs = kcal(g.carbs_g, 4);
-  const fat = kcal(g.fat_g, 9);
-  const total = protein === null || carbs === null || fat === null ? null : protein + carbs + fat;
-  const part = (k: number | null): MacroPart => ({
-    kcal: k,
-    share: k === null || total === null || total === 0 ? null : roundForDisplay((k / total) * 100, 0),
-  });
-  return { protein: part(protein), carbs: part(carbs), fat: part(fat) };
+const MACRO_ORDER: MacroKey[] = ['protein', 'carbs', 'fat'];
+
+/** Each part rounded down, the leftover to the largest remainders; a tie goes to the earlier macro. */
+function largestRemainder(parts: Shares, total: number): Shares {
+  const floors = { protein: Math.floor(parts.protein), carbs: Math.floor(parts.carbs), fat: Math.floor(parts.fat) };
+  let left = total - floors.protein - floors.carbs - floors.fat;
+  const byRemainder = [...MACRO_ORDER].sort((a, b) => parts[b] - floors[b] - (parts[a] - floors[a]));
+  for (const k of byRemainder) {
+    if (left <= 0) break;
+    floors[k] += 1;
+    left -= 1;
+  }
+  return floors;
+}
+
+/** What the gram targets are worth in kcal, or null when one is unknown. */
+export function kcalOfGrams(g: MacroGrams): number | null {
+  if (g.protein_g === null || g.carbs_g === null || g.fat_g === null) return null;
+  return g.protein_g * 4 + g.carbs_g * 4 + g.fat_g * 9;
+}
+
+/** The split the gram targets make (goals/macro_shares.json). Unknown stays unknown. */
+export function sharesFromGrams(g: MacroGrams): Shares | null {
+  const total = kcalOfGrams(g);
+  if (total === null || total === 0) return null;
+  const pct = (kcal: number) => (kcal * 100) / total;
+  return largestRemainder({ protein: pct(g.protein_g! * 4), carbs: pct(g.carbs_g! * 4), fat: pct(g.fat_g! * 9) }, 100);
+}
+
+/** Gram targets for a calorie target and a split (goals/macro_grams.json). Carbs take the rounding. */
+export function gramsFromShares(kcal: number, s: Shares): { protein_g: number; carbs_g: number; fat_g: number } {
+  const protein_g = Math.round((kcal * s.protein) / 400);
+  const fat_g = Math.round((kcal * s.fat) / 900);
+  const carbs_g = s.carbs === 0 ? 0 : Math.max(0, Math.round((kcal - protein_g * 4 - fat_g * 9) / 4));
+  return { protein_g, carbs_g, fat_g };
+}
+
+/** Each macro's part of the calories in kcal, adding up to exactly the target (goals/macro_grams.json). */
+export function kcalFromShares(kcal: number, s: Shares): Shares {
+  const total = Math.round(kcal);
+  return largestRemainder({ protein: (total * s.protein) / 100, carbs: (total * s.carbs) / 100, fat: (total * s.fat) / 100 }, total);
+}
+
+const percent = (value: number, max = 100, min = 0): number => Math.min(max, Math.max(min, Math.round(value)));
+
+/** Change one macro and keep the three at 100 (goals/macro_rebalance.json). */
+export function setShare(s: Shares, key: MacroKey, value: number): Shares {
+  const v = percent(value);
+  const [first, second]: MacroKey[] = key === 'carbs' ? ['fat', 'protein'] : key === 'protein' ? ['carbs', 'fat'] : ['carbs', 'protein'];
+  const firstValue = s[first] + s[key] - v;
+  if (firstValue >= 0) return { ...s, [key]: v, [first]: firstValue };
+  return { ...s, [key]: v, [first]: 0, [second]: s[second] + firstValue } as Shares;
+}
+
+/** Move a divider on the split bar to a position from the left (goals/macro_rebalance.json). */
+export function moveBoundary(s: Shares, boundary: MacroBoundary, at: number): Shares {
+  if (boundary === 'protein_carbs') {
+    const protein = percent(at, s.protein + s.carbs);
+    return { protein, carbs: s.protein + s.carbs - protein, fat: s.fat };
+  }
+  const end = percent(at, 100, s.protein);
+  return { protein: s.protein, carbs: end - s.protein, fat: 100 - end };
 }
 
 export const WEIGHT_RANGE_KG = { min: 30, max: 400 };

@@ -15,7 +15,7 @@ import {
 } from '../domain/guidance';
 import { localMinutes } from '../domain/localDate';
 import { href, useApp, useAppState, useData } from '../lib/hooks';
-import { Card, Icon, SourceBadge } from '../ui/kit';
+import { Card, Icon, SourceBadge, VerifiedSeal } from '../ui/kit';
 import { addDays, amountLabel, totalsOf } from './day';
 import {
   VERDICT_LABEL,
@@ -138,7 +138,7 @@ function SuggestionRow({ s, first }: { s: FoodSuggestion; first: boolean }) {
           <div className="text-[15px] font-semibold">
             {s.name} <span className="text-[13px] font-normal text-secondary">{amountLabel(s)}</span>
           </div>
-          <div className="num mt-0.5 text-[13px] text-[#C8C8CC]">
+          <div className="num mt-0.5 text-[13px] text-soft">
             {amountText(s.kcal, 'kcal')} kcal · {amountText(s.protein_g, 'protein_g')} g protein
           </div>
           {s.tier === 'history' ? (
@@ -147,9 +147,9 @@ function SuggestionRow({ s, first }: { s: FoodSuggestion; first: boolean }) {
               <SourceBadge sourceName={s.source_name} verified={s.verified} />
             </div>
           ) : (
-            <div className="mt-0.5 flex items-center gap-1 text-[12px] text-secondary">
-              <Icon name="check" size={12} stroke={3} className="text-accent-2" />
-              <span>Verified product · {brandAndSource}</span>
+            <div className="mt-0.5 flex items-center gap-1 text-[12px] text-secondary" data-testid="suggestion-verified">
+              <VerifiedSeal size={13} />
+              <span><span className="font-semibold text-accent-2">Verified</span> · {brandAndSource}</span>
             </div>
           )}
         </div>
@@ -207,7 +207,7 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
                 aria-label={`Show ${MEASURE_LABEL[k]}`}
                 onClick={() => setSelected(k)}
                 className={`tap flex h-[34px] items-center rounded-full px-2.5 text-[12px] ${
-                  k === selected ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-[#C8C8CC]'
+                  k === selected ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'
                 }`}
               >
                 {MEASURE_LABEL[k]}
@@ -241,7 +241,7 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
           >
             {target !== null && (
               <div
-                className="absolute inset-x-0 h-0 border-t border-dashed border-[#C8C8CC]"
+                className="absolute inset-x-0 h-0 border-t border-dashed border-soft"
                 style={{ bottom: Math.round((target / top) * BAR_HEIGHT) }}
               />
             )}
@@ -262,14 +262,14 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
               </div>
             ))}
           </div>
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] text-[#C8C8CC]">
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] text-soft">
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-[2px] bg-accent opacity-70" />
               Day total
             </span>
             {target !== null && (
               <span className="flex items-center gap-1.5">
-                <span className="h-0 w-4 border-t border-dashed border-[#C8C8CC]" />
+                <span className="h-0 w-4 border-t border-dashed border-soft" />
                 Target
               </span>
             )}
