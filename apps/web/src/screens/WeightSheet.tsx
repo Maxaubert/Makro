@@ -58,7 +58,7 @@ export function Sheet({ labelId, onClose, children }: { labelId: string; onClose
         aria-modal="true"
         aria-labelledby={labelId}
         tabIndex={-1}
-        className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[440px] rounded-t-[28px] border-t border-border bg-card px-4 pb-[max(env(safe-area-inset-bottom),36px)] pt-2.5 outline-none"
+        className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[440px] solid rounded-t-[28px] border-t border-border bg-card px-4 pb-[max(env(safe-area-inset-bottom),36px)] pt-2.5 outline-none"
       >
         <div className="mx-auto h-1 w-10 rounded-sm bg-strong" />
         {children}

@@ -40,7 +40,7 @@ function ConfirmDelete({ onCancel }: { onCancel: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-title"
-        className="w-[400px] max-w-[calc(100vw-32px)] rounded-3xl border border-border bg-card p-7"
+        className="w-[400px] max-w-[calc(100vw-32px)] solid rounded-3xl border border-border bg-card p-7"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="delete-title" className="text-[22px] font-bold">Delete account and data?</h2>
