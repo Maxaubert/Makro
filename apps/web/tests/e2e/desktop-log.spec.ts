@@ -28,7 +28,7 @@ test('desktop Add food: search, portion panel, favourite, barcode, add', async (
   // The panel follows the first row; a no-data row says unknown stays unknown and does not invent numbers.
   const panel = page.getByRole('complementary', { name: 'Portion' });
   await expect(panel.getByTestId('portion-name')).toHaveText('Skyr Naturell');
-  await expect(panel.getByText('Verified', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('img', { name: 'Verified' })).toBeVisible();
   await rows.filter({ hasText: 'No data' }).first().click();
   await expect(panel.getByText(/no nutrition data yet.*unknown stays unknown, never zero/)).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Log without numbers' })).toBeVisible();

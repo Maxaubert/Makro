@@ -173,7 +173,6 @@ export function Weight() {
         <section className="mt-3">
           <div className="flex items-baseline justify-between pb-1.5">
             <span className="text-[15px] font-bold text-secondary">Entries</span>
-            <span className="text-[12px] text-secondary">Tap one to edit</span>
           </div>
           <ul className="overflow-hidden rounded-2xl border border-border bg-card" aria-label="Weights">
             {entries.map((w, i) => {

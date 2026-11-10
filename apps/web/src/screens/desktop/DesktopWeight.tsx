@@ -297,7 +297,7 @@ export function DesktopWeight() {
   else if (distance && distance.kg !== null) toGoalText = withUnit(distance.kg);
 
   return (
-    <DesktopShell active="weight" subtitle="Trend and weigh-ins" title="Weight">
+    <DesktopShell active="weight" title="Weight">
       {error && (
         <div className="mb-3">
           <Notice tone="error">{error}</Notice>

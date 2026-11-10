@@ -147,7 +147,7 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
   };
 
   return (
-    <DesktopShell active="diary" subtitle="Every entry, with macros" title="Diary">
+    <DesktopShell active="diary" title="Diary">
       {/* Three columns from the board's width down to 1360 px; narrower, the panel moves under the day. */}
       <div className="grid grid-cols-[244px_minmax(0,1fr)] items-start gap-5 min-[1360px]:grid-cols-[244px_minmax(0,1fr)_300px]">
         <DayList date={date} now={now} days={days} listed={data?.listed} goals={data?.listGoals} week={data ? weekOf(date, data.weekEntries, goal).measures.kcal : null} />

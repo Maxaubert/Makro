@@ -75,7 +75,7 @@ export function DesktopProfile() {
   const foodDatabase = products.status === 'ready' ? `${products.meta.db_version} (${products.meta.variant ?? 'full'})` : products.status === 'loading' ? 'Loading' : 'Not available';
 
   return (
-    <DesktopShell active="account" subtitle="Account, data and settings" title="Profile">
+    <DesktopShell active="account" title="Profile">
       <div className="grid grid-cols-2 items-start gap-5">
         <section className="flex flex-col gap-5">
           <div className={CARD}>
@@ -162,8 +162,6 @@ export function DesktopProfile() {
             <div className="mt-4 border-t border-border pt-4"><HelpNote /></div>
           </div>
           <p className="px-1 text-[12px] leading-relaxed text-secondary">
-            Your log stays on this device until it syncs. Signing out keeps it here for next time.
-            <br />
             Food database {foodDatabase}. App {APP_VERSION}.
           </p>
         </section>

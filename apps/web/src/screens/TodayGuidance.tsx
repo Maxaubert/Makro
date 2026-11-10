@@ -95,7 +95,6 @@ function WhatIsLeft({ entries, goal }: { entries: LocalLogEntry[]; goal: GoalRow
     <Card className="mt-3 p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="text-[15px] font-semibold">What is left today</h2>
-        <span className="text-[12px] text-secondary">Up to 3 ideas</span>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-1.5">
         {REMAINING_MEASURES.map((k) => {
@@ -117,7 +116,6 @@ function WhatIsLeft({ entries, goal }: { entries: LocalLogEntry[]; goal: GoalRow
               <SuggestionRow key={`${s.kind}/${s.id}`} s={s} first={i === 0} />
             ))}
           </ul>
-          <p className="mt-1 text-[12px] text-secondary">Amounts come from your own entries and the product database. Pick one, a few or none.</p>
         </>
       )}
       {hasRoom && suggestions && suggestions.length === 0 && (
@@ -149,7 +147,7 @@ function SuggestionRow({ s, first }: { s: FoodSuggestion; first: boolean }) {
           ) : (
             <div className="mt-0.5 flex items-center gap-1 text-[12px] text-secondary" data-testid="suggestion-verified">
               <VerifiedSeal size={13} />
-              <span><span className="font-semibold text-accent-2">Verified</span> · {brandAndSource}</span>
+              <span>{brandAndSource}</span>
             </div>
           )}
         </div>
@@ -197,7 +195,7 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
         <p className="mt-2 text-[13px] text-secondary">No logged meals earlier this week.</p>
       ) : (
         <>
-          <p className="mt-0.5 text-[12px] text-secondary">{leftOutNote(week)}</p>
+          {week.left_out.length > 0 && <p className="mt-0.5 text-[12px] text-secondary">{leftOutNote(week)}</p>}
           <div className="mt-3 flex flex-wrap gap-1">
             {WEEKLY_MEASURES.map((k) => (
               <button
@@ -274,9 +272,12 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
               </span>
             )}
           </div>
-          <p className="mt-2 text-[12px] leading-[1.4] text-secondary" data-testid="weekly-coverage">
-            {coverageNote(m, selected)}
-          </p>
+          {/* Only when some entries had no value: then the average is a lower bound (accuracy rule 2). */}
+          {m.covered < m.count && (
+            <p className="mt-2 text-[12px] leading-[1.4] text-secondary" data-testid="weekly-coverage">
+              {coverageNote(m, selected)}
+            </p>
+          )}
         </>
       )}
     </Card>

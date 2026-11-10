@@ -55,7 +55,7 @@ export function DesktopTrends() {
   const weightChange = trendChange(data?.weights ?? [], day, TREND_RANGE_DAYS[range]);
 
   return (
-    <DesktopShell active="trends" subtitle="How you are doing against your goal" title="Trends">
+    <DesktopShell active="trends" title="Trends">
       {error && !data && <p className="text-sm text-danger">{error}</p>}
       {data && (
         <div className="grid grid-cols-[minmax(0,1fr)_380px] items-start gap-5">

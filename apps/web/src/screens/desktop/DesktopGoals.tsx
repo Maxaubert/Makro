@@ -215,7 +215,6 @@ function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: 
         <div className={`${CARD} p-6`}>
           <div className="flex items-center justify-between">
             <span className="text-[17px] font-bold">About you</span>
-            <span className="text-[13px] font-semibold text-accent-2">Used for the calculation</span>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2.5">
             <TileSelect<Sex> label="Sex" value={form.sex} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} onChange={(sex) => about({ sex })} />
@@ -239,7 +238,7 @@ function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: 
           <MacroEditor wide evaluation={e} onShares={(shares) => set({ shares })} />
         </div>
         <label className="mt-3 flex items-center justify-between rounded-[14px] bg-raised px-3.5 py-3">
-          <span className="flex items-center gap-2.5 text-[15px] font-semibold"><span className="h-2.5 w-2.5 rounded-full bg-muted" />Fibre<span className="text-[12px] font-normal text-secondary">not part of the calories</span></span>
+          <span className="flex items-center gap-2.5 text-[15px] font-semibold"><span className="h-2.5 w-2.5 rounded-full bg-muted" />Fibre</span>
           <span className="flex items-baseline font-bold">
             <FitInput label="Fibre" value={e.shown.fibre} onChange={edit('fibre')} className="text-right text-[16px] font-bold" />
             <span className="whitespace-pre text-secondary"> g</span>
@@ -265,7 +264,7 @@ export function DesktopGoals() {
   const [saves, setSaves] = useState<{ goal: StoredGoal | null; count: number } | null>(null);
   const goal = saves ? saves.goal : loaded;
   return (
-    <DesktopShell active="goals" subtitle="Calories and macros worked out from your profile" title="Goals">
+    <DesktopShell active="goals" title="Goals">
       {error && !saves ? (
         <Notice tone="error">{error}</Notice>
       ) : goal === undefined ? (
