@@ -37,7 +37,7 @@ function WeightChart({ days }: { days: TrendDay[] }) {
         {ticks.map((t) => (
           <div key={t.top}>
             <div className="absolute inset-x-0 border-t border-dashed border-border" style={{ top: `${t.top}%` }} />
-            <span className="absolute left-0 -translate-y-1/2 bg-card pr-1.5 text-[11px] text-secondary" style={{ top: `${t.top}%` }}>
+            <span className="solid absolute left-0 -translate-y-1/2 bg-card pr-1.5 text-[11px] text-secondary" style={{ top: `${t.top}%` }}>
               {kgText(t.kg)}
             </span>
           </div>

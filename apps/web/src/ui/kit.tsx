@@ -216,7 +216,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
   return (
     <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-20 outline-none">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[440px] rounded-t-[28px] border-t border-border bg-card px-4 pb-10 pt-2.5">
+      <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[440px] rounded-t-[28px] solid border-t border-border bg-card px-4 pb-10 pt-2.5">
         <div className="mx-auto h-1 w-10 rounded-sm bg-strong" />
         <h2 className="mt-4 text-xl font-bold">{title}</h2>
         {children}

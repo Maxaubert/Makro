@@ -8,8 +8,8 @@
 :root {
   /* Black ground, near-black cards, one orange accent (Max, 2026-11-10: "black and orange, bg black"). */
   --color-ground: #000000;
-  --color-card: #111113;
-  --color-border: #232327;
+  --color-card: #0e0e10;
+  --color-border: #1e1e22;
   --color-text: #f4f4f5;
   --color-text-soft: #c8c8cc;
   --color-text-secondary: #9a9aa0;
@@ -21,11 +21,11 @@
   /* Lighter orange tints used for the macro rings and small accents on the canvas. */
   --color-accent-2: #ff8a57;
   --color-accent-3: #ffb38f;
-  --color-raised: #19191c;
+  --color-raised: #141416;
   /* A selected row inside a card, and popovers. */
-  --color-raised-2: #212125;
+  --color-raised-2: #1b1b1e;
   /* Empty bars, switch tracks, dashed outlines. */
-  --color-strong: #36363b;
+  --color-strong: #2c2c31;
   --color-muted: #7a7a80;
   --color-danger: #d93f00;
   --radius-card: 20px;
@@ -59,7 +59,12 @@
 
 html,
 body {
-  background: var(--color-ground);
+  /* A faint orange light from the top, so the glass cards have something to show through. */
+  background:
+    radial-gradient(1100px 620px at 12% -12%, rgb(255 76 0 / 0.11), transparent 62%),
+    radial-gradient(900px 520px at 105% -5%, rgb(255 122 64 / 0.06), transparent 60%),
+    var(--color-ground);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-sans);
   margin: 0;
@@ -68,9 +73,20 @@ body {
 }
 
 .card {
-  background: var(--color-card);
   border: var(--border-card);
   border-radius: var(--radius-card);
+}
+/* Glass cards: see-through dark, blurred, with a light top edge. `solid` keeps a sheet or dialog opaque. */
+.card,
+.bg-card:not(.solid) {
+  background-color: rgb(16 16 18 / 0.62);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.01) 45%);
+  border-color: rgb(255 255 255 / 0.075);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 12px 32px -16px rgb(0 0 0 / 0.9);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
 }
 
 /* Browser surfaces carry the palette too. */

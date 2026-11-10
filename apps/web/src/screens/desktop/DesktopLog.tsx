@@ -225,9 +225,9 @@ export function DesktopLog() {
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-ground [line-height:normal]">
+    <div className="flex h-dvh overflow-hidden [line-height:normal]">
       <DesktopSidebar active="add" />
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="desktop-scroll flex min-w-0 flex-1 flex-col overflow-auto">
         {/* The board's header has the streak but not the Add food button of the other screens. */}
         <header className="flex h-[88px] shrink-0 items-center gap-4 px-8">
           <div className="mr-auto min-w-0">
@@ -239,7 +239,7 @@ export function DesktopLog() {
           <StreakPill />
         </header>
 
-        <div className="desktop-scroll min-h-0 flex-1 overflow-auto px-8 pb-8 pt-1">
+        <div className="px-8 pb-8 pt-1">
           <div className="grid grid-cols-[minmax(0,1fr)_340px] items-start gap-5 min-[1360px]:grid-cols-[minmax(0,1fr)_400px]">
             <section className="flex min-w-0 flex-col gap-4">
               <form onSubmit={(e) => void find(e)} className="flex h-14 items-center gap-3 rounded-[28px] border border-border bg-card pl-5 pr-2.5 focus-within:border-accent-2">
@@ -338,7 +338,7 @@ export function DesktopLog() {
               </div>
             </section>
 
-            <aside aria-label="Portion" className="desktop-scroll sticky top-0 max-h-[calc(100dvh-124px)] overflow-y-auto rounded-card border border-border bg-card p-6">
+            <aside aria-label="Portion" className="desktop-scroll sticky top-6 max-h-[calc(100dvh-48px)] overflow-y-auto rounded-card border border-border bg-card p-6">
               {selected ? (
                 <PortionPanel key={selected.key} kind={selected.kind} id={selected.id} day={day} scannedEan={typingCode && lookup?.kind === 'no-nutrition' ? lookup.ean : null} />
               ) : (
