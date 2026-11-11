@@ -169,3 +169,5 @@ Two Makro PRs (#34, then #46) and one nutrition-data PR. Each Makro PR waits for
 **2026-11-09, late:** clean-up rules in nutrition-data #18 (`tools/cleanup.py`), released as `db-2026.11.09-5`, 58,540 products. One spelling per brand, repaired names, impossible numbers left out, duplicates folded. Main numbers changed on none of the products that stay. Not done: 1,026 rows where kcal and macros disagree, which need a per-product look because many are correct (polyols, fibre).
 
 **2026-11-10:** #86 live. Macro goals are a percent split of the calories that always adds up (decision 39); black ground with orange; new verified seal; 20 fixes from a review (amount 0, stale weight on the goal form, custom food limits, barcode lengths and more). Open for Max: upper calorie and gain-pace limits wait for the dietitian (#15); the privacy notice does not yet mention missed-food reports; the design canvas still shows the old grey.
+
+**2026-11-11:** database `db-2026.11.11` live (nutrition-data #19): "Norvegia Lett" renamed "Norvegia Lettost 16%" after Max could not find it by name. Only that row changed. Short curated names can hide a product from a name search.
