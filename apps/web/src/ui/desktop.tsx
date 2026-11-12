@@ -64,9 +64,7 @@ export function DesktopSidebar({ active }: { active?: DesktopNavItem }) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border px-4 pb-5 pt-7">
       <a href={href('today')} className="flex items-center gap-3 px-2 pb-7">
-        <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-accent text-[20px] font-bold text-ground" aria-hidden="true">
-          M
-        </span>
+        <img src="/icon.svg" alt="" className="h-9 w-9 rounded-[11px]" aria-hidden="true" />
         <span className="text-[22px] font-bold tracking-[-0.4px]">Makro</span>
       </a>
       <nav aria-label="Main" className="flex flex-col gap-1">
