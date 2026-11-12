@@ -41,7 +41,7 @@ export const FIXTURE_EXTRA_EANS = [['tine:skyr-naturell', '7038010099995']];
 export const FIXTURE_REDIRECTS = [['tine:skyr-naturell-old', 'tine:skyr-naturell']];
 export const FIXTURE_REMOVED = ['tine:skyr-jordbaer'];
 // How common a product is in Norwegian shops (data/checked.json in nutrition-data, 2026-11-12): 3, 2 or 1.
-export const FIXTURE_COMMON = { 'tine:skyr-vanilje': 3, 'tine:lettmelk': 3 };
+export const FIXTURE_COMMON = { 'tine:skyr-naturell': 3, 'tine:lettmelk': 3 };
 
 const LETTERS = [['ø', 'o'], ['æ', 'ae'], ['å', 'a'], ['ä', 'a'], ['ö', 'o'], ['ü', 'u'], ['ß', 'ss']];
 function normalise(text) {

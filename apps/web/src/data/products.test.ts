@@ -16,9 +16,17 @@ import { fixtureProducts } from './testing';
 let db: Sql;
 /** The same fixture shaped like 2026.11.11 and older: no common column. */
 let old: Sql;
+/** The fixture with Skyr Vanilje as the only everyday food, so common changes the skyr order. */
+let vanilje: Sql;
+async function vaniljeCommon(): Promise<Sql> {
+  const s = await fixtureProducts();
+  s.run("update products set common = case id when 'tine:skyr-vanilje' then 3 end");
+  return s;
+}
 beforeAll(async () => {
   db = await fixtureProducts();
   old = await fixtureProducts({ common: false });
+  vanilje = await vaniljeCommon();
 });
 
 describe('product file meta', () => {
@@ -97,14 +105,14 @@ describe('searchProducts', () => {
     expect(searchProducts(old, 'skyr', 20, both).map((r) => r.id)[0]).toBe('tine:skyr-naturell');
   });
   it('ranks everyday foods (common) above equal matches, after your own logs and before other people\'s', () => {
-    expect(searchProducts(db, 'skyr').map((r) => r.id)).toEqual(['tine:skyr-vanilje', 'tine:skyr-naturell', 'openfoodfacts:7039010019999']);
-    const mine = resolvePopularity(db, [{ product_id: 'tine:skyr-naturell', n: 1 }], []);
-    expect(searchProducts(db, 'skyr', 20, mine).map((r) => r.id)[0]).toBe('tine:skyr-naturell');
-    const others = resolvePopularity(db, [], [{ product_id: 'tine:skyr-naturell', users: 4, logs: 9 }]);
-    expect(searchProducts(db, 'skyr', 20, others).map((r) => r.id)[0]).toBe('tine:skyr-vanilje');
+    expect(searchProducts(vanilje, 'skyr').map((r) => r.id)).toEqual(['tine:skyr-vanilje', 'tine:skyr-naturell', 'openfoodfacts:7039010019999']);
+    const mine = resolvePopularity(vanilje, [{ product_id: 'tine:skyr-naturell', n: 1 }], []);
+    expect(searchProducts(vanilje, 'skyr', 20, mine).map((r) => r.id)[0]).toBe('tine:skyr-naturell');
+    const others = resolvePopularity(vanilje, [], [{ product_id: 'tine:skyr-naturell', users: 4, logs: 9 }]);
+    expect(searchProducts(vanilje, 'skyr', 20, others).map((r) => r.id)[0]).toBe('tine:skyr-vanilje');
   });
   it('never lets common beat a whole-word match', () => {
-    expect(searchProducts(db, 'skyr naturell').map((r) => r.id)[0]).toBe('tine:skyr-naturell');
+    expect(searchProducts(vanilje, 'skyr naturell').map((r) => r.id)[0]).toBe('tine:skyr-naturell');
   });
   it('never lets popularity beat a whole-word match or lift a row without kcal above one with it', () => {
     const pop = resolvePopularity(db, [{ product_id: 'openfoodfacts:7039010019999', n: 50 }], []);
@@ -117,7 +125,7 @@ describe('searchProducts', () => {
   });
   /** The fixture plus 600 rows that match 'skyr' better than Skyr Vanilje does. */
   async function crowded(common: boolean): Promise<Sql> {
-    const big = await fixtureProducts({ common });
+    const big = common ? await vaniljeCommon() : await fixtureProducts({ common: false });
     const cols = big.all<{ name: string }>('pragma table_info(products)').map((c) => c.name);
     const rest = cols.filter((c) => c !== 'id' && c !== 'search_text' && c !== 'common').join(', ');
     for (let n = 0; n < 600; n++) {
