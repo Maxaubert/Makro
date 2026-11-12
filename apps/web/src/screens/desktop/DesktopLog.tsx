@@ -14,6 +14,7 @@ import { resolveGrams, type AmountUnit } from '../../domain/grams';
 import { browserTimeZone, pastLocalDate } from '../../domain/localDate';
 import { normalise } from '../../domain/normalise';
 import { NUTRIENTS } from '../../domain/nutrients';
+import { packAmounts } from '../../domain/packSizes';
 import { portion } from '../../domain/portion';
 import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../../lib/hooks';
 import { DesktopSidebar, StreakPill } from '../../ui/desktop';
@@ -534,6 +535,12 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
   }
 
   const unitLabel = (u: AmountUnit) => (u === 'serving' ? `Serving ${formatNumber(p.serving_g, 0)} g` : u === 'piece' ? `Piece ${formatNumber(p.serving_g, 0)} g` : `100 ${u}`);
+  // Whole packs in the food's own unit, from the sizes the product file lists.
+  const packs = 'pack_size' in p ? packAmounts(p.pack_size, p.per_100_unit) : [];
+  const pickPack = (amount: number) => {
+    setUnit(p.per_100_unit);
+    changeQty(String(amount));
+  };
   const unitSelected = (u: AmountUnit) => u === unit && quantity === (u === 'g' || u === 'ml' ? 100 : 1);
   const unitWord = byWeight ? unit : quantity === 1 ? unit : `${unit}s`;
   const sub = 'pack_size' in p ? productSubtext(p) : p.brand;
@@ -614,6 +621,9 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {units.map((u) => (
               <Pill key={u} selected={unitSelected(u)} onClick={() => pickUnit(u)}>{unitLabel(u)}</Pill>
+            ))}
+            {packs.map((k) => (
+              <Pill key={`pack-${k.amount}`} selected={unit === p.per_100_unit && quantity === k.amount} onClick={() => pickPack(k.amount)}>Pack {k.label}</Pill>
             ))}
           </div>
 

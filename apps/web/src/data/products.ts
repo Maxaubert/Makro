@@ -146,6 +146,20 @@ const POPULAR_CANDIDATES = 800;
 const comparePopularity = (a: PopularityScore, b: PopularityScore): number =>
   b.mine - a.mine || b.users - a.users || b.logs - a.logs;
 
+/** How many everyday foods (common set) are looked for beyond the 500 best text matches. */
+const COMMON_CANDIDATES = 300;
+
+/** Files from 2026.11.12 on have products.common (1 to 3: how common the food is in Norwegian shops). */
+const commonColumn = new WeakMap<Sql, boolean>();
+function hasCommon(sql: Sql): boolean {
+  let has = commonColumn.get(sql);
+  if (has === undefined) {
+    has = sql.all<{ name: string }>('pragma table_info(products)').some((c) => c.name === 'common');
+    commonColumn.set(sql, has);
+  }
+  return has;
+}
+
 const NO_SCORE: PopularityScore = { mine: 0, users: 0, logs: 0 };
 
 type RankableRow = ProductRow & { _bm25: number };
@@ -172,6 +186,12 @@ function matchingRows(sql: Sql, match: string, popularity?: Popularity): Rankabl
     );
     for (const r of extra) if (!seen.has(String(r.id))) rows.push(r);
   }
+  if (hasCommon(sql)) {
+    // An everyday food can also sit outside them ("melk" matches hundreds of products).
+    const seen = new Set(rows.map((r) => String(r.id)));
+    const common = sql.all<RankableRow>(`${FROM} and p.common is not null order by p.common desc, p.id limit ${COMMON_CANDIDATES}`, [match]);
+    for (const r of common) if (!seen.has(String(r.id))) rows.push(r);
+  }
   return rows;
 }
 
@@ -184,6 +204,7 @@ function rank(rows: readonly RankableRow[], tokens: readonly string[], popularit
       whole: tokens.filter((t) => words.has(t)).length,
       hasKcal: r.kcal === null ? 1 : 0,
       score: popularity?.get(String(r.id)) ?? NO_SCORE,
+      common: Number(r.common ?? 0),
       len: String(r.search_text).length,
     };
   });
@@ -191,6 +212,8 @@ function rank(rows: readonly RankableRow[], tokens: readonly string[], popularit
     (a, b) =>
       b.whole - a.whole ||
       a.hasKcal - b.hasKcal ||
+      b.score.mine - a.score.mine ||
+      b.common - a.common ||
       comparePopularity(a.score, b.score) ||
       a.r._bm25 - b.r._bm25 ||
       a.len - b.len ||

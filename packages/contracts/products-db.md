@@ -21,7 +21,7 @@ One row per visible product. A product is in the file only if it is Norway-relev
 | `id` | text, primary key | no | Opaque, unbounded and never reused (see Ids). Today it looks like `source:url`; 15,083 ids are longer than 40 characters, so no consumer may cap its length. |
 | `name` | text | no | Product name |
 | `brand` | text | yes | |
-| `pack_size` | text | yes | Up to three sizes across the product's listings, the most common ones, smallest first: `500 ml, 1 L, 1,75 L`. A listing with no parseable size keeps its own text (`60 caps`). NULL when no listing has a size. Not searchable (see Search). |
+| `pack_size` | text | yes | Up to three sizes across the product's listings, the most common ones, smallest first: `500 ml, 1 L, 1,75 L`. A product checked in the shops (`data/checked.json` in `nutrition-data`, from 2026-11-12) lists its retail sizes instead, up to six. A listing with no parseable size keeps its own text (`60 caps`). NULL when no listing has a size. Not searchable (see Search). The portion screen offers each plain size in the food's own unit as a whole-pack amount (`packages/contracts/nutrition/pack_sizes.json`). |
 | `ean` | text | yes | The primary barcode in canonical form (see Barcodes). Look up barcodes through `product_eans`, not this column. |
 | `flavour` | text | yes | |
 | `category` | text | yes | One of the 21 food categories below (assigned by a model, can be wrong) |
@@ -33,6 +33,7 @@ One row per visible product. A product is in the file only if it is Norway-relev
 | `data_quality` | text | yes | JSON array of flag codes (see Data quality) |
 | `kcal`, `protein_g`, `fat_g`, `sat_fat_g`, `carbs_g`, `sugars_g`, `fibre_g`, `salt_g` | real | yes | Per 100 `per_100_unit`. **NULL means unknown. Never read NULL as 0** (accuracy rule 2). In SQL and Swift these are 8-byte doubles. |
 | `search_text` | text | no | Normalised name, brand and flavour, plus the names and flavours of a family's other listings (see Families). For search only. |
+| `common` | integer | yes | How common the food is in Norwegian shops: 3 = a staple most households buy often (Lettmelk, Norvegia, Grandiosa), 2 = common, 1 = a regular product, NULL = not rated. Set by hand-checked shop sweeps (`data/checked.json` in `nutrition-data`, Max 2026-11-12). Only for ranking (see Search). Added in `db-2026.11.12`; files before that have no such column, so a reader checks `pragma table_info(products)` and treats a missing column as all NULL. |
 
 Only macros are in the slim database. Vitamins, minerals and the per-source rows stay in `nutrition-data`.
 
@@ -85,12 +86,13 @@ order by bm25(products_fts), length(p.search_text), p.id limit 500;
    1. number of query tokens that equal a whole token of `search_text`, descending (a whole-word match beats a prefix match: `melk` ranks "Lettmelk" and "Melk" above "Melkesjokolade");
    2. products with a `kcal` value before products without one (products with no nutrition are shown, with a badge, ranked below those that have values, and stay loggable);
    3. how many of your own live log entries are this product, descending;
-   4. how many people log it, descending, then how many logs in total, descending (`product_popularity()`, decision 36);
-   5. `bm25`, ascending;
-   6. `length(search_text)`, ascending;
-   7. `id`, ascending.
+   4. `common`, descending, NULL as 0 (an everyday food before a rare one, Max 2026-11-12);
+   5. how many people log it, descending, then how many logs in total, descending (`product_popularity()`, decision 36);
+   6. `bm25`, ascending;
+   7. `length(search_text)`, ascending;
+   8. `id`, ascending.
 
-   Logs of a merged listing count for the product it became (follow `redirects`). Popular products that match the query but fall outside the 500 are added to the candidates (at most 800 are looked for), so a much-logged food is never cut by a common word.
+   Logs of a merged listing count for the product it became (follow `redirects`). Popular products that match the query but fall outside the 500 are added to the candidates (at most 800 are looked for), so a much-logged food is never cut by a common word. So are matching products with a `common` value (at most 300, highest `common` first).
 
    Return the first 20 (or as many as the screen needs).
 

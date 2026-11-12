@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "description": "Pack sizes as portion choices (Max 2026-11-12: 'has the different sizes built in', for example YT Proteinmelk 330 ml and 1 L). Input is products.pack_size as the product file writes it (sizes joined by a comma and a space; a decimal comma inside a size, as in '1,75 L') and the product's per_100_unit. Output is the whole-pack amounts the portion screen offers, in the food's own unit (g or ml), smallest first, without repeats. kg becomes g x 1000; l, dl and cl become ml (x 1000, 100, 10). A size in the other unit family (a weight on a per-100-ml drink, a volume on a per-100-g food) is left out: 1 ml = 1 g is only used for amounts the user types, never to convert a label. Text that is not a plain size ('60 caps', '2x1kg', 'ca 1 kg') is left out, never guessed. At most 6 amounts. label is the size as shown on the button.",
+  "cases": [
+    {
+      "id": "pack-two-drink-sizes",
+      "input": { "pack_size": "330 ml, 1 L", "per_100_unit": "ml" },
+      "expected": [{ "amount": 330, "label": "330 ml" }, { "amount": 1000, "label": "1 L" }]
+    },
+    {
+      "id": "pack-decimal-comma",
+      "input": { "pack_size": "500 ml, 1 L, 1,75 L", "per_100_unit": "ml" },
+      "expected": [{ "amount": 500, "label": "500 ml" }, { "amount": 1000, "label": "1 L" }, { "amount": 1750, "label": "1,75 L" }]
+    },
+    {
+      "id": "pack-grams-and-kilos",
+      "input": { "pack_size": "150 g, 830 g, 1 kg", "per_100_unit": "g" },
+      "expected": [{ "amount": 150, "label": "150 g" }, { "amount": 830, "label": "830 g" }, { "amount": 1000, "label": "1 kg" }]
+    },
+    {
+      "id": "pack-sorted-and-deduplicated",
+      "input": { "pack_size": "1 kg, 300 g, 1000 g, 150 g", "per_100_unit": "g" },
+      "expected": [{ "amount": 150, "label": "150 g" }, { "amount": 300, "label": "300 g" }, { "amount": 1000, "label": "1 kg" }],
+      "note": "1 kg and 1000 g are one size; the first spelling is kept."
+    },
+    {
+      "id": "pack-lowercase-litre-and-dl",
+      "input": { "pack_size": "1 l, 5 dl, 33 cl", "per_100_unit": "ml" },
+      "expected": [{ "amount": 330, "label": "33 cl" }, { "amount": 500, "label": "5 dl" }, { "amount": 1000, "label": "1 l" }]
+    },
+    {
+      "id": "pack-other-unit-family-left-out",
+      "input": { "pack_size": "450 g, 1 L", "per_100_unit": "g" },
+      "expected": [{ "amount": 450, "label": "450 g" }]
+    },
+    {
+      "id": "pack-not-a-size-left-out",
+      "input": { "pack_size": "60 caps, 2x1kg, ca 1 kg", "per_100_unit": "g" },
+      "expected": []
+    },
+    {
+      "id": "pack-none",
+      "input": { "pack_size": null, "per_100_unit": "g" },
+      "expected": []
+    },
+    {
+      "id": "pack-at-most-six",
+      "input": { "pack_size": "100 g, 200 g, 300 g, 400 g, 500 g, 600 g, 700 g", "per_100_unit": "g" },
+      "expected": [{ "amount": 100, "label": "100 g" }, { "amount": 200, "label": "200 g" }, { "amount": 300, "label": "300 g" }, { "amount": 400, "label": "400 g" }, { "amount": 500, "label": "500 g" }, { "amount": 600, "label": "600 g" }]
+    }
+  ]
+}

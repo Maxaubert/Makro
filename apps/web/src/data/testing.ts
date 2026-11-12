@@ -17,7 +17,7 @@ export async function memoryDb(): Promise<Sql> {
 }
 
 /** The fixture products.sqlite, open in memory. */
-export async function fixtureProducts(opts?: { schemaVersion?: number; dbVersion?: string }): Promise<Sql> {
+export async function fixtureProducts(opts?: { schemaVersion?: number; dbVersion?: string; common?: boolean }): Promise<Sql> {
   const s = await sqlite();
   const db = new s.oo1.DB(':memory:');
   buildFixture(db, opts);
