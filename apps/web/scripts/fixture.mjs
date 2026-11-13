@@ -40,6 +40,8 @@ export const FIXTURE_PRODUCTS = [
 export const FIXTURE_EXTRA_EANS = [['tine:skyr-naturell', '7038010099995']];
 export const FIXTURE_REDIRECTS = [['tine:skyr-naturell-old', 'tine:skyr-naturell']];
 export const FIXTURE_REMOVED = ['tine:skyr-jordbaer'];
+// How common a product is in Norwegian shops (data/checked.json in nutrition-data, 2026-11-12): 3, 2 or 1.
+export const FIXTURE_COMMON = { 'tine:skyr-naturell': 3, 'tine:lettmelk': 3 };
 
 const LETTERS = [['ø', 'o'], ['æ', 'ae'], ['å', 'a'], ['ä', 'a'], ['ö', 'o'], ['ü', 'u'], ['ß', 'ss']];
 function normalise(text) {
@@ -49,7 +51,8 @@ function normalise(text) {
 }
 
 /** Writes the fixture into an open, empty sqlite-wasm oo1 database. */
-export function buildFixture(db, { schemaVersion = 2, dbVersion = FIXTURE_DB_VERSION } = {}) {
+/** `common: false` writes a file from before the common column (2026.11.11 and older). */
+export function buildFixture(db, { schemaVersion = 2, dbVersion = FIXTURE_DB_VERSION, common = true } = {}) {
   db.exec(`
 create table products(
   id text primary key,
@@ -66,7 +69,7 @@ create table products(
   status text,
   data_quality text,
   kcal real, protein_g real, fat_g real, sat_fat_g real, carbs_g real, sugars_g real, fibre_g real, salt_g real,
-  search_text text not null
+  search_text text not null${common ? ',\n  common integer check (common in (1, 2, 3))' : ''}
 );
 create table sources(slug text primary key, display_name text not null, kind text not null);
 create table product_eans(product_id text not null, ean text not null);
@@ -75,10 +78,10 @@ create table removed(id text primary key);
 create table meta(key text primary key, value text not null);
 `);
   for (const s of FIXTURE_SOURCES) db.exec({ sql: 'insert into sources values (?, ?, ?)', bind: s });
-  const cols = 13 + N.length + 1;
+  const cols = 13 + N.length + 1 + (common ? 1 : 0);
   for (const p of FIXTURE_PRODUCTS) {
     const search = normalise([p[1], p[2], p[5]].filter(Boolean).join(' '));
-    db.exec({ sql: `insert into products values (${Array(cols).fill('?').join(',')})`, bind: [...p, search] });
+    db.exec({ sql: `insert into products values (${Array(cols).fill('?').join(',')})`, bind: common ? [...p, search, FIXTURE_COMMON[p[0]] ?? null] : [...p, search] });
     if (p[4]) db.exec({ sql: 'insert into product_eans values (?, ?)', bind: [p[0], p[4]] });
   }
   for (const e of FIXTURE_EXTRA_EANS) db.exec({ sql: 'insert into product_eans values (?, ?)', bind: e });

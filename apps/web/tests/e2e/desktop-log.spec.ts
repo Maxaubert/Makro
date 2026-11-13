@@ -40,6 +40,10 @@ test('desktop Add food: search, portion panel, favourite, barcode, add', async (
   await panel.getByRole('button', { name: 'More' }).click();
   await expect(panel.getByLabel('Amount')).toHaveValue('110');
   await expect(panel.getByTestId('portion-kcal')).toContainText('68');
+  // The pack size is a portion choice: the 450 g tub is 279 kcal.
+  await panel.getByRole('button', { name: 'Pack 450 g' }).click();
+  await expect(panel.getByLabel('Amount')).toHaveValue('450');
+  await expect(panel.getByTestId('portion-kcal')).toContainText('279');
   await panel.getByLabel('Amount').fill('150');
   await expect(panel.getByTestId('portion-kcal')).toContainText('93');
   await expect(panel.getByTestId('portion-fibre_g')).toHaveText('Unknown');

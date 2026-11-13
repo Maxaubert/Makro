@@ -103,13 +103,14 @@ test('end of day: warning, add to that day, confirm complete, unlogged day', asy
 test('weekly average, what is left and the yesterday row', async ({ page }) => {
   const email = `guidance-${Date.now()}@example.test`;
   await inviteUser(email);
-  await onboard(page, email);
 
-  // Two logged days (the real day and a faked next day), then a third day with nothing logged.
-  // The test needs a Monday-start week with at least two earlier days, so it fixes the clock to
-  // a Wednesday, with the two logged days on the Monday and Tuesday before it.
+  // Two logged days, then a third day with nothing logged. The test needs a Monday-start week with
+  // at least two earlier days, so it fixes the clock to a Wednesday, with the two logged days on the
+  // Monday and Tuesday before it. The clock is set before onboarding, so the goal starts on the
+  // Monday whatever the real date is (on 2026-11-12 it started after "yesterday", which then had no target).
   const day = (d: number) => new Date(2026, 10, d, 12, 0, 0); // November 2026: 9 is a Monday
   await page.clock.setFixedTime(day(9));
+  await onboard(page, email);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
   await logSkyr(page, '100');

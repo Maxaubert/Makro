@@ -8,6 +8,7 @@ import { formatNumber } from '../domain/format';
 import { resolveGrams, type AmountUnit } from '../domain/grams';
 import { browserTimeZone, pastLocalDate } from '../domain/localDate';
 import { NUTRIENTS } from '../domain/nutrients';
+import { packAmounts } from '../domain/packSizes';
 import { portion } from '../domain/portion';
 import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../lib/hooks';
 import { Card, Chip, Header, Icon, Notice, Page, PrimaryButton, SecondaryButton, SourceBadge } from '../ui/kit';
@@ -77,6 +78,14 @@ function PortionForm({ food }: { food: Food }) {
   const values = grams === null ? null : portion(food.values, grams);
   const noData = NUTRIENTS.every((n) => food.values[n] === null);
   const p = food.per;
+  // Whole packs in the food's own unit, from the sizes the product file lists.
+  const packs = 'pack_size' in p ? packAmounts(p.pack_size, p.per_100_unit) : [];
+  const packPicked = packs.some((k) => unit === p.per_100_unit && quantity === k.amount);
+
+  function pickPack(amount: number) {
+    setUnit(p.per_100_unit);
+    setQty(String(amount));
+  }
 
   function pickUnit(u: AmountUnit) {
     setUnit(u);
@@ -156,7 +165,10 @@ function PortionForm({ food }: { food: Food }) {
         {unit === 'ml' && <div className="text-[13px] text-secondary">About {formatNumber(grams, 0)} g (1 ml counted as 1 g)</div>}
         <div className="mt-3.5 flex flex-wrap justify-center gap-2">
           {units.map((u) => (
-            <Chip key={u} selected={u === unit} onClick={() => pickUnit(u)}>{unitLabel(u)}</Chip>
+            <Chip key={u} selected={u === unit && !packPicked} onClick={() => pickUnit(u)}>{unitLabel(u)}</Chip>
+          ))}
+          {packs.map((k) => (
+            <Chip key={`pack-${k.amount}`} selected={unit === p.per_100_unit && quantity === k.amount} onClick={() => pickPack(k.amount)}>Pack {k.label}</Chip>
           ))}
         </div>
       </Card>

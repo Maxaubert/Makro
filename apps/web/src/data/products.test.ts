@@ -14,8 +14,19 @@ import type { Sql } from './sql';
 import { fixtureProducts } from './testing';
 
 let db: Sql;
+/** The same fixture shaped like 2026.11.11 and older: no common column. */
+let old: Sql;
+/** The fixture with Skyr Vanilje as the only everyday food, so common changes the skyr order. */
+let vanilje: Sql;
+async function vaniljeCommon(): Promise<Sql> {
+  const s = await fixtureProducts();
+  s.run("update products set common = case id when 'tine:skyr-vanilje' then 3 end");
+  return s;
+}
 beforeAll(async () => {
   db = await fixtureProducts();
+  old = await fixtureProducts({ common: false });
+  vanilje = await vaniljeCommon();
 });
 
 describe('product file meta', () => {
@@ -58,7 +69,7 @@ describe('productSubtext', () => {
 
 describe('searchProducts', () => {
   it('finds skyr with source and verified on every row (rule 4)', () => {
-    const rows = searchProducts(db, 'skyr');
+    const rows = searchProducts(old, 'skyr');
     expect(rows.map((r) => r.id)).toEqual(['tine:skyr-naturell', 'tine:skyr-vanilje', 'openfoodfacts:7039010019999']);
     for (const r of rows) {
       expect(r.source).toBeTruthy();
@@ -84,14 +95,24 @@ describe('searchProducts', () => {
     expect(searchProducts(db, '%%')).toEqual([]);
   });
   it('ranks the foods you log above equal matches (decision 36)', () => {
-    const pop = resolvePopularity(db, [{ product_id: 'tine:skyr-vanilje', n: 3 }], []);
-    expect(searchProducts(db, 'skyr', 20, pop).map((r) => r.id)[0]).toBe('tine:skyr-vanilje');
+    const pop = resolvePopularity(old, [{ product_id: 'tine:skyr-vanilje', n: 3 }], []);
+    expect(searchProducts(old, 'skyr', 20, pop).map((r) => r.id)[0]).toBe('tine:skyr-vanilje');
   });
   it('ranks foods many people log next, and your own habits above them', () => {
-    const global = resolvePopularity(db, [], [{ product_id: 'tine:skyr-vanilje', users: 4, logs: 9 }]);
-    expect(searchProducts(db, 'skyr', 20, global).map((r) => r.id)[0]).toBe('tine:skyr-vanilje');
-    const both = resolvePopularity(db, [{ product_id: 'tine:skyr-naturell', n: 1 }], [{ product_id: 'tine:skyr-vanilje', users: 4, logs: 9 }]);
-    expect(searchProducts(db, 'skyr', 20, both).map((r) => r.id)[0]).toBe('tine:skyr-naturell');
+    const global = resolvePopularity(old, [], [{ product_id: 'tine:skyr-vanilje', users: 4, logs: 9 }]);
+    expect(searchProducts(old, 'skyr', 20, global).map((r) => r.id)[0]).toBe('tine:skyr-vanilje');
+    const both = resolvePopularity(old, [{ product_id: 'tine:skyr-naturell', n: 1 }], [{ product_id: 'tine:skyr-vanilje', users: 4, logs: 9 }]);
+    expect(searchProducts(old, 'skyr', 20, both).map((r) => r.id)[0]).toBe('tine:skyr-naturell');
+  });
+  it('ranks everyday foods (common) above equal matches, after your own logs and before other people\'s', () => {
+    expect(searchProducts(vanilje, 'skyr').map((r) => r.id)).toEqual(['tine:skyr-vanilje', 'tine:skyr-naturell', 'openfoodfacts:7039010019999']);
+    const mine = resolvePopularity(vanilje, [{ product_id: 'tine:skyr-naturell', n: 1 }], []);
+    expect(searchProducts(vanilje, 'skyr', 20, mine).map((r) => r.id)[0]).toBe('tine:skyr-naturell');
+    const others = resolvePopularity(vanilje, [], [{ product_id: 'tine:skyr-naturell', users: 4, logs: 9 }]);
+    expect(searchProducts(vanilje, 'skyr', 20, others).map((r) => r.id)[0]).toBe('tine:skyr-vanilje');
+  });
+  it('never lets common beat a whole-word match', () => {
+    expect(searchProducts(vanilje, 'skyr naturell').map((r) => r.id)[0]).toBe('tine:skyr-naturell');
   });
   it('never lets popularity beat a whole-word match or lift a row without kcal above one with it', () => {
     const pop = resolvePopularity(db, [{ product_id: 'openfoodfacts:7039010019999', n: 50 }], []);
@@ -102,17 +123,25 @@ describe('searchProducts', () => {
     expect(pop.get('tine:skyr-naturell')?.mine).toBe(3);
     expect(pop.has('tine:skyr-naturell-old')).toBe(false);
   });
-  it('still finds a popular food when more than 500 rows match better', async () => {
-    const big = await fixtureProducts();
+  /** The fixture plus 600 rows that match 'skyr' better than Skyr Vanilje does. */
+  async function crowded(common: boolean): Promise<Sql> {
+    const big = common ? await vaniljeCommon() : await fixtureProducts({ common: false });
     const cols = big.all<{ name: string }>('pragma table_info(products)').map((c) => c.name);
-    const rest = cols.filter((c) => c !== 'id' && c !== 'search_text').join(', ');
+    const rest = cols.filter((c) => c !== 'id' && c !== 'search_text' && c !== 'common').join(', ');
     for (let n = 0; n < 600; n++) {
       big.run(`insert into products (id, search_text, ${rest}) select ?, 'skyr', ${rest} from products where id = 'tine:skyr-naturell'`, [`x:${n}`]);
     }
     big.run("insert into products_fts(products_fts) values('rebuild')");
+    return big;
+  }
+  it('still finds a popular food when more than 500 rows match better', async () => {
+    const big = await crowded(false);
     expect(searchProducts(big, 'skyr', 20).map((r) => r.id)).not.toContain('tine:skyr-vanilje');
     const pop = resolvePopularity(big, [{ product_id: 'tine:skyr-vanilje', n: 1 }], []);
     expect(searchProducts(big, 'skyr', 20, pop)[0].id).toBe('tine:skyr-vanilje');
+  });
+  it('still finds an everyday food when more than 500 rows match better', async () => {
+    expect(searchProducts(await crowded(true), 'skyr', 20)[0].id).toBe('tine:skyr-vanilje');
   });
   it('carries per_100_unit and a null serving_g as they are', () => {
     expect(searchProducts(db, 'lettmelk')[0].per_100_unit).toBe('ml');
