@@ -59,12 +59,8 @@
 
 html,
 body {
-  /* A faint orange light from the top, so the glass cards have something to show through. */
-  background:
-    radial-gradient(1100px 620px at 12% -12%, rgb(255 76 0 / 0.11), transparent 62%),
-    radial-gradient(900px 520px at 105% -5%, rgb(255 122 64 / 0.06), transparent 60%),
-    var(--color-ground);
-  background-attachment: fixed;
+  /* Plain black (Max, 2026-11-13: no orange tint over the black). */
+  background: var(--color-ground);
   color: var(--color-text);
   font-family: var(--font-sans);
   margin: 0;
