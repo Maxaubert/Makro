@@ -14,7 +14,7 @@ export interface SetupFacts {
   hasGoal: boolean;
 }
 
-export const CONSENT_TEXT_VERSION = '2026-11-09';
+export const CONSENT_TEXT_VERSION = '2026-11-14';
 
 export async function resolveSetup(opts: {
   userId: string;

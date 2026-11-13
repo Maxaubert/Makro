@@ -28,6 +28,7 @@ export function PrivacyBody() {
       </Section>
       <Section title="Why, and on what basis">
         <p>To let you track your food and weight against your goals and use them on your devices. The legal basis is your explicit consent (GDPR Art. 6(1)(a) and 9(2)(a)).</p>
+        <p>When Makro cannot find a food, it sends an anonymous report so the food can be added: the barcode or the words you searched for, the food you made for it (if any), your country, and the app and database version. The report has no account or user id and is not linked to you. Your network address is used only in scrambled form, to limit how many reports can be sent in an hour.</p>
         <p>Optional: if you agree separately, the foods you log count toward totals of which foods are popular, which helps order search results. Only totals are shared, never who logged what. Saying no changes nothing else.</p>
       </Section>
       <Section title="Where it is, and who handles it">
