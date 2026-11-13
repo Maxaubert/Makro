@@ -61,6 +61,7 @@ export function amountLabel(e: { quantity: number; unit: string; grams: number }
   const q = Number.isInteger(e.quantity) ? String(e.quantity) : e.quantity.toLocaleString('en-US', { maximumFractionDigits: 1 });
   if (e.unit === 'g') return `${q} g`;
   if (e.unit === 'ml') return `${q} ml`;
+  if (e.unit === 'portion') return `${q} portion${e.quantity === 1 ? '' : 's'}`; // no weight is known (decision 42)
   const g = Math.round(e.grams);
   return `${q} ${e.unit}${e.quantity === 1 ? '' : 's'} · ${g} g`;
 }

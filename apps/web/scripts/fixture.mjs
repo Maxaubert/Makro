@@ -10,6 +10,7 @@ export const FIXTURE_DB_VERSION = '2026.10.25';
 const N = ['kcal', 'protein_g', 'fat_g', 'sat_fat_g', 'carbs_g', 'sugars_g', 'fibre_g', 'salt_g'];
 
 export const FIXTURE_SOURCES = [
+  ['burgerking-no', 'Burger King', 'brand'],
   ['custom', 'Your own food', 'custom'],
   ['matvaretabellen', 'Matvaretabellen', 'government'],
   ['oda', 'Oda', 'shop'],
@@ -34,6 +35,9 @@ export const FIXTURE_PRODUCTS = [
     'from_source', null, 89, 1.1, 0.3, 0.1, 20, 17, 1.9, 0],
   ['oda:kjottdeig-14', 'Kjøttdeig 14%', 'Gilde', '400 g', '0000070380107', null, 'meat_fish', null, 'g', 'oda', 0,
     'from_source', '["per100_basis_assumed"]', 208, 18, 14, 6, 0.5, 0.5, null, 1.1],
+  // Stored per portion (decision 42): the guide prints values per portion and no weight.
+  ['burgerking-no:whopper', 'Whopper', 'Burger King', null, null, null, 'ready_meals_sauces', null, 'portion', 'burgerking-no', 1,
+    'from_source', null, 621, 29, 34, 9.1, 50, 12, 3.8, 2.7],
 ];
 
 // Extra barcodes a product is known by (canonical form). The EAN-8 above is stored padded to 13.
@@ -63,7 +67,7 @@ create table products(
   flavour text,
   category text,
   serving_g real,
-  per_100_unit text not null check (per_100_unit in ('g', 'ml')),
+  per_100_unit text not null check (per_100_unit in ('g', 'ml', 'portion')),
   source text not null,
   verified integer not null check (verified in (0, 1)),
   status text,

@@ -85,3 +85,27 @@ test('desktop Add food: search, portion panel, favourite, barcode, add', async (
   await page.setViewportSize({ width: 390, height: 800 });
   await expect(page.locator('.desktop-shell')).toHaveCount(0);
 });
+
+test('desktop Add food: a food stored per portion is logged in portions (decision 42)', async ({ page }) => {
+  const { userId } = await desktopSignIn(page, 'desktop-portion');
+  await page.getByRole('link', { name: 'Add food', exact: true }).first().click();
+  await page.getByRole('textbox', { name: 'Search foods' }).fill('whopper');
+  const rows = page.getByTestId('food-row');
+  await expect(rows.first()).toContainText('Whopper');
+  await expect(rows.first()).toContainText('per portion');
+
+  // One portion is the printed value; no grams and no pack buttons.
+  const panel = page.getByRole('complementary', { name: 'Portion' });
+  await expect(panel.getByLabel('Amount')).toHaveValue('1');
+  await expect(panel.getByTestId('portion-kcal')).toContainText('621');
+  await expect(panel.getByRole('button', { name: /^Pack / })).toHaveCount(0);
+  await panel.getByRole('button', { name: 'More' }).click();
+  await expect(panel.getByLabel('Amount')).toHaveValue('2');
+  await expect(panel.getByTestId('portion-kcal')).toContainText('1,242');
+
+  // Saved as 2 portions: grams holds 100 per portion, so the server total is 2 x 621.
+  await panel.getByRole('button', { name: /^Add to / }).click();
+  await expect
+    .poll(() => pgRows<{ quantity: number; unit: string; kcal_total: number }>(`select quantity, unit, kcal_total from public.log_entries where user_id = '${userId}'`), { timeout: 20_000 })
+    .toEqual([{ quantity: 2, unit: 'portion', kcal_total: 1242 }]);
+});

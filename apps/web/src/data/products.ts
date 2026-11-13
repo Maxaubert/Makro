@@ -10,7 +10,13 @@ import type { Sql } from './sql';
 /** Oldest product file schema this client reads (v1 of the contract is schema_version 2). */
 export const MIN_SCHEMA_VERSION = 2;
 
-export type Per100Unit = 'g' | 'ml';
+/** g or ml: values per 100 g/ml. portion: values per one portion as printed (restaurants with no weights, decision 42). */
+export type Per100Unit = 'g' | 'ml' | 'portion';
+
+/** What a food's values are per, for labels: "100 g", "100 ml" or "portion". */
+export function perLabel(unit: Per100Unit): string {
+  return unit === 'portion' ? 'portion' : `100 ${unit}`;
+}
 
 export interface Product {
   id: string;
@@ -83,7 +89,7 @@ function toProduct(r: ProductRow): Product {
     pack_size: (r.pack_size as string | null) ?? null,
     ean: (r.ean as string | null) ?? null,
     serving_g: r.serving_g === null || r.serving_g === undefined ? null : Number(r.serving_g),
-    per_100_unit: r.per_100_unit === 'ml' ? 'ml' : 'g',
+    per_100_unit: r.per_100_unit === 'ml' ? 'ml' : r.per_100_unit === 'portion' ? 'portion' : 'g',
     source: String(r.source),
     source_name: (r.source_name as string | null) ?? String(r.source),
     source_kind: (r.source_kind as string | null) ?? null,
@@ -266,10 +272,11 @@ export function searchProducts(sql: Sql, query: string, limit = 20, popularity?:
   return found.slice(0, limit).map(toProduct);
 }
 
-/** Verified products with a known kcal, best protein first, for the daily suggestions. */
+/** Verified products with a known kcal, best protein first, for the daily suggestions. Per-portion foods are left out:
+ * their values are per portion, so they cannot be ranked against per-100 g foods (decision 42). */
 export function verifiedProducts(sql: Sql, limit: number): Product[] {
   return sql
-    .all<ProductRow>(`${SELECT} where p.verified = 1 and p.kcal is not null order by p.protein_g is null, p.protein_g desc, p.id limit ?`, [limit])
+    .all<ProductRow>(`${SELECT} where p.verified = 1 and p.kcal is not null and p.per_100_unit <> 'portion' order by p.protein_g is null, p.protein_g desc, p.id limit ?`, [limit])
     .map(toProduct);
 }
 

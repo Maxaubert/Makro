@@ -51,13 +51,13 @@ One thing eaten. Carries its own nutrition snapshot (accuracy rule 3), so histor
 | `local_date` | date | The day it counts toward, **fixed when saved** from the phone's local time. Never recomputed, so travel and daylight saving cannot move an entry between days. Day totals group by this. |
 | `meal` | text | `breakfast`, `lunch`, `dinner`, `snack` (four fixed). Checked in Swift and by a Postgres `CHECK`, not by a SQLite `CHECK`. |
 | `quantity` | real | The amount as the user entered it |
-| `unit` | text | `g`, `ml`, `piece`, `serving` |
-| `grams` | real | The resolved weight, not null. For `ml`, 1 ml = 1 g and the UI shows it as approximate. For `piece` and `serving`, `quantity * serving_g`. Editing the amount changes this and the totals. |
+| `unit` | text | `g`, `ml`, `piece`, `serving`, `portion` (decision 42) |
+| `grams` | real | The resolved weight, not null. For `ml`, 1 ml = 1 g and the UI shows it as approximate. For `piece` and `serving`, `quantity * serving_g`. For `portion`, `quantity * 100`: not a weight, so the totals equal the printed per-portion values times the portions, and the UI never shows it as grams (decision 42). Editing the amount changes this and the totals. |
 | `product_id` | text? | Id from the product database. Unbounded text, **never rewritten** when the product database redirects it; it is resolved when read (`products-db.md`, Ids). NULL for a custom food. |
 | `custom_food_id` | id? | Set for a custom food, NULL otherwise. Exactly one of `product_id` and `custom_food_id` is set. |
 | snapshot: `name`, `brand?`, `source`, `ean?`, `db_version?` | text | What the product was when logged. `source` is where the numbers came from (accuracy rule 4); `custom` for a custom food. |
 | snapshot: `verified?` | flag | Copied from the product's `verified` column (`products-db.md`). NULL for rows logged before the column existed and for custom foods. |
-| snapshot: `per_100_unit` | text | `g` or `ml`. What the per-100 values below are per. |
+| snapshot: `per_100_unit` | text | `g` or `ml`: the values below are per 100 g or ml. `portion` (decision 42): they are per one portion as printed, for a food sold with no weight. |
 | snapshot: `kcal?`, `protein_g?`, `fat_g?`, `sat_fat_g?`, `carbs_g?`, `sugars_g?`, `fibre_g?`, `salt_g?` | real | Per 100 `per_100_unit` at the time |
 | totals: `kcal_total?`, `protein_g_total?`, `fat_g_total?`, `sat_fat_g_total?`, `carbs_g_total?`, `sugars_g_total?`, `fibre_g_total?`, `salt_g_total?` | real | **Generated columns on both sides**, all 8 nutrients: `kcal_total = kcal * grams / 100`, and the same for each nutrient. Stored, never written by the app, **not rounded**. NULL when the per-100 value is NULL, because SQL arithmetic on NULL is NULL. They cannot drift from `grams` after an edit. Rounding happens only for display. |
 

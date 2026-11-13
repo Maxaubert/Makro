@@ -2,6 +2,7 @@
 // The sums come from the same domain code as the phone Today. Unknown shows as "?" and a day with
 // no data has an empty state (rules 1 and 2). A target shows only when a goals row exists.
 import { useState, type ReactNode } from 'react';
+import { perLabel } from '../../data/products';
 import type { GoalRow, LocalLogEntry, RecentFood } from '../../data/logStore';
 import { roundForDisplay } from '../../domain/display';
 import { MEALS } from '../../domain/entry';
@@ -331,7 +332,7 @@ function QuickLog({ foods }: { foods: RecentFood[] }) {
                   ) : (
                     <>
                       <div className="num text-[15px] font-bold">{formatNumber(f.kcal, 0)}</div>
-                      <div className="text-[11px] text-secondary">kcal / 100 {f.per_100_unit}</div>
+                      <div className="text-[11px] text-secondary">kcal / {perLabel(f.per_100_unit)}</div>
                     </>
                   )}
                 </div>

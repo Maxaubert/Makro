@@ -19,8 +19,8 @@ const FACTOR: Record<string, { family: 'g' | 'ml'; times: number }> = {
   ml: { family: 'ml', times: 1 },
 };
 
-export function packAmounts(packSize: string | null, unit: 'g' | 'ml'): PackAmount[] {
-  if (!packSize) return [];
+export function packAmounts(packSize: string | null, unit: 'g' | 'ml' | 'portion'): PackAmount[] {
+  if (!packSize || unit === 'portion') return [];
   const out: PackAmount[] = [];
   for (const part of packSize.split(/,\s+/)) {
     const m = SIZE.exec(part.trim());

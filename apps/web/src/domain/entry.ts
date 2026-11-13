@@ -91,6 +91,7 @@ function syncFields(at: Date): SyncFields {
 
 /** Units the portion screen offers for a food: its own unit first, then g, then serving/piece when serving_g is known. */
 export function unitsFor(food: { per_100_unit: Per100Unit; serving_g: number | null }): AmountUnit[] {
+  if (food.per_100_unit === 'portion') return ['portion'];
   const units: AmountUnit[] = food.per_100_unit === 'ml' ? ['ml', 'g'] : ['g'];
   if (food.serving_g !== null) units.push('serving', 'piece');
   return units;

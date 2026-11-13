@@ -3,8 +3,10 @@
 //   g               quantity as entered
 //   ml              quantity, 1 ml = 1 g, marked approximate
 //   piece, serving  quantity * serving_g; null serving_g means it cannot be resolved (grams null)
+//   portion         quantity * 100 for a food stored per portion (decision 42): not a weight, so the
+//                   totals (value * grams / 100) are the printed per-portion values times the portions
 
-export const AMOUNT_UNITS = ['g', 'ml', 'piece', 'serving'] as const;
+export const AMOUNT_UNITS = ['g', 'ml', 'piece', 'serving', 'portion'] as const;
 export type AmountUnit = (typeof AMOUNT_UNITS)[number];
 
 export interface Amount {
@@ -29,6 +31,8 @@ export function resolveGrams({ quantity, unit, serving_g }: Amount): ResolvedGra
       return { grams: quantity, approximate: false };
     case 'ml':
       return { grams: quantity, approximate: true };
+    case 'portion':
+      return { grams: quantity * 100, approximate: false };
     case 'piece':
     case 'serving':
       if (serving_g === null || serving_g === undefined) return { grams: null, approximate: false };
