@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "description": "Fuzzy search (products-db.md, Search, step 7). Runs only when steps 4 and 6 together found fewer than 3 products. Input: the query, how many products each normalised token matches on its own as a prefix query (token_matches, capped at 3 is enough) and the whole FTS vocabulary with how many products hold each term. Expected: for each token, its alternatives in order. An alternative is a list of terms that must all match (a split word). The runner ORs the alternatives of a token and ANDs the tokens. The synonym pairs are in search/synonyms.json.",
+  "cases": [
+    {
+      "id": "mcdonlads-wrap-finds-mcwrap",
+      "input": {
+        "query": "mcdonlads wrap",
+        "token_matches": { "mcdonlads": 0, "wrap": 3 },
+        "vocabulary": [
+          { "term": "mcdonald", "docs": 70 },
+          { "term": "s", "docs": 900 },
+          { "term": "mcwrap", "docs": 3 },
+          { "term": "wrap", "docs": 40 },
+          { "term": "wraps", "docs": 10 },
+          { "term": "tortillawrap", "docs": 2 },
+          { "term": "mcflurry", "docs": 5 }
+        ]
+      },
+      "expected": {
+        "groups": [
+          [["mcdonlads"], ["mcdonald"]],
+          [["wrap"], ["mcwrap"]]
+        ]
+      }
+    },
+    {
+      "id": "double-quarterpounder-finds-dobbel-quarter-pounder",
+      "input": {
+        "query": "double quarterpounder",
+        "token_matches": { "double": 3, "quarterpounder": 0 },
+        "vocabulary": [
+          { "term": "dobbel", "docs": 30 },
+          { "term": "double", "docs": 12 },
+          { "term": "doublechoc", "docs": 2 },
+          { "term": "quarter", "docs": 4 },
+          { "term": "pounder", "docs": 4 }
+        ]
+      },
+      "expected": {
+        "groups": [
+          [["double"], ["dobbel"]],
+          [["quarterpounder"], ["quarter", "pounder"]]
+        ]
+      }
+    },
+    {
+      "id": "a-stray-key-before-the-word",
+      "input": {
+        "query": "odouble quarterpounder",
+        "token_matches": { "odouble": 0, "quarterpounder": 0 },
+        "vocabulary": [
+          { "term": "dobbel", "docs": 30 },
+          { "term": "double", "docs": 12 },
+          { "term": "odin", "docs": 3 },
+          { "term": "quarter", "docs": 4 },
+          { "term": "pounder", "docs": 4 }
+        ]
+      },
+      "expected": {
+        "groups": [
+          [["odouble"], ["double"], ["dobbel"]],
+          [["quarterpounder"], ["quarter", "pounder"]]
+        ]
+      }
+    },
+    {
+      "id": "mcdonalds-without-apostrophe",
+      "input": {
+        "query": "McDonalds",
+        "token_matches": { "mcdonalds": 0 },
+        "vocabulary": [
+          { "term": "mcdonald", "docs": 70 },
+          { "term": "s", "docs": 900 }
+        ]
+      },
+      "expected": {
+        "groups": [
+          [["mcdonalds"], ["mcdonald"], ["mcdonald", "s"]]
+        ]
+      }
+    },
+    {
+      "id": "norwegian-word-also-finds-the-english-one",
+      "input": {
+        "query": "kylling",
+        "token_matches": { "kylling": 3 },
+        "vocabulary": [
+          { "term": "kylling", "docs": 400 },
+          { "term": "chicken", "docs": 60 }
+        ]
+      },
+      "expected": {
+        "groups": [
+          [["kylling"], ["chicken"]]
+        ]
+      }
+    },
+    {
+      "id": "a-synonym-missing-from-the-file-is-left-out",
+      "input": {
+        "query": "chicken",
+        "token_matches": { "chicken": 3 },
+        "vocabulary": [
+          { "term": "chicken", "docs": 60 }
+        ]
+      },
+      "expected": {
+        "groups": [
+          [["chicken"]]
+        ]
+      }
+    },
+    {
+      "id": "a-word-that-finds-enough-is-not-split-or-corrected",
+      "input": {
+        "query": "kyllingfilet",
+        "token_matches": { "kyllingfilet": 3 },
+        "vocabulary": [
+          { "term": "kyllingfilet", "docs": 50 },
+          { "term": "kylling", "docs": 400 },
+          { "term": "filet", "docs": 90 },
+          { "term": "minikyllingfilet", "docs": 2 }
+        ]
+      },
+      "expected": {
+        "groups": [
+          [["kyllingfilet"], ["minikyllingfilet"]]
+        ]
+      }
+    },
+    {
+      "id": "short-words-and-numbers-stay-as-they-are",
+      "input": {
+        "query": "te 500g",
+        "token_matches": { "te": 3, "500g": 0 },
+        "vocabulary": [
+          { "term": "te", "docs": 80 },
+          { "term": "ostete", "docs": 2 },
+          { "term": "500g", "docs": 9 },
+          { "term": "1500g", "docs": 3 }
+        ]
+      },
+      "expected": {
+        "groups": [
+          [["te"]],
+          [["500g"]]
+        ]
+      }
+    },
+    {
+      "id": "contained-words-are-few-short-and-most-held-first",
+      "input": {
+        "query": "bolle",
+        "token_matches": { "bolle": 3 },
+        "vocabulary": [
+          { "term": "bolle", "docs": 60 },
+          { "term": "kanelbolle", "docs": 20 },
+          { "term": "fiskebolle", "docs": 15 },
+          { "term": "skolebolle", "docs": 15 },
+          { "term": "rosinbolle", "docs": 9 },
+          { "term": "vaniljebolle", "docs": 8 },
+          { "term": "hveteboller", "docs": 7 },
+          { "term": "kardemommebolle", "docs": 30 }
+        ]
+      },
+      "expected": {
+        "groups": [
+          [["bolle"], ["kanelbolle"], ["fiskebolle"], ["skolebolle"], ["rosinbolle"], ["hveteboller"]]
+        ]
+      }
+    }
+  ]
+}

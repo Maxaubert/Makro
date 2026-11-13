@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "English and Norwegian food words that mean the same (products-db.md, Search, step 7). Both directions. Words are normalised (search/normalise.json), so ø is o and æ is ae. A synonym is used only when the product file holds it.",
+  "pairs": [
+    ["double", "dobbel"], ["triple", "trippel"], ["chicken", "kylling"], ["cheese", "ost"], ["milk", "melk"],
+    ["bread", "brod"], ["salmon", "laks"], ["coffee", "kaffe"], ["chocolate", "sjokolade"], ["ham", "skinke"],
+    ["sausage", "polse"], ["potato", "potet"], ["potatoes", "poteter"], ["rice", "ris"], ["apple", "eple"],
+    ["banana", "banan"], ["strawberry", "jordbaer"], ["raspberry", "bringebaer"], ["blueberry", "blabaer"],
+    ["yogurt", "yoghurt"], ["oats", "havre"], ["butter", "smor"], ["cream", "flote"], ["beef", "storfe"],
+    ["pork", "svin"], ["fish", "fisk"], ["shrimp", "reker"], ["tuna", "tunfisk"], ["water", "vann"],
+    ["sugar", "sukker"], ["pancake", "pannekake"], ["waffle", "vaffel"], ["salad", "salat"], ["soup", "suppe"],
+    ["sauce", "saus"], ["cookie", "kjeks"], ["cinnamon", "kanel"], ["bun", "bolle"], ["vanilla", "vanilje"],
+    ["caramel", "karamell"], ["peanut", "peanott"], ["almond", "mandel"], ["honey", "honning"], ["lemon", "sitron"],
+    ["orange", "appelsin"], ["pear", "paere"], ["carrot", "gulrot"], ["cucumber", "agurk"], ["tomato", "tomat"],
+    ["onion", "lok"], ["garlic", "hvitlok"], ["mushroom", "sopp"], ["beans", "bonner"], ["lentils", "linser"],
+    ["noodles", "nudler"], ["drink", "drikk"], ["light", "lett"], ["sugarfree", "sukkerfri"], ["meatballs", "kjottboller"]
+  ]
+}

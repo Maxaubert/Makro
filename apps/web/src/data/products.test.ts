@@ -224,6 +224,42 @@ describe('typo correction (products-db.md, Search step 6)', () => {
     searchProducts(fresh, 'skyr');
     expect(fresh.all("select name from temp.sqlite_master where name = 'products_vocab'")).toHaveLength(0);
   });
+
+  describe('fuzzy search (Search step 7)', () => {
+    // Max, 2026-11-14: "mcdonlads wrap" finds McWrap, "double quarterpounder" finds Dobbel Quarter Pounder.
+    const MCD = [
+      ['m:1', "mcdonald's mcwrap chili chicken"],
+      ['m:2', "mcdonald's mcwrap salsa chicken"],
+      ['m:3', "mcdonald's quarter pounder"],
+      ['m:4', "mcdonald's dobbel quarter pounder"],
+      ['m:5', "mcdonald's big mac"],
+      ['w:1', 'santa maria tortilla wrap'],
+      ['w:2', 'old el paso wrap'],
+      ['w:3', 'coop wrap'],
+    ] as const;
+
+    it('mcdonlads wrap finds McWrap', async () => {
+      const big = await withRows(MCD);
+      expect(ids(searchProducts(big, 'mcdonlads wrap')).sort()).toEqual(['m:1', 'm:2']);
+    });
+    it('mcdonalds without the apostrophe finds McDonald’s', async () => {
+      const big = await withRows(MCD);
+      expect(ids(searchProducts(big, 'mcdonalds big mac'))).toEqual(['m:5']);
+    });
+    it('double quarterpounder finds Dobbel Quarter Pounder first', async () => {
+      const big = await withRows(MCD);
+      expect(ids(searchProducts(big, 'double quarterpounder'))).toEqual(['m:4']);
+      expect(ids(searchProducts(big, 'quarterpounder')).sort()).toEqual(['m:3', 'm:4']);
+    });
+    it('a query that finds 3 or more is left exactly as it was', async () => {
+      const big = await withRows(MCD);
+      expect(ids(searchProducts(big, 'wrap')).sort()).toEqual(['w:1', 'w:2', 'w:3']);
+    });
+    it('still finds nothing when no word comes close', async () => {
+      const big = await withRows(MCD);
+      expect(searchProducts(big, 'qwertyuiop')).toEqual([]);
+    });
+  });
 });
 
 describe('getProduct resolves ids in the contract order', () => {
