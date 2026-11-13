@@ -89,11 +89,12 @@ function syncFields(at: Date): SyncFields {
   return { id: uuidv7(at.getTime()), created_at: now, updated_at: now, deleted_at: null };
 }
 
-/** Units the portion screen offers for a food: its own unit first, then g, then serving/piece when serving_g is known. */
+/** Units the portion screen offers for a food: its own unit first, then g, then serving when serving_g is known.
+ * Only one serving button: piece would be the same serving_g again. Old entries logged in pieces still read as before. */
 export function unitsFor(food: { per_100_unit: Per100Unit; serving_g: number | null }): AmountUnit[] {
   if (food.per_100_unit === 'portion') return ['portion'];
   const units: AmountUnit[] = food.per_100_unit === 'ml' ? ['ml', 'g'] : ['g'];
-  if (food.serving_g !== null) units.push('serving', 'piece');
+  if (food.serving_g !== null) units.push('serving');
   return units;
 }
 
