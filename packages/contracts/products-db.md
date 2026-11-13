@@ -105,6 +105,16 @@ order by bm25(products_fts), length(p.search_text), p.id limit 500;
 
    The vocabulary table is not in the file and does not need to be: create it per connection in the temp schema (`create virtual table if not exists temp.products_vocab using fts5vocab(main, products_fts, row)`), which works on a read-only database, and read it only when a correction is possible (`where term >= first and term < next character`).
 
+7. **Fuzzy search** (Max, 2026-11-14, decision 43; built on the web first, iOS must match; cases in `packages/contracts/search/fuzzy.json`, word pairs in `search/synonyms.json`). Only when steps 4 and 6 together found fewer than 3 products. Then each query token gets a list of alternatives, in this order, without repeats:
+   - the token itself, then its synonyms (both directions of `synonyms.json`) that the vocabulary holds;
+   - only when the token has 4 or more characters, holds no number and matches fewer than 3 products on its own:
+     - its step 6 correction, then that word's synonyms;
+     - the token without its first character, if the vocabulary holds that word (a stray key: `odouble` → `double`), then its synonyms;
+     - a split into two words: the longest first part that is a whole vocabulary term, with a rest that is a whole term, or 3 or more characters that start a term (`quarterpounder` → `quarter` + `pounder`, `mcdonalds` → `mcdonald` + `s`, because the index splits `McDonald's` at the apostrophe);
+   - for a token of 4 or more characters without a number: up to 5 vocabulary terms that hold it but do not start with it, at most 6 characters longer, hold no number, most products first, then lowest by code point (`wrap` → `mcwrap`).
+
+   Query FTS5 with each token's alternatives joined by `OR` and the tokens joined by `AND`; a split alternative is its two words joined by `AND`, with the step 4 prefixes on every word: `("mcdonlads"* OR "mcdonald"*) AND ("wrap"* OR "mcwrap"*)`. Explicit `AND` is needed next to brackets. Rank the new rows with step 5, whole-word matches counted against every alternative word, and **show them after everything steps 4 and 6 found**. If no token has more than itself, skip the query. The whole vocabulary is read once per connection from the same temp `fts5vocab` table (about 100 ms on the 60,000-product file, then cached).
+
 The FTS table is `products_fts(search_text)` with the `unicode61` tokenizer and prefix indexes for 2 and 3 characters.
 
 What `search_text` contains: normalised name, brand and flavour. It does not contain `pack_size` or the category, so `tine melk 1l` returns nothing.

@@ -51,7 +51,7 @@ export function editDistance(a: string, b: string, limit: number): number | null
   return d <= limit ? d : null;
 }
 
-function compareCodePoints(a: string, b: string): number {
+export function compareCodePoints(a: string, b: string): number {
   const s = [...a];
   const t = [...b];
   for (let i = 0; i < Math.min(s.length, t.length); i++) {
@@ -65,7 +65,8 @@ function firstCharacter(text: string): string {
   return String.fromCodePoint(text.codePointAt(0) as number);
 }
 
-function chooseCorrection(token: string, ownMatches: number, terms: readonly VocabTerm[]): string | null {
+/** The best correction of one token among 	erms (rules of step 6), or null. Also used by fuzzy search (step 7). */
+export function correctToken(token: string, ownMatches: number, terms: readonly VocabTerm[]): string | null {
   const limit = maxEdits([...token].length);
   const first = firstCharacter(token);
   let best: { term: string; docs: number; distance: number } | null = null;
@@ -100,7 +101,7 @@ export function correctTokens(
     if ([...token].length < MIN_LENGTH || HAS_NUMBER.test(token)) return token;
     const own = tokenMatches(token);
     if (own >= TYPO_MIN_MATCHES) return token;
-    const correction = chooseCorrection(token, own, vocabulary(firstCharacter(token)));
+    const correction = correctToken(token, own, vocabulary(firstCharacter(token)));
     if (correction === null) return token;
     changed = true;
     return correction;

@@ -4,6 +4,7 @@
 import { canonicalEan } from './barcode';
 import { NUTRIENTS, type Nutrient } from '../domain/nutrients';
 import { tokenise } from '../domain/normalise';
+import { fuzzyGroups, type Alternative } from '../domain/fuzzy';
 import { correctTokens, TYPO_MIN_MATCHES, type VocabTerm } from '../domain/typos';
 import type { Sql } from './sql';
 
@@ -241,6 +242,25 @@ function vocabulary(sql: Sql, first: string): VocabTerm[] {
   ).map((r) => ({ term: r.term, docs: r.doc }));
 }
 
+/** Every FTS vocabulary term, read once per connection (fuzzy search needs words that contain the token). */
+const fullVocabulary = new WeakMap<Sql, VocabTerm[]>();
+function allVocabulary(sql: Sql): VocabTerm[] {
+  let terms = fullVocabulary.get(sql);
+  if (!terms) {
+    sql.run('create virtual table if not exists temp.products_vocab using fts5vocab(main, products_fts, row)');
+    terms = sql.all<{ term: string; doc: number }>('select term, doc from temp.products_vocab').map((r) => ({ term: r.term, docs: r.doc }));
+    fullVocabulary.set(sql, terms);
+  }
+  return terms;
+}
+
+/** FTS5 MATCH text for step 7: the alternatives of a token joined by OR, the tokens by AND. */
+function fuzzyMatch(groups: readonly (readonly Alternative[])[]): string {
+  return groups
+    .map((alts) => `(${alts.map((alt) => (alt.length === 1 ? matchTokens(alt) : `(${alt.map((a) => matchTokens([a])).join(' AND ')})`)).join(' OR ')})`)
+    .join(' AND ');
+}
+
 /** How many products a token alone matches, capped at TYPO_MIN_MATCHES: more than that is never needed. */
 function tokenMatches(sql: Sql, token: string): number {
   return (
@@ -268,6 +288,15 @@ export function searchProducts(sql: Sql, query: string, limit = 20, popularity?:
     const seen = new Set(rows.map((r) => String(r.id)));
     const added = matchingRows(sql, matchTokens(corrected), popularity).filter((r) => !seen.has(String(r.id)));
     found.push(...rank(added, corrected, popularity));
+  }
+  if (found.length < TYPO_MIN_MATCHES) {
+    // Step 7: split, contained and translated words, after everything the steps before found.
+    const groups = fuzzyGroups(tokens, (t) => tokenMatches(sql, t), allVocabulary(sql));
+    if (groups.some((g) => g.length > 1)) {
+      const seen = new Set(found.map((r) => String(r.id)));
+      const added = matchingRows(sql, fuzzyMatch(groups), popularity).filter((r) => !seen.has(String(r.id)));
+      found.push(...rank(added, [...new Set(groups.flat(2))], popularity));
+    }
   }
   return found.slice(0, limit).map(toProduct);
 }
