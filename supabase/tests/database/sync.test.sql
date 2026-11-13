@@ -1,7 +1,7 @@
 -- Sync backend (#34): the 7 synced tables, the write trigger, sync_push and sync_pull.
 -- The rules under test are in docs/SYNC.md and packages/contracts/log-schema.md (v1).
 begin;
-select plan(88);
+select plan(90);
 
 -- ---------------------------------------------------------------------------
 -- Helpers (rolled back with the test)
@@ -188,6 +188,10 @@ select is((select num_nonnulls(kcal_total, protein_g_total, fat_g_total, sat_fat
   from public.log_entries where id = tests.v7(41)::uuid), 0, 'all 8 totals stay NULL when the per-100 values are unknown, and a pushed total is ignored');
 select tests.put('log_entries', tests.row('log_entries', tests.v7(40), '2026-10-20T09:00:00.000Z', '{"grams": 200, "quantity": 200}'));
 select is((select kcal_total from public.log_entries where id = tests.v7(40)::uuid), 120::double precision, 'editing grams recomputes the totals');
+-- Decision 42: a food stored per portion. 2 portions of a 621 kcal Whopper: grams = 200, so the total is 1242 kcal.
+select is(tests.push('log_entries', tests.row('log_entries', tests.v7(42), '2026-10-20T08:00:00.000Z',
+  '{"quantity": 2, "unit": "portion", "grams": 200, "per_100_unit": "portion", "kcal": 621}')) ->> 'status', 'applied', 'a per-portion entry is accepted');
+select is((select kcal_total from public.log_entries where id = tests.v7(42)::uuid), 1242::double precision, 'per-portion total = printed value times portions');
 
 -- nutrition/portion.json (packages/contracts, #51), copied unchanged until a runner reads the file.
 create temp table portion_cases on commit drop as

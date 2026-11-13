@@ -156,6 +156,8 @@ describe('unitsFor', () => {
   it('offers g, ml only for a drink, and piece/serving only with serving_g', () => {
     expect(unitsFor(skyr)).toEqual(['g', 'serving', 'piece']);
     expect(unitsFor({ ...skyr, per_100_unit: 'ml', serving_g: null })).toEqual(['ml', 'g']);
+    // A food stored per portion (decision 42) is logged in portions only, never in grams.
+    expect(unitsFor({ ...skyr, per_100_unit: 'portion', serving_g: null })).toEqual(['portion']);
   });
 });
 

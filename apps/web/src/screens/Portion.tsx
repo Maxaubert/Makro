@@ -120,7 +120,7 @@ function PortionForm({ food }: { food: Food }) {
   }
 
   const unitLabel = (u: AmountUnit) =>
-    u === 'serving' ? `Serving ${formatNumber(p.serving_g, 0)} g` : u === 'piece' ? `Piece ${formatNumber(p.serving_g, 0)} g` : u === 'ml' ? 'Millilitres' : 'Grams';
+    u === 'portion' ? 'Portion' : u === 'serving' ? `Serving ${formatNumber(p.serving_g, 0)} g` : u === 'piece' ? `Piece ${formatNumber(p.serving_g, 0)} g` : u === 'ml' ? 'Millilitres' : 'Grams';
 
   const customHref = withDay(`${href('custom')}?name=${encodeURIComponent(p.name)}&brand=${encodeURIComponent(p.brand ?? '')}&ean=${encodeURIComponent(p.ean ?? '')}`, day);
 
@@ -159,7 +159,7 @@ function PortionForm({ food }: { food: Food }) {
             onFocus={(e) => e.currentTarget.select()}
             onChange={(e) => setQty(e.target.value)}
           />
-          <span className="text-[22px] font-medium text-secondary">{unit === 'serving' ? (quantity === 1 ? 'serving' : 'servings') : unit === 'piece' ? (quantity === 1 ? 'piece' : 'pieces') : unit}</span>
+          <span className="text-[22px] font-medium text-secondary">{unit === 'portion' ? (quantity === 1 ? 'portion' : 'portions') : unit === 'serving' ? (quantity === 1 ? 'serving' : 'servings') : unit === 'piece' ? (quantity === 1 ? 'piece' : 'pieces') : unit}</span>
         </div>
         {(unit === 'serving' || unit === 'piece') && grams !== null && <div className="num text-[13px] text-secondary">{formatNumber(grams, 0)} g</div>}
         {unit === 'ml' && <div className="text-[13px] text-secondary">About {formatNumber(grams, 0)} g (1 ml counted as 1 g)</div>}

@@ -6,7 +6,7 @@ import { useDeferredValue, useState, type FormEvent, type ReactNode } from 'reac
 import { BARCODE_LENGTHS, canonicalEan } from '../../data/barcode';
 import { resolveBarcode, type BarcodeResult } from '../../data/barcodeResult';
 import type { RecentFood, SavedMeal } from '../../data/logStore';
-import { productSubtext, type Product } from '../../data/products';
+import { productSubtext, type Per100Unit, type Product } from '../../data/products';
 import { roundForDisplay } from '../../domain/display';
 import { buildFavourite, buildLogEntry, MEALS, mealTimeOn, parseQuantity, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../../domain/entry';
 import { formatNumber } from '../../domain/format';
@@ -43,7 +43,7 @@ interface Row {
   protein_g: number | null;
   carbs_g: number | null;
   fat_g: number | null;
-  unit: 'g' | 'ml';
+  unit: Per100Unit;
 }
 
 function productRow(p: Product): Row {
@@ -95,7 +95,7 @@ function VerifiedText({ verified }: { verified: boolean | null }) {
 function FoodRow({ row, selected, onPick }: { row: Row; selected: boolean; onPick: () => void }) {
   const blank = row.kcal === null && row.protein_g === null && row.carbs_g === null && row.fat_g === null;
   const macro = (v: number | null) => <span className="num text-right text-secondary">{blank ? '' : formatNumber(v, 1)}</span>;
-  const sub = [row.sub, row.unit === 'ml' ? 'per 100 ml' : null].filter(Boolean).join(' · ');
+  const sub = [row.sub, row.unit === 'ml' ? 'per 100 ml' : row.unit === 'portion' ? 'per portion' : null].filter(Boolean).join(' · ');
   return (
     <li>
       <button
@@ -534,7 +534,7 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
     }
   }
 
-  const unitLabel = (u: AmountUnit) => (u === 'serving' ? `Serving ${formatNumber(p.serving_g, 0)} g` : u === 'piece' ? `Piece ${formatNumber(p.serving_g, 0)} g` : `100 ${u}`);
+  const unitLabel = (u: AmountUnit) => (u === 'portion' ? 'Portion' : u === 'serving' ? `Serving ${formatNumber(p.serving_g, 0)} g` : u === 'piece' ? `Piece ${formatNumber(p.serving_g, 0)} g` : `100 ${u}`);
   // Whole packs in the food's own unit, from the sizes the product file lists.
   const packs = 'pack_size' in p ? packAmounts(p.pack_size, p.per_100_unit) : [];
   const pickPack = (amount: number) => {
@@ -616,7 +616,7 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
               <Icon name="plus" size={18} stroke={2.4} />
             </button>
           </div>
-          {!byWeight && grams !== null && <div className="num mt-1.5 text-center text-[13px] text-secondary">{formatNumber(grams, 0)} g</div>}
+          {!byWeight && unit !== 'portion' && grams !== null && <div className="num mt-1.5 text-center text-[13px] text-secondary">{formatNumber(grams, 0)} g</div>}
           {unit === 'ml' && <div className="mt-1.5 text-center text-[12px] text-secondary">About {formatNumber(grams, 0)} g (1 ml counted as 1 g)</div>}
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {units.map((u) => (

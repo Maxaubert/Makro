@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Grams resolution: the amount the user entered (quantity + unit) to the grams stored on a log entry (packages/contracts/log-schema.md, log_entries.grams). Rule per unit: g = quantity as entered; ml = quantity, 1 ml = 1 g, and approximate is true so the UI marks it as approximate; piece and serving = quantity * serving_g. When serving_g is null, piece and serving cannot be resolved: grams is null, the app must ask for a weight instead and never guess a serving size. serving_g is ignored for g and ml. Unrounded results, compared with the README tolerance. Any other unit is an error, not a case.",
+  "description": "Grams resolution: the amount the user entered (quantity + unit) to the grams stored on a log entry (packages/contracts/log-schema.md, log_entries.grams). Rule per unit: g = quantity as entered; ml = quantity, 1 ml = 1 g, and approximate is true so the UI marks it as approximate; piece and serving = quantity * serving_g. When serving_g is null, piece and serving cannot be resolved: grams is null, the app must ask for a weight instead and never guess a serving size. serving_g is ignored for g and ml. Unrounded results, compared with the README tolerance. Any other unit is an error, not a case. portion (decision 42): for a food stored per portion (per_100_unit portion), grams holds 100 per portion, so the totals kcal * grams / 100 equal the printed per-portion values times the number of portions. It is not a weight and the UI never shows it as grams. serving_g is ignored.",
   "cases": [
     {
       "id": "grams-g-as-entered",
@@ -66,6 +66,18 @@
       "id": "grams-zero-g",
       "input": { "quantity": 0, "unit": "g", "serving_g": null },
       "expected": { "grams": 0, "approximate": false }
+    },
+    {
+      "id": "grams-portion-one",
+      "input": { "quantity": 1, "unit": "portion", "serving_g": null },
+      "expected": { "grams": 100, "approximate": false },
+      "note": "One Whopper: 100 units, so 621 kcal per portion * 100 / 100 = 621."
+    },
+    {
+      "id": "grams-portion-half",
+      "input": { "quantity": 0.5, "unit": "portion", "serving_g": 200 },
+      "expected": { "grams": 50, "approximate": false },
+      "note": "Half a portion; serving_g is ignored."
     }
   ]
 }

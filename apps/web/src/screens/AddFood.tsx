@@ -3,7 +3,7 @@
 // meals. Never a dead end: "Add custom" is always there (rule 5).
 import { useDeferredValue, useState } from 'react';
 import type { SavedMeal } from '../data/logStore';
-import { productSubtext, type Product } from '../data/products';
+import { perLabel, productSubtext, type Per100Unit, type Product } from '../data/products';
 import type { CustomFoodRow } from '../domain/entry';
 import { normalise } from '../domain/normalise';
 import { formatNumber } from '../domain/format';
@@ -23,7 +23,7 @@ interface Row {
   sourceName: string;
   verified: boolean | null;
   kcal: number | null;
-  unit: 'g' | 'ml';
+  unit: Per100Unit;
 }
 
 function productRow(p: Product): Row {
@@ -151,7 +151,7 @@ export function AddFood() {
                 ) : (
                   <>
                     <div className="num text-lg font-bold">{formatNumber(r.kcal, 0)}</div>
-                    <div className="text-[11px] text-secondary">kcal / 100 {r.unit}</div>
+                    <div className="text-[11px] text-secondary">kcal / {perLabel(r.unit)}</div>
                   </>
                 )}
               </div>

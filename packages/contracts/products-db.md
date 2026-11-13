@@ -26,7 +26,7 @@ One row per visible product. A product is in the file only if it is Norway-relev
 | `flavour` | text | yes | |
 | `category` | text | yes | One of the 21 food categories below (assigned by a model, can be wrong) |
 | `serving_g` | real | yes | One serving in grams |
-| `per_100_unit` | text | no | `g` or `ml`. What the per-100 values below are per. Set from the label or the pack size, never from the category (a Barebells can is a `protein_bar`, but its pack size tells you the unit). Logging a liquid in ml uses 1 ml = 1 g and shows it as approximate. |
+| `per_100_unit` | text | no | `g`, `ml` or `portion`. `portion` (decision 42): the nutrient columns hold the values per one portion as printed, for a restaurant item whose source prints no weight (Burger King Norway); it is logged in portions only, never in grams, and kept out of rankings that compare per-100 values. Otherwise `g` or `ml`. What the per-100 values below are per. Set from the label or the pack size, never from the category (a Barebells can is a `protein_bar`, but its pack size tells you the unit). Logging a liquid in ml uses 1 ml = 1 g and shows it as approximate. |
 | `source` | text | no | Slug of where the numbers come from. Joins to `sources.slug`. Show it (accuracy rule 4). |
 | `verified` | integer | no | 0 or 1, computed by the builder (see Verified). Show it with the source (accuracy rule 4). |
 | `status` | text | yes | `from_source` or `derived` |
