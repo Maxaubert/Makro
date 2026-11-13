@@ -16,9 +16,7 @@ function PhoneSignIn({ flow }: { flow: SignInFlow }) {
     <Page>
       <div className="flex flex-1 flex-col justify-center gap-6 py-10">
         <div>
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-2xl font-bold text-ground" aria-hidden="true">
-            M
-          </span>
+          <img src="/icon.svg" alt="" className="h-12 w-12" aria-hidden="true" />
           <h1 className="mt-5 text-[28px] font-bold tracking-[-0.02em]">Sign in to Makro</h1>
           <p className="mt-1 text-secondary">Your log syncs between your phone and this browser.</p>
         </div>

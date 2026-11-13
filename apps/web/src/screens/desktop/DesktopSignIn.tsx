@@ -12,11 +12,9 @@ const PILL_FIELD =
 export function DesktopSignIn({ flow }: { flow: SignInFlow }) {
   const { email, setEmail, code, setCode, step, setStep, busy, error, sendCode, verify } = flow;
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(circle_at_50%_30%,#2A1308_0%,#000000_62%)] [line-height:normal]">
+    <div className="flex min-h-dvh items-center justify-center bg-ground [line-height:normal]">
       <div className="w-[420px] text-center">
-        <span className="inline-flex h-[72px] w-[72px] items-center justify-center rounded-[22px] bg-accent text-[40px] font-bold text-ground" aria-hidden="true">
-          M
-        </span>
+        <img src="/icon.svg" alt="" className="inline-block h-[72px] w-[72px]" aria-hidden="true" />
         <h1 className="mt-[22px] text-[36px] font-bold tracking-[-1px]">Sign in to Makro</h1>
         <p className="mt-2 text-[15px] text-secondary">Your log syncs between your phone and this browser.</p>
 

@@ -99,7 +99,7 @@ export function Onboarding({ hasConsent, hasGoal }: { hasConsent: boolean; hasGo
       <Page>
         <Progress step="welcome" back={null} />
         <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <div className="flex h-28 w-28 items-center justify-center rounded-[32px] bg-accent text-[64px] font-bold text-ground">M</div>
+          <img src="/icon.svg" alt="" className="h-28 w-28" aria-hidden="true" />
           <h1 className="mt-8 text-[40px] font-bold leading-none tracking-[-0.03em]">Makro</h1>
           <p className="mt-3 text-lg text-secondary">Log food in seconds.</p>
         </div>
