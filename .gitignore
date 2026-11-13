@@ -25,3 +25,6 @@ Secrets.xcconfig
 .vscode/
 .idea/
 node_modules/
+__pycache__/
+# Python
+*.pyc

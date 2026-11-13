@@ -39,5 +39,6 @@ Every test suite in the repo: what it guards, where it lives, how to run it. Ext
 |---|---|---|
 | Swift package tests (Swift Testing, `swift test`) | Domain logic, maths, search normalisation, persistence | #21 |
 | Golden files | Portion maths, totals with unknowns, display rounding, goal maths (web now, Swift when iOS is built); search normalisation (Swift and Python); search results and typo correction (Swift, typos on the web now) | #32 |
-| Voice test set | Product and quantity accuracy of voice logging (90% gate) | #35 |
+| Voice scorer (unittest) | The scorer that measures the 90% voice gate: one-to-one item matching, units, ranges, ask items, missing output, the gate on real lines, the stress set and the breakdown | `eval/voice/test_score.py` | `python -I -m unittest discover -s eval/voice` | GitHub Actions on PRs touching `eval/` |
+| Voice test set (the real lines) | Product and quantity accuracy of voice logging, 90% gate. 6 real lines and an 81-line synthetic stress set exist; the gate needs 100 to 200 real lines | #35 |
 | App UI tests | Core flows on the simulator | #21 |
