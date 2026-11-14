@@ -125,7 +125,19 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
 
   // Skyr: 11 g protein and 62 kcal per 100 g, so 11 g on day one and 22 g on day two, which averages 16.5 and shows as 17.
   // The ring: protein average 17 g, calories 93 kcal. Under 5 g a day of carbs or fat, the splits are not drawn.
-  await expect(page.getByTestId('ring-protein')).toContainText('17');
+  // The numbers are in tooltips: a tap on a ring segment shows protein 17 g, a second tap hides it.
+  // Aim at the arc itself (upper right), not the empty middle of the ring.
+  const onArc = { position: { x: 117, y: 33 } };
+  await page.getByTestId('ring-seg-protein').tap(onArc);
+  await expect(page.getByTestId('ring-tip-protein')).toContainText('17 g');
+  await page.getByTestId('ring-seg-protein').tap(onArc);
+  await expect(page.getByTestId('ring-tip-protein')).toHaveCount(0);
+  // Carbs are 6 g a day, enough for the fast/slow split; skyr's carbs are all sugars, so it is all fast.
+  await page.getByTestId('split-sugars-part').tap();
+  await expect(page.getByTestId('split-sugars-tip')).toContainText('Fast carbs 6 g');
+  await page.getByTestId('ring-seg-protein').tap(onArc);
+  await shot(page, 'ring-tooltips');
+  await page.getByTestId('ring-seg-protein').tap(onArc);
   await expect(page.getByTestId('ring-kcal')).toHaveText('93');
   await expect(page.getByTestId('split-sat-fat')).toHaveCount(0);
   const week = page.getByTestId('weekly-average');
