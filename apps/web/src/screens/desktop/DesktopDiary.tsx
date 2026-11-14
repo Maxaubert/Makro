@@ -274,7 +274,8 @@ function DayList({
           const summary = listed ? dayRowSummary(listed.filter((e) => e.local_date === d), goals?.[i]?.kcal_target ?? null) : null;
           const kcal = summary ? formatTotal(summary.kcal, 0) : null;
           const logged = summary !== null && summary.kcal.count > 0;
-          const bar = summary?.over ? 'bg-accent-2' : selected || d >= yesterday ? 'bg-accent' : 'bg-strong';
+          // Over the target is not singled out: no light orange and no "over" label (Max, 2026-11-14).
+          const bar = selected || d >= yesterday ? 'bg-accent' : 'bg-strong';
           return (
             <a
               key={d}
@@ -293,7 +294,7 @@ function DayList({
                 {/* A fixed line height, so a row is as tall before its numbers are read as after. */}
                 <div className="flex h-[17px] items-center justify-between gap-1 whitespace-nowrap text-[13px]">
                   {logged && kcal ? <span className="num font-semibold">{withUnknown(kcal)} kcal</span> : <span className="text-secondary">{summary ? 'Not logged' : ''}</span>}
-                  <span className="text-secondary">{d === now ? 'Today' : summary?.over ? 'over' : ''}</span>
+                  <span className="text-secondary">{d === now ? 'Today' : ''}</span>
                 </div>
                 <div className="mt-2 h-1.5 rounded-[3px] bg-border">
                   <div className={`h-1.5 rounded-[3px] ${bar}`} style={{ width: `${summary?.pct ?? 0}%` }} />
@@ -401,10 +402,10 @@ function DayCard({
         </span>
       </div>
 
-      {/* One bar for the day against the target, not split by meal (Max, 2026-11-14). Over the target it turns light orange. */}
+      {/* One bar for the day against the target, not split by meal and not recoloured when over (Max, 2026-11-14). */}
       <div className="mt-4 h-2.5 overflow-hidden rounded-[5px] bg-border" data-testid="day-kcal-bar">
         <div
-          className={`h-2.5 rounded-[5px] ${goal && (totals.kcal.value ?? 0) > goal.kcal_target ? 'bg-accent-2' : 'bg-accent'}`}
+          className="h-2.5 rounded-[5px] bg-accent"
           style={{ width: `${Math.min(100, ((totals.kcal.value ?? 0) / barWhole) * 100)}%` }}
         />
       </div>
