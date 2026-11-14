@@ -29,8 +29,8 @@ function complete(week: WeeklyAverage, key: string): number | null {
   return m && m.average !== null && m.covered === m.count ? m.average : null;
 }
 
-/** Which part the tooltip is for, and the screen point it sits next to. */
-type TipAt<T> = { k: T; x: number; y: number };
+/** Which part the tooltip is for, the screen point it sits next to, and what put it there. */
+type TipAt<T> = { k: T; x: number; y: number; by: 'mouse' | 'touch' | 'key' };
 
 /**
  * A mouse shows the tooltip on hover and it follows the cursor; a finger or pen toggles it with a tap,
@@ -40,17 +40,20 @@ type TipAt<T> = { k: T; x: number; y: number };
 function useTip<T extends string>() {
   const [tip, setTip] = useState<TipAt<T> | null>(null);
   const clear = (k: T) => setTip((t) => (t?.k === k ? null : t));
+  const atMouse = (k: T) => (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse') setTip({ k, x: e.clientX, y: e.clientY, by: 'mouse' });
+  };
   const handlers = (k: T) => ({
-    onPointerEnter: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') setTip({ k, x: e.clientX, y: e.clientY }); },
-    onPointerMove: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') setTip({ k, x: e.clientX, y: e.clientY }); },
+    onPointerEnter: atMouse(k),
+    onPointerMove: atMouse(k),
     onPointerLeave: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') clear(k); },
     onPointerUp: (e: React.PointerEvent) => {
-      if (e.pointerType !== 'mouse') setTip((t) => (t?.k === k ? null : { k, x: e.clientX, y: e.clientY }));
+      if (e.pointerType !== 'mouse') setTip((t) => (t?.k === k ? null : { k, x: e.clientX, y: e.clientY, by: 'touch' }));
     },
     onFocus: (e: React.FocusEvent) => {
       if (!(e.target as Element).matches(':focus-visible')) return;
       const r = (e.target as Element).getBoundingClientRect();
-      setTip({ k, x: r.left + r.width / 2, y: r.top });
+      setTip({ k, x: r.left + r.width / 2, y: r.top, by: 'key' });
     },
     onBlur: () => clear(k),
     onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Escape') clear(k); },
@@ -58,36 +61,48 @@ function useTip<T extends string>() {
   return [tip, handlers] as const;
 }
 
-/** Gap between the pointer and the tooltip, and the margin it keeps from the window edge. */
-const TIP_GAP = 14;
+/** How far the card stays from the cursor tip, from a finger, and from the window edge. */
+const MOUSE_GAP = 6;
+const FINGER_GAP = 28;
 const EDGE = 8;
 
 /**
- * The tooltip card. It goes to document.body (so no card clips it) and sits above and right of the
- * pointer; near the window edge it flips to the other side.
+ * The tooltip card. It goes to document.body (so no card clips it).
+ * Mouse: its lower-left corner sits right at the cursor tip, so the card hugs the cursor without the
+ * arrow covering it; near the right or top edge it flips to the other side.
+ * Touch and keyboard: centred above the point, clear of the finger.
  */
-function Tip({ at, children, testId }: { at: { x: number; y: number }; children: React.ReactNode; testId: string }) {
+function Tip({ at, children, testId }: { at: { x: number; y: number; by: 'mouse' | 'touch' | 'key' }; children: React.ReactNode; testId: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    let left = at.x + TIP_GAP;
-    if (left + w > window.innerWidth - EDGE) left = at.x - TIP_GAP - w;
-    let top = at.y - TIP_GAP - h;
-    if (top < EDGE) top = at.y + TIP_GAP + 6;
-    el.style.left = `${Math.max(EDGE, left)}px`;
-    el.style.top = `${Math.max(EDGE, top)}px`;
+    let left: number;
+    let top: number;
+    if (at.by === 'mouse') {
+      left = at.x + MOUSE_GAP;
+      if (left + w > window.innerWidth - EDGE) left = at.x - MOUSE_GAP - w;
+      top = at.y - MOUSE_GAP - h;
+      // No room above: go below, past the arrow of the cursor.
+      if (top < EDGE) top = at.y + 22;
+    } else {
+      const gap = at.by === 'touch' ? FINGER_GAP : MOUSE_GAP;
+      left = Math.min(at.x - w / 2, window.innerWidth - EDGE - w);
+      top = at.y - gap - h;
+      if (top < EDGE) top = at.y + gap;
+    }
+    el.style.transform = `translate(${Math.round(Math.max(EDGE, left))}px, ${Math.round(Math.max(EDGE, top))}px)`;
     el.style.visibility = 'visible';
-  }, [at.x, at.y]);
+  }, [at.x, at.y, at.by]);
   return createPortal(
     <div
       ref={ref}
       role="tooltip"
       data-testid={testId}
-      className="pointer-events-none fixed z-50 min-w-[148px] whitespace-nowrap rounded-[14px] border border-[#2A2A2D] bg-[#18181A]/95 px-3.5 py-3 text-[13px] text-[#F4F4F5] shadow-[0_12px_32px_rgba(0,0,0,0.6)] backdrop-blur-md"
-      style={{ left: 0, top: 0, visibility: 'hidden' }}
+      className="pointer-events-none fixed left-0 top-0 z-50 min-w-[128px] whitespace-nowrap rounded-xl border border-[#2A2A2D] bg-[#18181A] px-3 py-2 text-[13px] text-[#F4F4F5] shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
+      style={{ visibility: 'hidden' }}
     >
       {children}
     </div>,
@@ -109,7 +124,7 @@ function TipHead({ color, children }: { color: string; children: React.ReactNode
 function TipBar({ value, of, color }: { value: number; of: number; color: string }) {
   const pct = of > 0 ? Math.min(100, Math.max(0, (value / of) * 100)) : 0;
   return (
-    <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[#2A2A2D]">
+    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[#2A2A2D]">
       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
     </div>
   );
@@ -207,12 +222,12 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
                 return (
                   <Tip key={a.k} at={tip} testId={`ring-tip-${a.k}`}>
                     <TipHead color={MACRO_COLORS[a.k]}>{a.label}</TipHead>
-                    <div className="num mt-1 text-[22px] font-bold leading-none tracking-[-0.3px]">
+                    <div className="num mt-1 text-[18px] font-bold leading-none">
                       {gramsText(a.key)}
-                      {target !== undefined && <span className="text-[13px] font-medium text-secondary"> / {formatNumber(target, 0)} g</span>}
+                      {target !== undefined && <span className="text-[12px] font-medium text-secondary"> / {formatNumber(target, 0)} g</span>}
                     </div>
                     {target !== undefined && grams !== null && <TipBar value={grams} of={target} color={MACRO_COLORS[a.k]} />}
-                    <div className="num mt-2 text-[12px] text-secondary">{shares?.[a.k]}% of calories</div>
+                    <div className="num mt-1.5 text-[12px] text-secondary">{shares?.[a.k]}% of calories</div>
                   </Tip>
                 );
               })}
@@ -288,12 +303,12 @@ function Split({ label, part, whole, partName, partTerm, restName, restTerm, col
             .map((s) => (
               <Tip key={s.k} at={tip} testId={`${testId}-tip`}>
                 <TipHead color={s.bg}>{s.name}</TipHead>
-                <div className="num mt-1 text-[22px] font-bold leading-none tracking-[-0.3px]">
+                <div className="num mt-1 text-[18px] font-bold leading-none">
                   {formatNumber(s.grams, 0)} g
-                  <span className="text-[13px] font-medium text-secondary"> of {formatNumber(whole, 0)} g</span>
+                  <span className="text-[12px] font-medium text-secondary"> of {formatNumber(whole, 0)} g</span>
                 </div>
                 <TipBar value={s.grams} of={whole} color={s.bg} />
-                <div className="mt-2 text-[12px] text-secondary">
+                <div className="mt-1.5 text-[12px] text-secondary">
                   {s.term.charAt(0).toUpperCase() + s.term.slice(1)} · <span className="num">{s.k === 'part' ? pct : 100 - pct}%</span>
                 </div>
               </Tip>

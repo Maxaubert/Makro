@@ -147,6 +147,15 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   };
   await page.mouse.move(...onRing(40));
   const tipA = await page.getByTestId('ring-tip-protein').boundingBox();
+  // The card hugs the cursor: its lower-left corner is a few px up and right of the cursor tip.
+  {
+    const [cx, cy] = onRing(40);
+    const box = await page.getByTestId('ring-tip-protein').boundingBox();
+    if (!box) throw new Error('no tooltip');
+    const nearX = Math.abs(box.x - cx) <= 10 || Math.abs(box.x + box.width - cx) <= 10;
+    const nearY = Math.abs(box.y + box.height - cy) <= 10 || Math.abs(box.y - cy) <= 30;
+    expect(nearX && nearY, JSON.stringify({ cx, cy, box })).toBe(true);
+  }
   await page.mouse.move(...onRing(150));
   await expect.poll(async () => (await page.getByTestId('ring-tip-protein').boundingBox())?.y).toBeGreaterThan((tipA?.y ?? 0) + 40);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/ring-tooltip-hover.png`, clip: { x: ring.x - 120, y: ring.y - 120, width: 400, height: 360 } });
