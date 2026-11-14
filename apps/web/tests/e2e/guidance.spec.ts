@@ -134,7 +134,24 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   await expect(page.getByTestId('ring-tip-protein')).toHaveCount(0);
   // Carbs are 6 g a day, enough for the fast/slow split; skyr's carbs are all sugars, so it is all fast.
   await page.getByTestId('split-sugars-part').tap();
-  await expect(page.getByTestId('split-sugars-tip')).toContainText('Fast carbs 6 g');
+  await expect(page.getByTestId('split-sugars-tip')).toContainText('Fast carbs');
+  await expect(page.getByTestId('split-sugars-tip')).toContainText('6 g of 6 g');
+  await page.getByTestId('split-sugars-part').tap();
+  // A mouse: the tooltip shows on hover and follows the cursor along the arc.
+  // Protein is about 73% of the calories, so its arc runs clockwise from the top to about 263 degrees.
+  const ring = await page.getByTestId('macro-ring').locator('svg').boundingBox();
+  if (!ring) throw new Error('no ring');
+  const onRing = (deg: number) => {
+    const a = (deg * Math.PI) / 180;
+    return [ring.x + ring.width / 2 + 60 * Math.sin(a), ring.y + ring.height / 2 - 60 * Math.cos(a)] as const;
+  };
+  await page.mouse.move(...onRing(40));
+  const tipA = await page.getByTestId('ring-tip-protein').boundingBox();
+  await page.mouse.move(...onRing(150));
+  await expect.poll(async () => (await page.getByTestId('ring-tip-protein').boundingBox())?.y).toBeGreaterThan((tipA?.y ?? 0) + 40);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/ring-tooltip-hover.png`, clip: { x: ring.x - 120, y: ring.y - 120, width: 400, height: 360 } });
+  await page.mouse.move(0, 0);
+  await expect(page.getByTestId('ring-tip-protein')).toHaveCount(0);
   await page.getByTestId('ring-seg-protein').tap(onArc);
   await shot(page, 'ring-tooltips');
   await page.getByTestId('ring-seg-protein').tap(onArc);
