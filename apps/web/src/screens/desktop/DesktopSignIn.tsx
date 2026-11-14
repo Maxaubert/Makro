@@ -16,8 +16,6 @@ export function DesktopSignIn({ flow }: { flow: SignInFlow }) {
       <div className="w-[420px] text-center">
         <img src="/icon.svg" alt="" className="inline-block h-[72px] w-[72px]" aria-hidden="true" />
         <h1 className="mt-[22px] text-[36px] font-bold tracking-[-1px]">Sign in to Makro</h1>
-        <p className="mt-2 text-[15px] text-secondary">Your log syncs between your phone and this browser.</p>
-
         {step === 'email' ? (
           <form onSubmit={sendCode} className="mt-8 flex flex-col gap-3">
             <label htmlFor="email" className="sr-only">

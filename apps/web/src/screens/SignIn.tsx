@@ -17,9 +17,7 @@ function PhoneSignIn({ flow }: { flow: SignInFlow }) {
       <div className="flex flex-1 flex-col justify-center gap-6 py-10">
         <div>
           <img src="/icon.svg" alt="" className="h-12 w-12" aria-hidden="true" />
-          <h1 className="mt-5 text-[28px] font-bold tracking-[-0.02em]">Sign in to Makro</h1>
-          <p className="mt-1 text-secondary">Your log syncs between your phone and this browser.</p>
-        </div>
+          <h1 className="mt-5 text-[28px] font-bold tracking-[-0.02em]">Sign in to Makro</h1>        </div>
 
         {step === 'email' ? (
           <form onSubmit={sendCode} className="flex flex-col gap-3">

@@ -7,6 +7,7 @@ import { isPlausibleWeight } from '../domain/weight';
 import { WEIGHT_RANGE_KG } from '../domain/goals';
 import { useApp } from '../lib/hooks';
 import { Icon, Notice } from '../ui/kit';
+import { Glyph } from '../ui/icons-weight-goals-profile';
 import { today } from './day';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -87,6 +88,16 @@ function Stepper({ label, icon, disabled, onClick }: { label: string; icon: 'plu
   );
 }
 
+/** Where a weigh-in came from, as an icon: a person for typed in, a heart for Apple Health. */
+export function WeightSource({ source }: { source: string }) {
+  const label = source === 'apple_health' ? 'Apple Health' : 'Added by you';
+  return (
+    <span role="img" aria-label={label} title={label} className="inline-flex text-secondary">
+      <Glyph name={source === 'apple_health' ? 'heart' : 'person'} size={16} />
+    </span>
+  );
+}
+
 export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntryRow | null; suggestedKg: number | null; onClose: () => void }) {
   const app = useApp();
   const [text, setText] = useState(() => {
@@ -145,9 +156,12 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
   return (
     <Sheet labelId="weight-sheet-title" onClose={onClose}>
       <div className="mt-3.5 flex items-center justify-between">
-        <h2 id="weight-sheet-title" className="text-xl font-bold">
-          {entry ? 'Edit weight' : 'Log weight'}
-        </h2>
+        <span className="flex items-center gap-2">
+          <h2 id="weight-sheet-title" className="text-xl font-bold">
+            {entry ? 'Edit weight' : 'Log weight'}
+          </h2>
+          {entry && <WeightSource source={entry.source} />}
+        </span>
         <span className="relative flex h-[34px] items-center rounded-full border border-border bg-raised px-3.5 text-[13px] font-semibold focus-within:border-accent-2">
           {whenLabel(at)}
           <input
@@ -187,8 +201,8 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
         <Stepper label="Plus 0.1 kg" icon="plus" disabled={kg === null} onClick={() => step(0.1)} />
       </div>
 
-      <div role="status" className={`mt-2.5 text-center text-[13px] ${invalid ? 'text-accent-2' : 'text-secondary'}`}>
-        {invalid ? `Enter a weight between ${WEIGHT_RANGE_KG.min} and ${WEIGHT_RANGE_KG.max} kg` : 'Type the number or use the steps'}
+      <div role="status" className="mt-2.5 min-h-[18px] text-center text-[13px] text-accent-2">
+        {invalid ? `Enter a weight between ${WEIGHT_RANGE_KG.min} and ${WEIGHT_RANGE_KG.max} kg` : ''}
       </div>
 
       {inFuture && (
@@ -202,12 +216,6 @@ export function WeightSheet({ entry, suggestedKg, onClose }: { entry: WeightEntr
         </div>
       )}
 
-      {entry && (
-        <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-ground px-4 py-3 text-sm">
-          <span>Source</span>
-          <span className="text-secondary">{entry.source === 'apple_health' ? 'Apple Health' : 'Added by you'}</span>
-        </div>
-      )}
 
       <div className="mt-5 flex gap-2">
         <button type="button" onClick={onClose} className="tap flex h-14 shrink-0 items-center rounded-full border border-border bg-raised px-[22px] text-[15px] font-semibold">

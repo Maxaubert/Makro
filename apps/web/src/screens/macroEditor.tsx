@@ -6,6 +6,7 @@ import { formatNumber } from '../domain/format';
 import type { GoalEvaluation } from '../domain/goalForm';
 import { setShare, sharesTotal, type MacroKey, type Shares } from '../domain/goals';
 import { Icon } from '../ui/kit';
+import { Glyph } from '../ui/icons-weight-goals-profile';
 
 export const MACROS: { key: MacroKey; name: string; dot: string }[] = [
   { key: 'protein', name: 'Protein', dot: 'bg-accent' },
@@ -78,12 +79,14 @@ export function MacroEditor({ evaluation: e, onShares, wide = false }: { evaluat
     <div>
       <SplitBar shares={shares} />
       <div className="mt-1">
-        <div className={`${grid} pb-1.5 text-[11px] font-medium uppercase tracking-[0.06em] text-faint`}>
-          <span>Macro</span>
-          <span className="text-center">Share of kcal</span>
-          <span className="text-right">Grams</span>
-          {wide && <span className="text-right">kcal</span>}
-        </div>
+        {wide && (
+          <div className={`${grid} pb-1.5 text-[11px] font-medium uppercase tracking-[0.06em] text-faint`}>
+            <span>Macro</span>
+            <span className="text-center">Share</span>
+            <span className="text-right">Grams</span>
+            <span className="text-right">kcal</span>
+          </div>
+        )}
         {MACROS.map((m) => (
           <div key={m.key} className={`${grid} items-center border-t border-border py-2.5`}>
             <span className="flex min-w-0 items-center gap-2.5">
@@ -109,8 +112,10 @@ export function MacroEditor({ evaluation: e, onShares, wide = false }: { evaluat
         </div>
       </div>
       {off && (
-        <p className="mt-2 text-[13px] font-semibold text-accent-2" role="status">
-          {total! > 100 ? `${total! - 100}% over.` : `${100 - total!}% short.`} Make it 100% to save.
+        <p className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-accent-2" role="status" title="Make it 100% to save">
+          <Glyph name="alert" size={15} />
+          {total! > 100 ? `${total! - 100}% over` : `${100 - total!}% short`}
+          <span className="sr-only">, make it 100% to save</span>
         </p>
       )}
     </div>
@@ -121,9 +126,11 @@ export function MacroEditor({ evaluation: e, onShares, wide = false }: { evaluat
 export function RepairedNote({ evaluation: e }: { evaluation: GoalEvaluation }) {
   if (e.repairedFromKcal === null) return null;
   return (
-    <p className="mt-3 rounded-2xl border border-accent/40 bg-accent-tint px-4 py-3 text-[13px] leading-relaxed">
-      Your saved macros added up to {formatNumber(Math.round(e.repairedFromKcal), 0)} kcal, not {formatNumber(Number(e.shown.kcal), 0)}. They now follow
-      your calories with the same split. Save to keep this.
+    <p className="mt-3 flex items-center gap-2 rounded-2xl border border-accent/40 bg-accent-tint px-4 py-3 text-[13px]">
+      <Glyph name="info" size={16} className="text-accent-2" />
+      <span>
+        Macros now match {formatNumber(Number(e.shown.kcal), 0)} kcal (were {formatNumber(Math.round(e.repairedFromKcal), 0)}). Save to keep.
+      </span>
     </p>
   );
 }

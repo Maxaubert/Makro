@@ -5,6 +5,7 @@ import { buildGoalChange } from '../domain/goalForm';
 import { browserTimeZone } from '../domain/localDate';
 import { useApp } from '../lib/hooks';
 import { Icon, Notice, Page, PrimaryButton, SecondaryButton } from '../ui/kit';
+import { Glyph, type GlyphName } from '../ui/icons-weight-goals-profile';
 import { DeleteAccount } from './DeleteAccount';
 import { AboutFields, GoalFields, useGoalForm } from './goalFields';
 import { PrivacyBody } from './Privacy';
@@ -28,7 +29,7 @@ function Progress({ step, back }: { step: Step; back: (() => void) | null }) {
           <span key={s} className={`h-1 flex-1 rounded-sm ${i < n ? 'bg-accent' : 'bg-border'}`} />
         ))}
       </div>
-      <span className="ml-2 text-[13px] text-secondary">{n} of {ORDER.length}</span>
+      <span className="-mr-2 h-11 w-11" />
     </div>
   );
 }
@@ -50,6 +51,15 @@ function Choice({ tag, label, on, onToggle }: { tag: string; label: ReactNode; o
         <span className="mt-0.5 block text-[15px] font-semibold leading-snug">{label}</span>
       </span>
     </button>
+  );
+}
+
+function Fact({ icon, label }: { icon: GlyphName; label: string }) {
+  return (
+    <li className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card px-2 py-3.5 text-center text-[13px] font-semibold leading-tight">
+      <Glyph name={icon} size={24} className="text-accent" />
+      {label}
+    </li>
   );
 }
 
@@ -101,7 +111,6 @@ export function Onboarding({ hasConsent, hasGoal }: { hasConsent: boolean; hasGo
         <div className="flex flex-1 flex-col items-center justify-center text-center">
           <img src="/icon.svg" alt="" className="h-28 w-28" aria-hidden="true" />
           <h1 className="mt-8 text-[40px] font-bold leading-none tracking-[-0.03em]">Makro</h1>
-          <p className="mt-3 text-lg text-secondary">Log food in seconds.</p>
         </div>
         <div className="pb-6"><PrimaryButton onClick={() => setStep('consent')}>Get started</PrimaryButton></div>
       </Page>
@@ -113,13 +122,18 @@ export function Onboarding({ hasConsent, hasGoal }: { hasConsent: boolean; hasGo
       <Page>
         <Progress step="consent" back={() => setStep('welcome')} />
         <h1 className="pt-4 text-[30px] font-bold leading-tight tracking-[-0.02em]">Your data</h1>
-        <div className="mt-4 rounded-[20px] border border-border bg-card p-4 text-[14px] leading-relaxed text-soft">
-          Weight, height, goals and what you eat can say something about your health, so Makro asks first. It is stored in the EU. You can download or delete it any time in Account.
-          <button type="button" className="mt-2.5 block font-semibold text-accent-2" onClick={() => setShowPrivacy(true)}>Read the privacy notice</button>
-        </div>
-        <div className="mt-3 flex flex-col gap-2">
-          <Choice tag="Needed to use Makro" label="Store my weight, height, goals and food log so I can track them" on={health} onToggle={() => setHealth(!health)} />
-          <Choice tag="Optional" label="Let what I log count toward which foods are popular. Only totals are shared, never who logged what" on={popular} onToggle={() => setPopular(!popular)} />
+        <ul className="mt-4 grid grid-cols-3 gap-2" aria-label="How your data is kept">
+          <Fact icon="globe" label="Stored in the EU" />
+          <Fact icon="download" label="Download any time" />
+          <Fact icon="trash" label="Delete any time" />
+        </ul>
+        <button type="button" className="tap mt-1 flex h-11 items-center gap-1.5 self-start text-[14px] font-semibold text-accent-2" onClick={() => setShowPrivacy(true)}>
+          <Glyph name="lock" size={15} />
+          Privacy notice
+        </button>
+        <div className="mt-2 flex flex-col gap-2">
+          <Choice tag="Required" label="Store my weight, height, goals and food log" on={health} onToggle={() => setHealth(!health)} />
+          <Choice tag="Optional" label="Count my logs toward popular foods (totals only, never who)" on={popular} onToggle={() => setPopular(!popular)} />
         </div>
         {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
         <div className="mt-auto flex flex-col gap-2 pb-6 pt-4">

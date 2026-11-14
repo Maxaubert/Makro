@@ -59,14 +59,14 @@ test('weight: log, trend, ranges, edit and delete', async ({ page }) => {
   await page.getByRole('link', { name: 'Weight', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Weight' })).toBeVisible();
   await expect(page.getByText('Latest')).toBeVisible();
-  await expect(page.getByText('7-day trend needs 3 weigh-ins in a week')).toBeVisible();
+  await expect(page.getByTestId('weight-trend')).toHaveText('Trend ?');
 
   // Earlier days.
   await logWeight(page, '82,4', 6);
   await logWeight(page, '82.0', 4);
   await logWeight(page, '81.8', 2);
   await expect(page.getByRole('list', { name: 'Weights' }).getByRole('link')).toHaveCount(4);
-  await expect(page.getByText(/^7-day trend \d+\.\d kg$/)).toBeVisible();
+  await expect(page.getByTestId('weight-trend')).toHaveText(/^Trend \d+\.\d$/);
 
   // The sheet starts at the latest weight; the stepper moves by 0.1; implausible values block saving.
   await page.getByRole('link', { name: 'Log weight' }).click();
@@ -123,8 +123,8 @@ async function expectGraph(page: Page, label: string) {
     expect.soft(box?.width ?? 0, `${label} ${size.name} graph width`).toBeGreaterThan(300);
     expect.soft(box?.width ?? 999, `${label} ${size.name} graph stays in the phone column`).toBeLessThanOrEqual(380);
     await expect.soft(page.getByTestId('weight-bar').first(), `${label} ${size.name} bar`).toBeAttached();
-    await expect.soft(page.getByText('Daily weight', { exact: true })).toBeVisible();
-    await expect.soft(page.getByText('No bar: no weigh-in')).toBeVisible();
+    await expect.soft(page.getByTestId('weight-legend')).toContainText('Weight');
+    await expect.soft(page.getByTestId('weight-trend')).toBeVisible();
     await shot(page, `${label}-${size.name}`);
   }
 }
@@ -141,7 +141,8 @@ test('weight: the graph and layout of the board, with one weigh-in and many, on 
   await expectGraph(page, 'one');
   await expect.soft(page.getByTestId('weight-axis')).toContainText('83');
   await expect.soft(page.getByTestId('weight-axis')).toContainText('80');
-  await expect.soft(page.getByText('3.5 kg to goal')).toBeVisible();
+  await expect.soft(page.getByRole('img', { name: '3.5 kg to goal' })).toHaveText('3.5 kg');
+  await expect.soft(page.getByTestId('weight-change')).toBeVisible();
   await expect.soft(page.getByText('Entries', { exact: true })).toBeVisible();
   const rows = page.getByRole('list', { name: 'Weights' }).getByRole('link');
   await expect.soft(rows.first()).toHaveAccessibleName(/^Edit weight 81\.5 kg, Today \d\d:\d\d$/);
@@ -153,9 +154,11 @@ test('weight: the graph and layout of the board, with one weigh-in and many, on 
     const daysAgo = 29 - i - (i >= 11 ? 2 : 0);
     if (daysAgo > 0) await logWeight(page, String(kg[i]), daysAgo);
   }
-  await expect(page.getByText(/^7-day trend \d+\.\d kg$/)).toBeVisible();
+  await expect(page.getByTestId('weight-trend')).toHaveText(/^Trend \d+\.\d$/);
   await expectGraph(page, 'many');
   await expect.soft(page.getByTestId('weight-axis')).toHaveCount(0);
+  // The two days without a weigh-in are counted next to the legend.
+  await expect.soft(page.getByRole('img', { name: '2 days without a weigh-in' })).toHaveText('2');
 
   // A day with no weigh-in has no bar: 30 days, two gaps, and the rest all have a bar.
   await page.setViewportSize({ width: 390, height: 844 });
@@ -170,12 +173,12 @@ test('weight: the graph and layout of the board, with one weigh-in and many, on 
   // The sheets.
   await page.getByRole('link', { name: 'Log weight' }).click();
   await expect(page.getByRole('dialog', { name: 'Log weight' })).toBeVisible();
-  await expect.soft(page.getByText('Type the number or use the steps')).toBeVisible();
+  await expect.soft(page.getByRole('dialog', { name: 'Log weight' }).getByRole('status')).toHaveText('');
   await shot(page, 'sheet-log');
   await page.getByRole('button', { name: 'Cancel' }).click();
   await rows.nth(1).click();
   const edit = page.getByRole('dialog', { name: 'Edit weight' });
   await expect(edit).toBeVisible();
-  await expect.soft(edit.getByText('Added by you')).toBeVisible();
+  await expect.soft(edit.getByRole('img', { name: 'Added by you' })).toBeVisible();
   await shot(page, 'sheet-edit');
 });

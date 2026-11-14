@@ -21,11 +21,12 @@ test('desktop Weight: log, ranges, stats, table, goal, edit and delete', async (
   await expect(page.getByRole('heading', { name: 'Weight', exact: true })).toBeVisible();
 
   // Onboarding's 81.5 is the only weigh-in: the latest value, goal card and "To goal" come from it.
-  await expect(page.getByText('Weight, last 30 days')).toBeVisible();
-  await expect(page.getByText('To goal 78.0').locator('xpath=..')).toContainText('3.5 kg');
+  await expect(page.getByRole('button', { name: '30D' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('weight-change')).toContainText('Change, last 30 days');
+  await expect(page.getByText('To goal', { exact: true }).locator('xpath=..')).toContainText('3.5 kg');
   const goal = page.getByRole('heading', { name: 'Goal' }).locator('xpath=..');
   await expect(goal).toContainText('78.0');
-  await expect(goal).toContainText('Estimated time to goal');
+  await expect(goal).toContainText('Time to goal');
 
   // Log earlier days from the side panel: the stepper moves 0.1, the chip date picks the day.
   const panel = page.getByRole('heading', { name: 'Log weight' }).locator('xpath=../..');
@@ -51,14 +52,14 @@ test('desktop Weight: log, ranges, stats, table, goal, edit and delete', async (
   await expect(page.getByText('Weigh-ins', { exact: true }).locator('xpath=..').filter({ hasText: /^Weigh-ins5$/ })).toBeVisible();
   await expect(list.getByRole('link').first()).toContainText('81.5 kg');
   await expect(list.getByRole('link').first()).toContainText('-0.3');
-  await expect(list.getByRole('link').first()).toContainText('Manual');
+  await expect(list.getByRole('link').first().getByRole('img', { name: 'Added by you' })).toBeVisible();
 
   // Ranges: 7D has the last two, 90D all five, and the heading follows.
   await page.getByRole('button', { name: '7D' }).click();
-  await expect(page.getByText('Weight, last 7 days')).toBeVisible();
+  await expect(page.getByTestId('weight-change')).toContainText('Change, last 7 days');
   await expect(list.getByRole('link')).toHaveCount(2);
   await page.getByRole('button', { name: '90D' }).click();
-  await expect(page.getByText('Weight, last 90 days')).toBeVisible();
+  await expect(page.getByTestId('weight-change')).toContainText('Change, last 90 days');
   await expect(page.getByRole('img', { name: /last|Weight over time/ })).toBeVisible();
   await expect(list.getByRole('link')).toHaveCount(5);
 

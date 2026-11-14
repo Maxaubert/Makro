@@ -6,6 +6,7 @@ import { roundForDisplay } from '../domain/display';
 import { chartLayout, entryDayLabel, rangeStart, signedKg, toGoal, WEIGHT_RANGES, weightSummary, type TrendDay, type WeightRange } from '../domain/weight';
 import { href, useApp, useBack, useData, useRoute } from '../lib/hooks';
 import { Card, Chip, Header, Icon, Notice, Page } from '../ui/kit';
+import { IconChip, type GlyphName } from '../ui/icons-weight-goals-profile';
 import { dayLabel, today } from './day';
 import { Sheet, WeightSheet } from './WeightSheet';
 
@@ -70,9 +71,14 @@ function WeightChart({ days }: { days: TrendDay[] }) {
           ))}
         </div>
       )}
-      {bars.length === 0 && <p className="absolute inset-x-0 top-[46px] text-center text-sm text-secondary">No weights in this period.</p>}
+      {bars.length === 0 && <p className="absolute inset-x-0 top-[46px] text-center text-sm text-secondary">No weights</p>}
     </div>
   );
+}
+
+function trendIcon(kg: number | null): GlyphName {
+  if (kg === null || Math.abs(kg) < 0.05) return 'trendFlat';
+  return kg < 0 ? 'trendDown' : 'trendUp';
 }
 
 function Stat({ label, kg }: { label: string; kg: number | null }) {
@@ -101,6 +107,7 @@ export function Weight() {
   const from = rangeStart(range, day, weights.length > 0 ? weights.reduce((first, w) => (w.local_date < first ? w.local_date : first), weights[0].local_date) : null);
   const summary = weightSummary(weights, from, day);
   const trendNow = summary.days[summary.days.length - 1]?.trend_kg ?? null;
+  const gapDays = summary.days.filter((d) => d.weight_kg === null).length;
   const goal = data?.goal ?? null;
   const distance = goal ? toGoal(latest?.weight_kg ?? null, goal.target_weight_kg, goal.goal_type) : null;
   const entries = weights.filter((w) => w.local_date >= from).reverse();
@@ -119,10 +126,21 @@ export function Weight() {
               <span className="text-lg font-medium tracking-normal text-secondary"> kg</span>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-sm font-semibold text-secondary">{signedKg(summary.change_7d_kg)} kg / 7 days</div>
-            {distance?.reached && <div className="mt-0.5 text-[13px] text-accent-2">Goal reached</div>}
-            {distance && !distance.reached && distance.kg !== null && <div className="mt-0.5 text-[13px] text-accent-2">{kgText(distance.kg)} kg to goal</div>}
+          <div className="flex flex-col items-end gap-1.5">
+            <IconChip icon={trendIcon(summary.change_7d_kg)} label={`${signedKg(summary.change_7d_kg)} kg in 7 days`} testId="weight-change">
+              {signedKg(summary.change_7d_kg)}
+              <span className="font-medium text-secondary">7D</span>
+            </IconChip>
+            {distance?.reached && (
+              <IconChip icon="flag" label="Goal reached" tone="accent">
+                <Icon name="check" size={14} stroke={2.6} />
+              </IconChip>
+            )}
+            {distance && !distance.reached && distance.kg !== null && (
+              <IconChip icon="target" label={`${kgText(distance.kg)} kg to goal`} tone="accent" testId="weight-to-goal">
+                {kgText(distance.kg)} kg
+              </IconChip>
+            )}
           </div>
         </div>
 
@@ -139,16 +157,25 @@ export function Weight() {
           {summary.days.length > 1 && <span>{shortDate(from)}</span>}
           <span>Today</span>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] text-soft">
+        <div data-testid="weight-legend" className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] text-soft">
           <span className="flex items-center gap-1.5">
             <span aria-hidden="true" className="h-2.5 w-2.5 rounded-[2px] bg-accent opacity-70" />
-            Daily weight
+            Weight
           </span>
-          <span className="flex items-center gap-1.5">
+          <span
+            className="flex items-center gap-1.5"
+            data-testid="weight-trend"
+            title={trendNow === null ? '7-day trend: needs 3 weigh-ins in a week' : `7-day trend ${kgText(trendNow)} kg`}
+          >
             <span aria-hidden="true" className="h-0.5 w-4 rounded-[1px] bg-text" />
-            {trendNow === null ? '7-day trend needs 3 weigh-ins in a week' : `7-day trend ${kgText(trendNow)} kg`}
+            Trend <b className="font-semibold text-text">{kgText(trendNow)}</b>
           </span>
-          <span className="text-secondary">No bar: no weigh-in</span>
+          {gapDays > 0 && (
+            <span role="img" aria-label={`${gapDays} ${gapDays === 1 ? 'day' : 'days'} without a weigh-in`} title={`${gapDays} ${gapDays === 1 ? 'day' : 'days'} without a weigh-in`} data-testid="weight-gaps" className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-[2px] border border-dashed border-secondary" />
+              {gapDays}
+            </span>
+          )}
         </div>
       </Card>
 
