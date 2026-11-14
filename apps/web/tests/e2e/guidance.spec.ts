@@ -123,6 +123,23 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 
+  // Decision 47: 62 and 124 kcal are under half the calorie target, so both days look partly logged and are
+  // left out on their own. Their striped bars stay; one tap on each counts it again.
+  await expect(page.getByTestId('weekly-days')).toHaveText('0/2');
+  await expect(page.getByTestId('ring-kcal')).toHaveText('?');
+  const mon = page.getByTestId('week-day-2026-11-09');
+  await expect(mon).toHaveAttribute('aria-pressed', 'false');
+  await expect(mon).toHaveAttribute('aria-label', /looks partly logged, not counted\. Tap to count it\./);
+  await shot(page, 'weekly-days-left-out');
+  await mon.click();
+  await expect(page.getByTestId('weekly-days')).toHaveText('1/2');
+  await page.getByTestId('week-day-2026-11-10').click();
+  await expect(page.getByTestId('weekly-days')).toHaveText('2/2');
+  await expect(mon).toHaveAttribute('aria-pressed', 'true');
+  // The choice stays after a reload.
+  await page.reload();
+  await expect(page.getByTestId('weekly-days')).toHaveText('2/2');
+
   // Skyr: 11 g protein and 62 kcal per 100 g, so 11 g on day one and 22 g on day two, which averages 16.5 and shows as 17.
   // The radar: every number is on screen, no hover or tap. Protein averages 17 g and calories 93 kcal.
   // Skyr has protein, carbs and fat in every entry and the goal has targets, so the shape is drawn.

@@ -35,11 +35,24 @@ function joinDays(names: readonly string[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
-export function leftOutNote(week: WeeklyAverage): string {
-  const head = `${week.counted_days} of ${week.dates.length} days counted.`;
-  if (week.left_out.length === 0) return head;
-  const one = week.left_out.length === 1;
-  return `${head} ${joinDays(week.left_out.map(weekday))} had no logged meal and ${one ? 'is' : 'are'} left out.`;
+export function leftOutNote(week: Pick<WeeklyAverage, 'counted_days' | 'dates' | 'left_out'> & { skipped?: WeeklyAverage['skipped'] }): string {
+  const parts = [`${week.counted_days} of ${week.dates.length} days counted.`];
+  if (week.left_out.length > 0) {
+    const one = week.left_out.length === 1;
+    parts.push(`${joinDays(week.left_out.map(weekday))} had no logged meal and ${one ? 'is' : 'are'} left out.`);
+  }
+  parts.push(...skippedNotes(week.skipped ?? []));
+  return parts.join(' ');
+}
+
+/** Why logged days are not counted (decision 47), one sentence per reason. */
+export function skippedNotes(skipped: WeeklyAverage['skipped']): string[] {
+  const auto = skipped.filter((s) => s.why === 'auto').map((s) => weekday(s.local_date));
+  const user = skipped.filter((s) => s.why === 'user').map((s) => weekday(s.local_date));
+  const out: string[] = [];
+  if (auto.length > 0) out.push(`${joinDays(auto)} ${auto.length === 1 ? 'looks' : 'look'} partly logged (under half the calorie target) and ${auto.length === 1 ? 'is' : 'are'} left out.`);
+  if (user.length > 0) out.push(`You left out ${joinDays(user)}.`);
+  return out;
 }
 
 export const VERDICT_LABEL: Record<Verdict, string> = {
@@ -82,7 +95,7 @@ export function coverageNote(m: WeeklyMeasure, key: Nutrient): string {
   const verb = others === 1 ? 'has' : 'have';
   const be = others === 1 ? 'is' : 'are';
   const byDay = m.days
-    .filter((d) => d.logged && d.covered < d.count)
+    .filter((d) => d.counted && d.covered < d.count)
     .map((d) => `${weekday(d.local_date)} ${d.covered} of ${d.count}`)
     .join(', ');
   return `Covers ${m.covered} of ${m.count} entries. The other ${others} ${verb} no ${VALUE_NAME[key]} value and ${be} left out, not counted as 0. By day: ${byDay}.`;

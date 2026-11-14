@@ -52,6 +52,8 @@ describe('guidance/weekly.json', () => {
     expect(actual.dates, `${id} dates`).toEqual(c.expected.dates);
     expect(actual.counted_days, `${id} counted_days`).toBe(c.expected.counted_days);
     expect(actual.left_out, `${id} left_out`).toEqual(c.expected.left_out);
+    // Decision 47: older cases have no low days, so their skipped list is empty.
+    expect(actual.skipped, `${id} skipped`).toEqual(c.expected.skipped ?? []);
     for (const n of nutrients) {
       const a = actual.measures[n];
       const e = c.expected.measures[n];
@@ -64,6 +66,8 @@ describe('guidance/weekly.json', () => {
       e.days.forEach((day, i) => {
         expect(a.days[i].local_date, `${id} ${n} day ${i}`).toBe(day.local_date);
         expect(a.days[i].logged, `${id} ${n} day ${i} logged`).toBe(day.logged);
+        expect(a.days[i].counted, `${id} ${n} day ${i} counted`).toBe(day.counted ?? day.logged);
+        expect(a.days[i].skipped, `${id} ${n} day ${i} skipped`).toBe(day.skipped ?? null);
         expectClose(a.days[i].value, day.value, `${id} ${n} day ${i} value`);
         expect(a.days[i].covered, `${id} ${n} day ${i} covered`).toBe(day.covered);
         expect(a.days[i].count, `${id} ${n} day ${i} count`).toBe(day.count);

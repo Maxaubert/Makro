@@ -56,7 +56,14 @@ export function coverageLabel(name: string, m: { covered: number; count: number 
 }
 
 /** The full meaning of the days chip of a weekly average: "4 of 5 days counted, Tue left out". */
-export function daysLabel(week: Pick<WeeklyAverage, 'counted_days' | 'dates' | 'left_out'>): string {
+export function daysLabel(week: Pick<WeeklyAverage, 'counted_days' | 'dates' | 'left_out'> & { skipped?: WeeklyAverage['skipped'] }): string {
   const head = `${week.counted_days} of ${week.dates.length} days counted`;
-  return week.left_out.length === 0 ? head : `${head}, ${week.left_out.map(weekday).join(', ')} not logged and left out`;
+  const parts = [week.left_out.length === 0 ? head : `${head}, ${week.left_out.map(weekday).join(', ')} not logged and left out`];
+  // Decision 47: logged days that are not counted, and why.
+  const skipped = week.skipped ?? [];
+  const auto = skipped.filter((s) => s.why === 'auto').map((s) => weekday(s.local_date));
+  const user = skipped.filter((s) => s.why === 'user').map((s) => weekday(s.local_date));
+  if (auto.length > 0) parts.push(`${auto.join(', ')} partly logged and left out`);
+  if (user.length > 0) parts.push(`${user.join(', ')} left out by you`);
+  return parts.join('; ');
 }

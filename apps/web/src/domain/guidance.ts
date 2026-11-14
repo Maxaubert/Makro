@@ -15,6 +15,7 @@ export const GUIDANCE_CONSTANTS = {
   incomplete_gap_minutes: 480,
   suggestion_limit: 3,
   weekday_over_high: 1.05,
+  partial_day_below: 0.5,
 };
 
 export const WEEKLY_MEASURES = ['kcal', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g'] as const;
@@ -52,16 +53,28 @@ export function weeklyVerdict(average: number | null, target: number | null): Ve
   return r <= GUIDANCE_CONSTANTS.on_target_high ? 'on_target' : 'above_target';
 }
 
+/** What the user chose for a day: count it whatever it looks like, or leave it out. */
+export type DayChoice = 'count' | 'skip';
+
 export interface WeeklyInput {
   today: string;
   targets: Record<string, number | null>;
   days: { local_date: string; items: NutrientValues[] }[];
+  /** The user's choices by date (decision 47). A day without one follows the automatic rule. */
+  choices?: Record<string, DayChoice>;
 }
 
 export interface WeeklyDay extends NutrientTotal {
   local_date: string;
   /** At least one entry that day. A day without one is left out, never counted as 0. */
   logged: boolean;
+  /** In the average. False for an unlogged day and for a skipped one. */
+  counted: boolean;
+  /**
+   * Why a logged day is left out: 'auto' when its known calories are under half the calorie target
+   * (it looks partly logged), 'user' when the user left it out. null for a counted or unlogged day.
+   */
+  skipped: 'auto' | 'user' | null;
 }
 
 export interface WeeklyMeasure {
@@ -76,33 +89,67 @@ export interface WeeklyMeasure {
 export interface WeeklyAverage {
   dates: string[];
   counted_days: number;
+  /** Days with nothing logged. */
   left_out: string[];
+  /** Logged days that are not counted: partly logged (auto) or left out by the user. */
+  skipped: { local_date: string; why: 'auto' | 'user' }[];
   measures: Record<string, WeeklyMeasure>;
+}
+
+/**
+ * Whether a logged day is skipped, and why (decision 47). The user's choice wins. Otherwise a day
+ * whose known calories are under half the calorie target looks partly logged and is skipped.
+ * Unknown calories, or no calorie target, never skip a day on their own: unknown is not low (rule 2).
+ */
+export function daySkip(items: NutrientValues[], kcalTarget: number | null | undefined, choice: DayChoice | undefined): 'auto' | 'user' | null {
+  if (choice === 'skip') return 'user';
+  if (choice === 'count') return null;
+  if (kcalTarget === null || kcalTarget === undefined || kcalTarget <= 0) return null;
+  const kcal = dayTotals(items.map((i) => ({ kcal: i.kcal ?? null })), ['kcal']).kcal.value;
+  return kcal !== null && kcal < kcalTarget * GUIDANCE_CONSTANTS.partial_day_below ? 'auto' : null;
 }
 
 export function weeklyAverage(input: WeeklyInput, measures: readonly string[] = WEEKLY_MEASURES): WeeklyAverage {
   return averageOver(weekWindow(input.today), input, measures);
 }
 
-/** The per-logged-day average over any list of dates. A day with nothing logged is left out, never 0. */
-export function averageOver(dates: string[], input: Pick<WeeklyInput, 'targets' | 'days'>, measures: readonly string[] = WEEKLY_MEASURES): WeeklyAverage {
+/**
+ * The per-counted-day average over any list of dates. A day with nothing logged is left out, never 0,
+ * and so is a skipped day (decision 47). Skipped days keep their values in `days` for drawing.
+ */
+export function averageOver(dates: string[], input: Pick<WeeklyInput, 'targets' | 'days' | 'choices'>, measures: readonly string[] = WEEKLY_MEASURES): WeeklyAverage {
   const itemsOf = new Map(input.days.map((d) => [d.local_date, d.items]));
   const logged = (date: string) => (itemsOf.get(date)?.length ?? 0) > 0;
+  const skipOf = new Map(dates.map((d) => [d, logged(d) ? daySkip(itemsOf.get(d) ?? [], input.targets.kcal, input.choices?.[d]) : null]));
+  const counted = (date: string) => logged(date) && skipOf.get(date) === null;
   const out: Record<string, WeeklyMeasure> = {};
   for (const n of measures) {
-    const days = dates.map((local_date): WeeklyDay => ({ local_date, logged: logged(local_date), ...dayTotals(itemsOf.get(local_date) ?? [], [n])[n] }));
-    const known = days.filter((d) => d.value !== null);
+    const days = dates.map((local_date): WeeklyDay => ({
+      local_date,
+      logged: logged(local_date),
+      counted: counted(local_date),
+      skipped: skipOf.get(local_date) ?? null,
+      ...dayTotals(itemsOf.get(local_date) ?? [], [n])[n],
+    }));
+    const inAverage = days.filter((d) => d.counted);
+    const known = inAverage.filter((d) => d.value !== null);
     const average = known.length === 0 ? null : known.reduce((sum, d) => sum + (d.value as number), 0) / known.length;
     out[n] = {
       average,
       days_with_value: known.length,
-      covered: days.reduce((sum, d) => sum + d.covered, 0),
-      count: days.reduce((sum, d) => sum + d.count, 0),
+      covered: inAverage.reduce((sum, d) => sum + d.covered, 0),
+      count: inAverage.reduce((sum, d) => sum + d.count, 0),
       verdict: weeklyVerdict(average, input.targets[n] ?? null),
       days,
     };
   }
-  return { dates, counted_days: dates.filter(logged).length, left_out: dates.filter((d) => !logged(d)), measures: out };
+  return {
+    dates,
+    counted_days: dates.filter(counted).length,
+    left_out: dates.filter((d) => !logged(d)),
+    skipped: dates.flatMap((local_date) => { const why = skipOf.get(local_date); return why ? [{ local_date, why }] : []; }),
+    measures: out,
+  };
 }
 
 export interface RemainingValue {

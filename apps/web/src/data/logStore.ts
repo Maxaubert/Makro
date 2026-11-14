@@ -5,6 +5,7 @@ import type { CustomFoodRow, FavouriteRow, FoodKey, GoalWriteRow, LogEntryRow, M
 import { nextDay, type DailySupplementRow } from '../domain/supplements';
 import { MEALS } from '../domain/entry';
 import type { AmountUnit } from '../domain/grams';
+import type { DayChoice } from '../domain/guidance';
 import { stampLocalDay } from '../domain/localDate';
 import type { Nutrient } from '../domain/nutrients';
 import { columnsOf, isTableName, localSchemaSql, LOCAL_SCHEMA_VERSION, TABLE_NAMES, type Column, type TableName } from './logSchema';
@@ -306,6 +307,40 @@ export class LogStore {
 
   markDayComplete(localDate: string): void {
     this.sql.run("insert into sync_state (key, value) values (?, '1') on conflict (key) do update set value = excluded.value", [`day_complete:${localDate}`]);
+  }
+
+  /**
+   * The user's count / leave-out choices (decision 47) for the dates from..to, both included.
+   * A day confirmed complete counts unless the user later left it out. Local to this device, like day_complete.
+   */
+  dayChoices(from: string, to: string): Record<string, DayChoice> {
+    const out: Record<string, DayChoice> = {};
+    const rows = this.sql.all<{ key: string; value: string }>(
+      "select key, value from sync_state where key like 'day_complete:%' or key like 'day_choice:%'",
+    );
+    const inRange = (date: string | undefined): date is string => !!date && date >= from && date <= to;
+    // Confirmations first, then explicit choices, so a choice overwrites a confirmation.
+    for (const r of rows) {
+      const [kind, date] = r.key.split(':');
+      if (kind === 'day_complete' && inRange(date)) out[date] = 'count';
+    }
+    for (const r of rows) {
+      const [kind, date] = r.key.split(':');
+      if (kind === 'day_choice' && inRange(date) && (r.value === 'count' || r.value === 'skip')) out[date] = r.value;
+    }
+    return out;
+  }
+
+  /** Count a day whatever it looks like, leave it out, or (null) go back to the automatic rule. */
+  setDayChoice(localDate: string, choice: DayChoice | null): void {
+    const key = `day_choice:${localDate}`;
+    if (choice === null) {
+      this.sql.run('delete from sync_state where key = ?', [key]);
+      // Back to automatic also drops an old "complete" confirmation, which would otherwise still count it.
+      this.sql.run('delete from sync_state where key = ?', [`day_complete:${localDate}`]);
+      return;
+    }
+    this.sql.run('insert into sync_state (key, value) values (?, ?) on conflict (key) do update set value = excluded.value', [key, choice]);
   }
 
   /** Edit the amount or meal of an entry. grams follows the amount; the snapshot stays. */
@@ -612,7 +647,7 @@ export class LogStore {
       if (owner !== undefined) {
         for (const t of TABLE_NAMES) this.sql.run(`delete from ${t}`);
         this.sql.run('delete from outbox_rejected');
-        this.sql.run("delete from sync_state where key = 'pull_cursor' or key like 'day\\_complete:%' escape '\\'");
+        this.sql.run("delete from sync_state where key = 'pull_cursor' or key like 'day\\_complete:%' escape '\\' or key like 'day\\_choice:%' escape '\\'");
       }
       this.sql.run(
         "insert into sync_state (key, value) values ('owner', ?) on conflict (key) do update set value = excluded.value",

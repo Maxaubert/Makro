@@ -77,7 +77,7 @@ describe('weeklyHeadline', () => {
   });
 });
 describe('coverageNote', () => {
-  const day = (local_date: string, covered: number, count: number) => ({ local_date, logged: count > 0, value: covered > 0 ? 1 : null, covered, count });
+  const day = (local_date: string, covered: number, count: number) => ({ local_date, logged: count > 0, counted: count > 0, skipped: null, value: covered > 0 ? 1 : null, covered, count });
   it('matches the canvas when every entry is covered', () => {
     expect(coverageNote(measure({ covered: 33, count: 33 }), 'kcal')).toBe('Covers all 33 entries.');
   });
@@ -215,5 +215,12 @@ describe('language', () => {
       dayStatusLine({ status: 'on_target', eaten: 1, covered: 1, count: 1, difference: 0, may_be_incomplete: false, reasons: [] }),
     ].join(' ');
     expect(texts).not.toMatch(/great|good|well done|nice|bad|fail|missed|cheat|should|must|!/i);
+  });
+});
+
+describe('leftOutNote with partly logged days (decision 47)', () => {
+  it('names auto and user left-out days', () => {
+    const week = { dates: ['2026-11-09', '2026-11-10', '2026-11-11'], counted_days: 1, left_out: [], skipped: [{ local_date: '2026-11-09', why: 'auto' as const }, { local_date: '2026-11-10', why: 'user' as const }] };
+    expect(leftOutNote(week)).toBe('1 of 3 days counted. Mon looks partly logged (under half the calorie target) and is left out. You left out Tue.');
   });
 });

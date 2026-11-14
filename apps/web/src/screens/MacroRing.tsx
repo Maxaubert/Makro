@@ -154,7 +154,9 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
         </svg>
       ) : (
         <p className="mt-2 text-[13px] text-secondary" data-testid="radar-missing">
-          The shape needs a target and a full week of protein, carbs and fat.
+          {week.counted_days === 0 && week.skipped.length > 0
+            ? 'No day is counted. Tap a striped bar to count that day.'
+            : 'The shape needs a target and a full week of protein, carbs and fat.'}
         </p>
       )}
 

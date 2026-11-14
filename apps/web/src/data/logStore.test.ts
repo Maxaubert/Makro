@@ -541,3 +541,34 @@ describe('a day confirmed as complete (#27, device only)', () => {
     expect(store.isDayComplete('2026-10-20')).toBe(false);
   });
 });
+
+describe('count or leave out a day (decision 47, device only)', () => {
+  it('has no choices until the user makes one', () => {
+    expect(store.dayChoices('2026-10-01', '2026-10-31')).toEqual({});
+  });
+  it('keeps a choice per day, inside the asked range only', () => {
+    store.setDayChoice('2026-10-20', 'skip');
+    store.setDayChoice('2026-10-21', 'count');
+    store.setDayChoice('2026-11-02', 'skip');
+    expect(store.dayChoices('2026-10-20', '2026-10-31')).toEqual({ '2026-10-20': 'skip', '2026-10-21': 'count' });
+  });
+  it('reads a day confirmed complete as counted, and a later choice wins', () => {
+    store.markDayComplete('2026-10-20');
+    expect(store.dayChoices('2026-10-20', '2026-10-20')).toEqual({ '2026-10-20': 'count' });
+    store.setDayChoice('2026-10-20', 'skip');
+    expect(store.dayChoices('2026-10-20', '2026-10-20')).toEqual({ '2026-10-20': 'skip' });
+  });
+  it('goes back to the automatic rule with null, confirmation included', () => {
+    store.markDayComplete('2026-10-20');
+    store.setDayChoice('2026-10-20', 'skip');
+    store.setDayChoice('2026-10-20', null);
+    expect(store.dayChoices('2026-10-20', '2026-10-20')).toEqual({});
+  });
+  it('never reaches the outbox and is forgotten for another account', () => {
+    store.claimOwner('user-1');
+    store.setDayChoice('2026-10-20', 'skip');
+    expect(store.pendingCount()).toBe(0);
+    store.claimOwner('user-2');
+    expect(store.dayChoices('2026-10-20', '2026-10-20')).toEqual({});
+  });
+});
