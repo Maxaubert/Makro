@@ -21,7 +21,7 @@ const MACROS: readonly (readonly [Macro, string, Key])[] = [
 ];
 
 /** The radar's outer edge, as a share of the target. Further out is drawn at the edge. */
-const EDGE = 1.15;
+const EDGE = 1.2;
 /** Above this share of the target, the percent turns orange. A display hint only. */
 const OVER = 1.05;
 
@@ -65,6 +65,9 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
   const grow = useGrow();
   const kcal = week.measures.kcal?.average ?? null;
   const kcalLower = !!week.measures.kcal && week.measures.kcal.covered < week.measures.kcal.count;
+  // Only a complete average gets a share, so a lower bound never shows as a smaller bar (rule 2).
+  const kcalComplete = complete(week, 'kcal');
+  const kcalShare = kcalComplete !== null && targets.kcal ? kcalComplete / targets.kcal : null;
 
   const axes = MACROS.map(([k, label, key]) => {
     const grams = complete(week, key);
@@ -83,17 +86,24 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
 
   return (
     <div data-testid="macro-ring">
-      <div className="num text-[13px] text-secondary">
-        <span className="font-semibold text-text" data-testid="ring-kcal">
+      {/* Mockup "01 Big number on top" (Max, 2026-11-14): the calories big, the share of the target on the right, a thin bar. */}
+      <div className="flex items-baseline gap-2 whitespace-nowrap">
+        <span className="num text-[40px] font-bold leading-none tracking-[-1px]" data-testid="ring-kcal">
           {kcal === null ? '?' : `${kcalLower ? '≥' : ''}${formatNumber(kcal, 0)}`}
         </span>
-        {targets.kcal ? ` / ${formatNumber(targets.kcal, 0)} kcal` : ' kcal'}
+        <span className="num text-[14px] text-secondary">{targets.kcal ? `/ ${formatNumber(targets.kcal, 0)} kcal` : 'kcal'}</span>
+        {kcalShare !== null && <span className="num ml-auto text-[13px] text-secondary">{formatNumber(kcalShare * 100, 0)}%</span>}
       </div>
+      {targets.kcal ? (
+        <div className="mt-2.5 h-1.5 overflow-hidden rounded-[3px] bg-strong" role="img" aria-label={kcalShare === null ? 'Calorie target progress unknown' : `${formatNumber(kcalShare * 100, 0)}% of the calorie target`} data-testid="ring-kcal-bar">
+          {kcalShare !== null && <div className="h-full rounded-[3px] bg-accent" style={{ width: `${Math.min(100, kcalShare * 100)}%` }} />}
+        </div>
+      ) : null}
 
       {drawable ? (
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          className="mx-auto mt-1 block w-full max-w-[300px]"
+          className="mx-auto mt-[22px] block w-full max-w-[300px]"
           role="img"
           aria-label={`Share of target: ${axes.map((a) => `${a.label} ${pct(a.share as number)}%`).join(', ')}`}
           data-testid="macro-radar"
@@ -148,15 +158,16 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
         </p>
       )}
 
-      <div className="mt-3 grid grid-cols-3 gap-1.5">
+      {/* Same grey boxes as the macro boxes on desktop Today (Max, 2026-11-14). */}
+      <div className="mt-3 grid grid-cols-3 gap-2">
         {axes.map((a) => (
-          <div key={a.k} className="rounded-xl border border-border bg-ground px-1.5 py-2 text-center" data-testid={`tile-${a.k}`}>
-            <div className="num text-[16px] font-bold">
+          <div key={a.k} className="rounded-[14px] bg-raised px-1.5 pb-[9px] pt-2.5 text-center" data-testid={`tile-${a.k}`}>
+            <div className="num text-[18px] font-bold">
               {gramsText(a.key)}
-              <span className="ml-px text-[11px] font-medium text-secondary">g</span>
+              <span className="ml-px text-[12px] font-medium text-secondary">g</span>
             </div>
-            <div className="mt-px flex items-center justify-center gap-1.5 text-[11px] text-secondary">
-              <span aria-hidden="true" className="h-[5px] w-[5px] rounded-full" style={{ background: MACRO_COLORS[a.k] }} />
+            <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[12px] text-secondary">
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: MACRO_COLORS[a.k] }} />
               {a.label}
             </div>
           </div>
