@@ -7,7 +7,7 @@ import {
   dayLine,
   dayStatusLine,
   differenceText,
-  incompleteText,
+  incompleteMarks,
   leftOutNote,
   remainingText,
   weekRange,
@@ -64,19 +64,18 @@ describe('leftOutNote', () => {
 
 describe('weeklyHeadline', () => {
   it('reads as an average when every entry has a value', () => {
-    expect(weeklyHeadline(measure({ covered: 33, count: 33, average: 2240 }), 'kcal')).toEqual({ caption: 'Average per logged day', value: '2,240' });
+    expect(weeklyHeadline(measure({ covered: 33, count: 33, average: 2240 }), 'kcal')).toEqual({ value: '2,240', label: '2,240 on average per logged day' });
   });
-  it('reads as at least when some entries have no value', () => {
-    expect(weeklyHeadline(measure({ covered: 27, count: 33, average: 16.75 }), 'fibre_g')).toEqual({ caption: 'At least, per logged day', value: '17' });
+  it('marks a lower bound with ≥ when some entries have no value', () => {
+    expect(weeklyHeadline(measure({ covered: 27, count: 33, average: 16.75 }), 'fibre_g')).toEqual({ value: '≥ 17', label: 'At least 17, per logged day' });
   });
   it('shows ? and never 0 when nothing is known', () => {
-    expect(weeklyHeadline(measure({ covered: 0, count: 3, average: null }), 'fibre_g')).toEqual({ caption: 'No values logged', value: '?' });
+    expect(weeklyHeadline(measure({ covered: 0, count: 3, average: null }), 'fibre_g')).toEqual({ value: '?', label: 'No values logged' });
   });
   it('keeps one decimal under 10 g', () => {
     expect(weeklyHeadline(measure({ average: 4.26 }), 'fat_g').value).toBe('4.3');
   });
 });
-
 describe('coverageNote', () => {
   const day = (local_date: string, covered: number, count: number) => ({ local_date, logged: count > 0, value: covered > 0 ? 1 : null, covered, count });
   it('matches the canvas when every entry is covered', () => {
@@ -143,8 +142,6 @@ describe('the end-of-day screen', () => {
     reasons: ['ended_early'],
     ...over,
   });
-  const sentence = 'A day with missing entries is never counted as fasting, so the totals above show only what was logged.';
-
   it('names every status, and an unlogged day is not under', () => {
     expect(dayEndTitle('on_target')).toBe('On target');
     expect(dayEndTitle('under')).toBe('Under target');
@@ -167,36 +164,31 @@ describe('the end-of-day screen', () => {
     expect(differenceText(status({ status: 'on_target', difference: 0.2 }))).toBe('');
   });
 
-  it('matches the canvas for the warning', () => {
-    expect(incompleteText({ status: status({}), meals: ['lunch', 'breakfast'], lastMinutes: 790 })).toBe(
-      `Breakfast and lunch are logged, nothing after 13:10, and there is no dinner. ${sentence}`,
-    );
+  const marks = (...args: Parameters<typeof incompleteMarks>) => incompleteMarks(...args).map((m) => m.text);
+
+  it('shows the last entry time and a missing dinner as chips', () => {
+    expect(marks({ status: status({}), meals: ['lunch', 'breakfast'], lastMinutes: 790 })).toEqual(['Last 13:10', 'No dinner']);
+    expect(incompleteMarks({ status: status({}), meals: ['lunch'], lastMinutes: 790 })[0].label).toBe('Nothing after 13:10');
   });
-  it('uses the singular for one meal', () => {
-    expect(incompleteText({ status: status({ count: 1, covered: 1, reasons: ['few_entries'] }), meals: ['lunch'], lastMinutes: 780 })).toBe(
-      `Lunch is logged, and there is no dinner. ${sentence}`,
-    );
+  it('shows only the missing dinner when the day did not end early', () => {
+    expect(marks({ status: status({ count: 1, covered: 1, reasons: ['few_entries'] }), meals: ['lunch'], lastMinutes: 780 })).toEqual(['No dinner']);
   });
   it('says how few entries there are when dinner is there', () => {
-    expect(incompleteText({ status: status({ count: 2, covered: 2, reasons: ['few_entries'] }), meals: ['lunch', 'dinner'], lastMinutes: 1110 })).toBe(
-      `Only 2 entries are logged. ${sentence}`,
-    );
+    const m = incompleteMarks({ status: status({ count: 2, covered: 2, reasons: ['few_entries'] }), meals: ['lunch', 'dinner'], lastMinutes: 1110 });
+    expect(m.map((x) => x.text)).toEqual(['2 entries']);
+    expect(m[0].label).toBe('Only 2 entries logged');
+    expect(marks({ status: status({ count: 1, covered: 1, reasons: ['few_entries'] }), meals: ['dinner'], lastMinutes: 1110 })).toEqual(['1 entry']);
   });
-  it('mentions a long gap', () => {
-    expect(incompleteText({ status: status({ reasons: ['long_gap'] }), meals: ['breakfast', 'dinner', 'snack'], lastMinutes: 1200 })).toBe(
-      `Breakfast, dinner and snacks are logged, and there is a long gap between entries. ${sentence}`,
-    );
+  it('marks a long gap', () => {
+    expect(marks({ status: status({ reasons: ['long_gap'] }), meals: ['breakfast', 'dinner', 'snack'], lastMinutes: 1200 })).toEqual(['Long gap']);
   });
   it('counts entries without a calorie value, and never as 0', () => {
-    expect(incompleteText({ status: status({ status: 'over', covered: 4, reasons: ['missing_values'] }), meals: ['breakfast', 'dinner'], lastMinutes: 1200 })).toBe(
-      `1 of 5 entries has no calorie value. ${sentence}`,
-    );
-    expect(incompleteText({ status: status({ status: 'over', covered: 3, reasons: ['missing_values'] }), meals: ['breakfast', 'dinner'], lastMinutes: 1200 })).toBe(
-      `2 of 5 entries have no calorie value. ${sentence}`,
-    );
+    const one = incompleteMarks({ status: status({ status: 'over', covered: 4, reasons: ['missing_values'] }), meals: ['breakfast', 'dinner'], lastMinutes: 1200 });
+    expect(one).toEqual([{ kind: 'missing', text: '1/5 no kcal', label: '1 of 5 entries has no calorie value' }]);
+    const two = incompleteMarks({ status: status({ status: 'over', covered: 3, reasons: ['missing_values'] }), meals: ['breakfast', 'dinner'], lastMinutes: 1200 });
+    expect(two[0].label).toBe('2 of 5 entries have no calorie value');
   });
 });
-
 describe('remainingText', () => {
   it('prints what is left', () => {
     expect(remainingText({ left: 840, exact: true }, 'kcal')).toEqual({ value: '840', over: false });
