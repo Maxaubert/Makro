@@ -52,7 +52,8 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
 
   return (
     <div data-testid="macro-ring">
-      <div className="flex items-center gap-5">
+      {/* Ring on top, the three macros in columns under it: fits a narrow side panel and a phone alike. */}
+      <div className="flex flex-col items-center gap-4">
         <div className="relative h-[132px] w-[132px] shrink-0">
           <svg width="132" height="132" viewBox="0 0 132 132" role="img" aria-label={ringLabel}>
             <circle cx="66" cy="66" r={R} fill="none" stroke="var(--color-border)" strokeWidth="14" />
@@ -78,7 +79,7 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
             <span className="num mt-1 text-[12px] text-secondary">{targets.kcal ? `/ ${formatNumber(targets.kcal, 0)} kcal` : 'kcal'}</span>
           </div>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+        <div className="grid w-full grid-cols-3 gap-2">
           {(
             [
               ['protein', 'Protein', 'protein_g'],
@@ -90,15 +91,20 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
             const avg = m?.average ?? null;
             const target = targets[key];
             return (
-              <div key={k} className="flex items-baseline gap-2" data-testid={`ring-${k}`}>
-                <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 translate-y-[-1px] rounded-full" style={{ background: MACRO_COLORS[k] }} />
-                <span className="w-14 shrink-0 text-[13px] text-secondary">{label}</span>
-                <span className="num text-[18px] font-bold">
+              <div key={k} className="min-w-0 text-center" data-testid={`ring-${k}`}>
+                <div className="flex items-center justify-center gap-1.5 text-[12px] text-secondary">
+                  <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: MACRO_COLORS[k] }} />
+                  {label}
+                </div>
+                <div className="num mt-0.5 whitespace-nowrap text-[22px] font-bold leading-tight">
                   {avg === null ? '?' : `${m && m.covered < m.count ? '≥' : ''}${formatNumber(avg, 0)}`}
-                  <span className="text-[12px] font-medium text-secondary"> g</span>
-                </span>
-                {target !== undefined && <span className="num text-[12px] text-secondary">/ {formatNumber(target, 0)}</span>}
-                {shares && <span className="num ml-auto text-[12px] text-secondary">{shares[k]}%</span>}
+                  <span className="text-[13px] font-medium text-secondary"> g</span>
+                </div>
+                <div className="num whitespace-nowrap text-[12px] text-secondary">
+                  {target !== undefined && `/ ${formatNumber(target, 0)}`}
+                  {target !== undefined && shares && ' · '}
+                  {shares && `${shares[k]}%`}
+                </div>
               </div>
             );
           })}
