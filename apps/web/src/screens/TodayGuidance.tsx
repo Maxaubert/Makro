@@ -2,6 +2,7 @@
 // left today with suggestions, and the weekly average. The maths is in domain/guidance.ts.
 // Decision 46: numbers, bars and chips; the full meaning sits in aria labels, not in captions.
 import { useState } from 'react';
+import { MacroRing } from './MacroRing';
 import type { GoalRow, LocalLogEntry } from '../data/logStore';
 import type { FoodSuggestion } from '../data/suggestions';
 import {
@@ -169,6 +170,7 @@ function SuggestionRow({ s, first }: { s: FoodSuggestion; first: boolean }) {
   );
 }
 
+const RING_MEASURES = [...WEEKLY_MEASURES, 'sugars_g', 'sat_fat_g'] as const;
 const BAR_HEIGHT = 90;
 
 function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLogEntry[]; goal: GoalRow | null }) {
@@ -181,9 +183,11 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
     targets,
     days: [...byDate].map(([local_date, day]) => ({
       local_date,
-      items: day.map((e) => Object.fromEntries(WEEKLY_MEASURES.map((n) => [n, e[`${n}_total`]]))),
+      items: day.map((e) => Object.fromEntries(RING_MEASURES.map((n) => [n, e[`${n}_total`]]))),
     })),
-  });
+  }, RING_MEASURES);
+  // Calories and the three macros are in the ring; the big number shows only for the other measures.
+  const inRing = selected === 'kcal' || selected === 'protein_g' || selected === 'carbs_g' || selected === 'fat_g';
   const m = week.measures[selected];
   const unit = selected === 'kcal' ? 'kcal' : 'g';
   const target = targets[selected];
@@ -212,7 +216,10 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
         </div>
       ) : (
         <>
-          <div className="mt-3 flex flex-wrap gap-1">
+          <div className="mt-3">
+            <MacroRing week={week} targets={{ kcal: targets.kcal ?? undefined, protein_g: targets.protein_g ?? undefined, carbs_g: targets.carbs_g ?? undefined, fat_g: targets.fat_g ?? undefined }} />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-1">
             {WEEKLY_MEASURES.map((k) => (
               <button
                 key={k}
@@ -229,10 +236,12 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
             ))}
           </div>
           <div className="mt-4 flex items-end justify-between gap-2">
-            <div className="num text-[40px] font-bold leading-none tracking-[-0.03em]" data-testid="weekly-average" aria-label={`${MEASURE_LABEL[selected]}: ${head.label} ${unit}`}>
-              {head.value}
-              <span className="text-[16px] font-medium tracking-normal text-secondary"> {unit}</span>
-            </div>
+            {inRing ? <span /> : (
+              <div className="num text-[40px] font-bold leading-none tracking-[-0.03em]" data-testid="weekly-average" aria-label={`${MEASURE_LABEL[selected]}: ${head.label} ${unit}`}>
+                {head.value}
+                <span className="text-[16px] font-medium tracking-normal text-secondary"> {unit}</span>
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-end gap-1.5">
               {/* Only when some entries had no value: then the average is a lower bound (accuracy rule 2). */}
               {m.covered < m.count && (
@@ -248,7 +257,7 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
               )}
             </div>
           </div>
-          {target !== null && (
+          {target !== null && !inRing && (
             <div className="mt-3 flex items-center gap-2" data-testid="weekly-target">
               <div
                 className="h-2 grow overflow-hidden rounded bg-border"

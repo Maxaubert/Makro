@@ -1,6 +1,7 @@
 // D_Diary: the day list with the week, the picked day with its meals in a table and an inline
 // edit, and the weekly average with the top sources. The route holds the picked day.
 import { useState } from 'react';
+import { MacroRing } from '../MacroRing';
 import { notYetRepeated } from '../../data/fastRepeat';
 import type { GoalRow, LocalLogEntry } from '../../data/logStore';
 import { isMeal, mealEntries, MEALS, type Meal } from '../../domain/entry';
@@ -602,6 +603,7 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
   // Hover only: the headline, its chips and the bars say this on screen.
   const caption = m.average === null ? `${current.label}: no values logged before ${before}` : `${current.label}, ${lowerBound ? 'at least, per logged day' : 'average per logged day'} before ${before}`;
   const sources = topSources(entries, key);
+  const inRing = key === 'kcal' || key === 'protein_g' || key === 'carbs_g' || key === 'fat_g';
 
   return (
     <aside className="card relative col-start-2 p-5 min-[1360px]:col-start-3" aria-label="Weekly average">
@@ -697,7 +699,13 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
         </div>
       )}
 
-      {/* The average per logged day before the picked one. "≥" when some entries have no value (rule 2). */}
+      <div className="mt-4">
+        <MacroRing week={week} targets={{ kcal: targetsOf(goal).kcal ?? undefined, protein_g: targetsOf(goal).protein_g ?? undefined, carbs_g: targetsOf(goal).carbs_g ?? undefined, fat_g: targetsOf(goal).fat_g ?? undefined }} />
+      </div>
+
+      {/* The average per logged day before the picked one. "≥" when some entries have no value (rule 2).
+          Calories and the macros are in the ring above, so the big number shows only for the other nutrients. */}
+      {!inRing && (<>
       <div className="mt-5 flex items-baseline gap-2 whitespace-nowrap" title={caption}>
         <span className="num text-[38px] font-bold tracking-[-1px]" data-testid="weekly-average">
           {lowerBound ? '≥ ' : ''}
@@ -715,6 +723,7 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
           {m.average !== null && <div className="h-1.5 rounded-[3px] bg-accent" style={{ width: `${Math.min(100, (m.average / target) * 100)}%` }} />}
         </div>
       )}
+      </>)}
       <div className="mt-3 flex min-h-6 flex-wrap items-center gap-2" data-testid="weekly-coverage">
         {m.verdict && (
           <span className={`flex h-6 items-center rounded-xl px-2.5 text-[12px] font-semibold ${isGoodVerdict(m.verdict, key) ? GOOD_PILL : BAD_PILL}`} data-testid="weekly-verdict">
