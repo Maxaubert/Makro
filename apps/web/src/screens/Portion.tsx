@@ -142,7 +142,7 @@ function PortionForm({ food }: { food: Food }) {
         <div className="text-[22px] font-bold" data-testid="portion-name">{p.name}</div>
         <div className="mt-0.5 text-[13px] text-secondary">{'pack_size' in p ? productSubtext(p) : p.brand}</div>
         <div className="mt-1.5">
-          <SourceBadge sourceName={food.sourceName} verified={food.verified} />
+          <SourceBadge sourceName={food.sourceName} verified={food.verified} detail />
         </div>
       </div>
 

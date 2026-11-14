@@ -506,7 +506,7 @@ function EditRow({
       {/* Accuracy rule 4: the snapshot's source and whether it is verified. */}
       <div className="flex basis-full flex-wrap items-center gap-x-2 text-[12px] text-secondary">
         {entry.brand && <span>{entry.brand}</span>}
-        <SourceBadge sourceName={entry.source === 'custom' ? 'Your own food' : entry.source} verified={entry.verified === null ? null : entry.verified === 1} />
+        <SourceBadge sourceName={entry.source === 'custom' ? 'Your own food' : entry.source} verified={entry.verified === null ? null : entry.verified === 1} detail />
       </div>
 
       <button type="button" aria-label="Delete entry" disabled={busy} onClick={onDelete} className="tap flex h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-[#7A2A2E] bg-[#2A1517] text-[#FF6B6B]">

@@ -71,7 +71,7 @@ export function EditEntry({ id }: { id: string }) {
         <div className="text-[22px] font-bold">{entry.name}</div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[13px] text-secondary">
           {entry.brand && <span>{entry.brand}</span>}
-          <SourceBadge sourceName={entry.source === 'custom' ? 'Your own food' : entry.source} verified={entry.verified === null ? null : entry.verified === 1} />
+          <SourceBadge sourceName={entry.source === 'custom' ? 'Your own food' : entry.source} verified={entry.verified === null ? null : entry.verified === 1} detail />
         </div>
       </div>
 
