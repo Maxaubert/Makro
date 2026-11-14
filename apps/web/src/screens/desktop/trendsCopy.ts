@@ -64,6 +64,6 @@ export function daysLabel(week: Pick<WeeklyAverage, 'counted_days' | 'dates' | '
   const auto = skipped.filter((s) => s.why === 'auto').map((s) => weekday(s.local_date));
   const user = skipped.filter((s) => s.why === 'user').map((s) => weekday(s.local_date));
   if (auto.length > 0) parts.push(`${auto.join(', ')} partly logged and left out`);
-  if (user.length > 0) parts.push(`${user.join(', ')} left out by you`);
+  if (user.length > 0) parts.push(`${user.join(', ')} untracked`);
   return parts.join('; ');
 }

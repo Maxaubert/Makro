@@ -124,18 +124,29 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 
   // Decision 47: 62 and 124 kcal are under half the calorie target, so both days look partly logged and are
-  // left out on their own. Their striped bars stay; one tap on each counts it again.
+  // left out on their own. Their bars stay, striped, and say why on hover. The bars are not buttons.
   await expect(page.getByTestId('weekly-days')).toHaveText('0/2');
   await expect(page.getByTestId('ring-kcal')).toHaveText('?');
   const mon = page.getByTestId('week-day-2026-11-09');
-  await expect(mon).toHaveAttribute('aria-pressed', 'false');
-  await expect(mon).toHaveAttribute('aria-label', /looks partly logged, not counted\. Tap to count it\./);
+  await expect(mon).toHaveAttribute('data-counted', 'false');
+  await expect(mon).toHaveAttribute('title', /looks partly logged, not counted$/);
+  await expect(page.locator('button[data-testid^="week-day-"]')).toHaveCount(0);
   await shot(page, 'weekly-days-left-out');
-  await mon.click();
-  await expect(page.getByTestId('weekly-days')).toHaveText('1/2');
-  await page.getByTestId('week-day-2026-11-10').click();
+
+  // Track / Untrack sits on the desktop Diary day card: track both days there, then come back to the phone.
+  const phone = page.viewportSize();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  for (const d of ['2026-11-09', '2026-11-10']) {
+    await page.goto(`/#/diary/${d}`);
+    const track = page.getByTestId('day-track');
+    await expect(track).toHaveText('Track');
+    await track.click();
+    await expect(track).toHaveText('Untrack');
+  }
+  if (phone) await page.setViewportSize(phone);
+  await page.goto('/#/today');
   await expect(page.getByTestId('weekly-days')).toHaveText('2/2');
-  await expect(mon).toHaveAttribute('aria-pressed', 'true');
+  await expect(mon).toHaveAttribute('data-counted', 'true');
   // The choice stays after a reload.
   await page.reload();
   await expect(page.getByTestId('weekly-days')).toHaveText('2/2');

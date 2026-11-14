@@ -22,7 +22,7 @@ import { href, useApp, useAppState, useData } from '../lib/hooks';
 import { GIcon, InfoChip, type GuidanceIconName } from '../ui/icons-today-guidance';
 import { Card, Icon, SourceBadge } from '../ui/kit';
 import { addDays, amountLabel, totalsOf } from './day';
-import { SKIPPED_BAR, dayChoiceLabel, nextChoice } from './dayChoice';
+import { SKIPPED_BAR, dayStatusLabel } from './dayChoice';
 import {
   VERDICT_LABEL,
   amountText,
@@ -62,15 +62,11 @@ export function GuidanceCards({ date, entries, goal }: { date: string; entries: 
       choices: dates.length > 0 ? await app.db.dayChoices(dates[0], dates[dates.length - 1]) : {},
     };
   }, [date]);
-  const choose = async (day: string, choice: DayChoice) => {
-    await app.db.setDayChoice(day, choice);
-    await app.changed();
-  };
   return (
     <>
       {data && <YesterdayRow date={yesterday} entries={data.yesterday} kcalTarget={data.yesterdayGoal?.kcal_target ?? null} confirmedComplete={data.yesterdayComplete} />}
       {goal && <WhatIsLeft entries={entries} goal={goal} />}
-      {data && <WeeklyCard today={date} entries={data.week} goal={goal} choices={data.choices} onChoice={(d, c) => void choose(d, c)} />}
+      {data && <WeeklyCard today={date} entries={data.week} goal={goal} choices={data.choices} />}
     </>
   );
 }
@@ -180,7 +176,7 @@ function SuggestionRow({ s, first }: { s: FoodSuggestion; first: boolean }) {
 const RING_MEASURES = [...WEEKLY_MEASURES, 'sugars_g', 'sat_fat_g'] as const;
 const BAR_HEIGHT = 90;
 
-function WeeklyCard({ today, entries, goal, choices, onChoice }: { today: string; entries: LocalLogEntry[]; goal: GoalRow | null; choices: Record<string, DayChoice>; onChoice: (date: string, choice: DayChoice) => void }) {
+function WeeklyCard({ today, entries, goal, choices }: { today: string; entries: LocalLogEntry[]; goal: GoalRow | null; choices: Record<string, DayChoice> }) {
   const [selected, setSelected] = useState<WeeklyMeasureKey>('protein_g');
   const byDate = new Map<string, LocalLogEntry[]>();
   for (const e of entries) byDate.set(e.local_date, [...(byDate.get(e.local_date) ?? []), e]);
@@ -217,7 +213,7 @@ function WeeklyCard({ today, entries, goal, choices, onChoice }: { today: string
           </InfoChip>
         )}
       </div>
-      {/* A week where every logged day is left out still shows its bars, so a day can be tapped back in. */}
+      {/* A week where every logged day is left out still shows its bars and why. */}
       {week.dates.length === 0 || (week.counted_days === 0 && week.skipped.length === 0) ? (
         <div className="mt-3 flex items-center gap-2 text-[15px] font-semibold text-secondary">
           <GIcon name="calendar" size={18} />
@@ -302,20 +298,23 @@ function WeeklyCard({ today, entries, goal, choices, onChoice }: { today: string
                       </div>
                     )}
                     {d.value !== null ? (
-                      // Decision 47: a left-out day keeps its bar, striped, so it can be seen and tapped back in.
+                      // Decision 47: a left-out day keeps its bar, striped. Track / Untrack is on the desktop Diary day card.
                       <div className={`w-3/5 max-w-[34px] rounded ${d.counted ? 'bg-accent opacity-70' : ''}`} style={{ height: barPx(d.value), ...(d.counted ? {} : SKIPPED_BAR) }} />
                     ) : (
                       <div className="h-1 w-3/5 max-w-[34px] rounded border border-dashed border-faint" />
                     )}
                   </>
                 );
-                const cls = 'flex h-full min-w-0 flex-1 flex-col items-center justify-end';
-                if (!d.logged) return <div key={d.local_date} className={cls}>{inner}</div>;
-                const label = dayChoiceLabel(d, `${amountText(d.value, selected)} ${unit}`);
                 return (
-                  <button key={d.local_date} type="button" className={`tap ${cls}`} title={label} aria-label={label} aria-pressed={d.counted} data-testid={`week-day-${d.local_date}`} onClick={() => onChoice(d.local_date, nextChoice(d))}>
+                  <div
+                    key={d.local_date}
+                    className="flex h-full min-w-0 flex-1 flex-col items-center justify-end"
+                    title={d.logged ? dayStatusLabel(d, `${amountText(d.value, selected)} ${unit}`) : undefined}
+                    data-testid={`week-day-${d.local_date}`}
+                    data-counted={d.logged ? d.counted : undefined}
+                  >
                     {inner}
-                  </button>
+                  </div>
                 );
               })}
             </div>

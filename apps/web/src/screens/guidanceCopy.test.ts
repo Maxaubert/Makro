@@ -221,6 +221,6 @@ describe('language', () => {
 describe('leftOutNote with partly logged days (decision 47)', () => {
   it('names auto and user left-out days', () => {
     const week = { dates: ['2026-11-09', '2026-11-10', '2026-11-11'], counted_days: 1, left_out: [], skipped: [{ local_date: '2026-11-09', why: 'auto' as const }, { local_date: '2026-11-10', why: 'user' as const }] };
-    expect(leftOutNote(week)).toBe('1 of 3 days counted. Mon looks partly logged (under half the calorie target) and is left out. You left out Tue.');
+    expect(leftOutNote(week)).toBe('1 of 3 days counted. Mon looks partly logged (under half the calorie target) and is left out. You untracked Tue.');
   });
 });

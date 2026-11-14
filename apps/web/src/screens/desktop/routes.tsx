@@ -11,7 +11,8 @@ import { DesktopWeight } from './DesktopWeight';
 export function desktopScreen(screen: string | undefined, a: string | undefined): ReactElement | null {
   switch (screen) {
     case 'diary':
-      return <DesktopDiary key={a ?? 'today'} date={a} />;
+      // No key: the Diary stays mounted from day to day, so the layout does not empty and jump.
+      return <DesktopDiary date={a} />;
     case 'add':
       return <DesktopLog />;
     case 'weight':

@@ -94,11 +94,15 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
         <span className="num text-[14px] text-secondary">{targets.kcal ? `/ ${formatNumber(targets.kcal, 0)} kcal` : 'kcal'}</span>
         {kcalShare !== null && <span className="num ml-auto text-[13px] text-secondary">{formatNumber(kcalShare * 100, 0)}%</span>}
       </div>
-      {targets.kcal ? (
-        <div className="mt-2.5 h-1.5 overflow-hidden rounded-[3px] bg-strong" role="img" aria-label={kcalShare === null ? 'Calorie target progress unknown' : `${formatNumber(kcalShare * 100, 0)}% of the calorie target`} data-testid="ring-kcal-bar">
-          {kcalShare !== null && <div className="h-full rounded-[3px] bg-accent" style={{ width: `${Math.min(100, kcalShare * 100)}%` }} />}
-        </div>
-      ) : null}
+      {/* Always drawn, empty without a target, so the card keeps its height from day to day. */}
+      <div
+        className="mt-2.5 h-1.5 overflow-hidden rounded-[3px] bg-strong"
+        role="img"
+        aria-label={!targets.kcal ? 'No calorie target' : kcalShare === null ? 'Calorie target progress unknown' : `${formatNumber(kcalShare * 100, 0)}% of the calorie target`}
+        data-testid="ring-kcal-bar"
+      >
+        {kcalShare !== null && <div className="h-full rounded-[3px] bg-accent" style={{ width: `${Math.min(100, kcalShare * 100)}%` }} />}
+      </div>
 
       {drawable ? (
         <svg
@@ -153,9 +157,10 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
           })}
         </svg>
       ) : (
-        <p className="mt-2 text-[13px] text-secondary" data-testid="radar-missing">
+        // The same box as the radar, so the card keeps its height whether or not the shape can be drawn.
+        <p className="mx-auto mt-[22px] flex aspect-[300/188] w-full max-w-[300px] items-center justify-center px-6 text-center text-[13px] text-secondary" data-testid="radar-missing">
           {week.counted_days === 0 && week.skipped.length > 0
-            ? 'No day is counted. Tap a striped bar to count that day.'
+            ? 'No day is counted. Track a day on the Diary to count it.'
             : 'The shape needs a target and a full week of protein, carbs and fat.'}
         </p>
       )}
