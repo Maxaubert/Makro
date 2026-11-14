@@ -79,7 +79,8 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   // The weekly panel switches measure and keeps unknown as "?".
   await page.getByRole('button', { name: 'Protein' }).first().click();
   await page.getByRole('option', { name: 'Calories' }).click();
-  await expect(page.getByTestId('weekly-average')).toHaveText('? kcal');
+  await expect(page.getByTestId('weekly-average')).toHaveCount(0);
+  await expect(page.getByTestId('ring-kcal')).toHaveText('?');
 
   // A wide window does not break the layout, and 390 px is still the phone column.
   await page.setViewportSize({ width: 2200, height: 1100 });

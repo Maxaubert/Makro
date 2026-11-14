@@ -124,8 +124,11 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 
   // Skyr: 11 g protein and 62 kcal per 100 g, so 11 g on day one and 22 g on day two, which averages 16.5 and shows as 17.
+  // The ring: protein average 17 g, calories 93 kcal. Under 5 g a day of carbs or fat, the splits are not drawn.
+  await expect(page.getByTestId('ring-protein')).toContainText('17');
+  await expect(page.getByTestId('ring-kcal')).toHaveText('93');
+  await expect(page.getByTestId('split-sat-fat')).toHaveCount(0);
   const week = page.getByTestId('weekly-average');
-  await expect(week).toContainText('17');
   await expect(page.getByTestId('weekly-coverage')).toHaveCount(0);
   await expect(page.getByTestId('weekly-days')).toHaveText('2/2');
   await shot(page, 'today-wednesday');
@@ -136,7 +139,7 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   await expect(page.getByTestId('weekly-coverage')).toHaveAttribute('aria-label', /^Covers 0 of 2 entries/);
   await shot(page, 'weekly-fibre-unknown');
   await page.getByRole('button', { name: 'Show Calories' }).click();
-  await expect(week).toContainText('93');
+  await expect(week).toHaveCount(0);
 
   // Yesterday had a logged meal, so it gets a status line and the "may be incomplete" mark.
   await expect(page.getByTestId('yesterday-row')).toContainText('Under target');
