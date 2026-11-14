@@ -20,7 +20,6 @@ import { canPageForward, dayRowSummary, listWindow, pageDay, parsedQuantity, pre
 import { daysLabel, ofText } from './trendsCopy';
 
 const TABLE_COLUMNS = 'grid grid-cols-[minmax(0,1fr)_64px_64px_64px_72px] gap-2';
-const MEAL_COLORS: Record<Meal, string> = { breakfast: '#FF4C00', lunch: '#FF8A57', dinner: '#FFB38F', snack: '#7A7A80' };
 
 const MACRO_TILES = [
   { key: 'carbs_g', label: 'Carbs', target: 'carbs_g_target', color: 'var(--color-accent-2)' },
@@ -167,8 +166,8 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
 
   return (
     <DesktopShell active="diary" title="Diary">
-      {/* Three columns from the board's width down to 1360 px; narrower, the panel moves under the day. */}
-      <div className="grid grid-cols-[244px_minmax(0,1fr)] items-start gap-5 min-[1360px]:grid-cols-[244px_minmax(0,1fr)_300px]">
+      {/* The day list and the day. */}
+      <div className="grid grid-cols-[244px_minmax(0,1fr)] items-start gap-5">
         <DayList date={date} now={now} days={days} listed={data?.listed} goals={data?.listGoals} week={data ? weekOf(date, data.weekEntries, goal, data.choices).measures.kcal : null} />
 
         <section className="flex min-w-0 flex-col gap-5">
@@ -210,16 +209,7 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
           )}
         </section>
 
-        {data && (
-          <WeeklyPanel
-            date={date}
-            now={now}
-            entries={entries}
-            weekEntries={data.weekEntries}
-            goal={goal}
-            choices={data.choices}
-          />
-        )}
+        {/* The Weekly average panel moved to Trends (Max, 2026-11-14). */}
       </div>
     </DesktopShell>
   );
@@ -354,7 +344,6 @@ function DayCard({
   const leftText = remainingText(left, 'kcal');
   // An empty earlier day has nothing to compare, so only the target shows.
   const showLeft = left.left !== null && (entries.length > 0 || date === now);
-  const mealTotals = MEALS.map((meal) => ({ meal, total: totalsOf(entries.filter((e) => e.meal === meal)).kcal }));
   const barWhole = Math.max(goal?.kcal_target ?? 0, totals.kcal.value ?? 0, 1);
 
   return (
@@ -412,20 +401,12 @@ function DayCard({
         </span>
       </div>
 
-      <div className="mt-4 flex h-2.5 gap-[3px] overflow-hidden rounded-[5px] bg-border">
-        {mealTotals.map(({ meal, total }) => (
-          <div key={meal} className="h-2.5" style={{ width: `${((total.value ?? 0) / barWhole) * 100}%`, background: MEAL_COLORS[meal] }} />
-        ))}
-      </div>
-      <div className="mt-3 grid grid-cols-4 gap-2.5">
-        {mealTotals.map(({ meal, total }) => (
-          <div key={meal} className="flex min-w-0 items-center gap-2">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: MEAL_COLORS[meal] }} />
-            <span className="num truncate whitespace-nowrap text-[12px] text-secondary">
-              {MEAL_LABEL[meal]} {withUnknown(formatTotal(total, 0))}
-            </span>
-          </div>
-        ))}
+      {/* One bar for the day against the target, not split by meal (Max, 2026-11-14). Over the target it turns light orange. */}
+      <div className="mt-4 h-2.5 overflow-hidden rounded-[5px] bg-border" data-testid="day-kcal-bar">
+        <div
+          className={`h-2.5 rounded-[5px] ${goal && (totals.kcal.value ?? 0) > goal.kcal_target ? 'bg-accent-2' : 'bg-accent'}`}
+          style={{ width: `${Math.min(100, ((totals.kcal.value ?? 0) / barWhole) * 100)}%` }}
+        />
       </div>
 
       <div className="mt-[18px] grid grid-cols-4 gap-2.5">
@@ -645,7 +626,8 @@ function isGoodVerdict(verdict: Verdict, key: Nutrient): boolean {
   return verdict === 'on_target' || (verdict === 'above_target' && (key === 'protein_g' || key === 'fibre_g'));
 }
 
-function WeeklyPanel({ date, now, entries, weekEntries, goal, choices }: {
+/** The weekly average panel, shown on Trends (moved from the Diary, Max 2026-11-14). date is the day the week ends before. */
+export function WeeklyPanel({ date, now, entries, weekEntries, goal, choices }: {
   date: string; now: string; entries: LocalLogEntry[]; weekEntries: LocalLogEntry[]; goal: GoalRow | null;
   choices: Record<string, DayChoice>;
 }) {
@@ -677,7 +659,7 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal, choices }: {
   const inRing = key === 'kcal' || key === 'protein_g' || key === 'carbs_g' || key === 'fat_g';
 
   return (
-    <aside className="card relative col-start-2 p-5 min-[1360px]:col-start-3" aria-label="Weekly average">
+    <aside className="card relative p-5" aria-label="Weekly average">
       <div className="flex items-baseline justify-between">
         <span className="text-[17px] font-bold">Weekly average</span>
         <span className="text-[12px] text-secondary">{weekRange(week.dates)}</span>

@@ -10,6 +10,8 @@ import { CountChip, HomeIcon, UnknownChip } from '../../ui/icons-desktop-home';
 import { Card, Icon } from '../../ui/kit';
 import { dayLine } from '../guidanceCopy';
 import { SKIPPED_BAR } from '../dayChoice';
+import { WeeklyPanel } from './DesktopDiary';
+import { weekWindow } from '../../domain/guidance';
 import { addDays, today } from '../day';
 import { averageTitle, axisLabels, coverageCount, coverageLabel, ofText, onTargetText, rangeLabel, vsGoalText } from './trendsCopy';
 
@@ -59,6 +61,7 @@ export function DesktopTrends() {
     byDate.set(e.local_date, [...(byDate.get(e.local_date) ?? []), item]);
   }
   const summary = trendsSummary({ today: day, range, targets, choices: data?.choices, days: [...byDate].map(([local_date, items]) => ({ local_date, items })) });
+  const weekDates = weekWindow(day);
   const weightChange = trendChange(data?.weights ?? [], day, TREND_RANGE_DAYS[range]);
 
   return (
@@ -94,6 +97,15 @@ export function DesktopTrends() {
               </div>
               <Icon name="next" size={18} className="shrink-0 text-secondary" />
             </a>
+            {/* Moved here from the Diary (Max, 2026-11-14): this week up to yesterday, today's bar and top sources. */}
+            <WeeklyPanel
+              date={day}
+              now={day}
+              entries={data.entries.filter((e) => e.local_date === day)}
+              weekEntries={data.entries.filter((e) => weekDates.includes(e.local_date))}
+              goal={data.goal}
+              choices={data.choices}
+            />
           </aside>
         </div>
       )}
