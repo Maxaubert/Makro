@@ -50,7 +50,7 @@ test('edit About you and Goals from Account: limits, new target, same-day update
   await expect(page.getByRole('heading', { name: 'Your goals' })).toBeVisible();
   await shot(page, '02-goals');
   await page.getByLabel('Daily calories').fill('1000');
-  await expect(page.getByText(/set goals under 1500 kcal/)).toBeVisible();
+  await expect(page.getByText('Minimum 1500 kcal a day')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
   await shot(page, '03-goals-blocked');
 
@@ -60,7 +60,7 @@ test('edit About you and Goals from Account: limits, new target, same-day update
   await page.getByLabel('Carbs share').fill('45');
   await page.getByLabel('Fat share').fill('25');
   await expect(page.getByTestId('split-total')).toHaveText('105%');
-  await expect(page.getByText('5% over. Make it 100% to save.')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: '5% over' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
   await shot(page, '03b-goals-split-over');
   await page.getByLabel('Carbs share').fill('40');

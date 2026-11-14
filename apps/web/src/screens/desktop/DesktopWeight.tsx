@@ -10,9 +10,10 @@ import { WEIGHT_RANGE_KG } from '../../domain/goals';
 import { href, useApp, useBack, useData, useRoute } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
 import { Icon, Notice } from '../../ui/kit';
+import { Glyph } from '../../ui/icons-weight-goals-profile';
 import { dayLabel, today } from '../day';
 import { kgText, shortDate, timeIn } from '../Weight';
-import { parseKg, Sheet, steppedKgText, toLocalInput, WeightSheet, whenLabel } from '../WeightSheet';
+import { parseKg, Sheet, steppedKgText, toLocalInput, WeightSheet, WeightSource, whenLabel } from '../WeightSheet';
 
 const RANGES: { id: WeightRange; sub: string }[] = [
   { id: '7D', sub: 'last 7 days' },
@@ -21,7 +22,7 @@ const RANGES: { id: WeightRange; sub: string }[] = [
 ];
 
 const CARD = 'rounded-[20px] border border-border bg-card';
-const CHANGE_GRID = 'grid grid-cols-[minmax(0,1fr)_110px_110px_140px] gap-2';
+const CHANGE_GRID = 'grid grid-cols-[minmax(0,1fr)_110px_110px_48px] gap-2';
 
 const withUnit = (kg: number | null) => (kg === null ? '?' : `${kgText(kg)} kg`);
 
@@ -71,7 +72,7 @@ function WeightChart({ days }: { days: TrendDay[] }) {
               style={{ left: `calc(${(latest.x / 700) * 100}% - 9px)`, top: `${(latest.y / 200) * 100}%` }}
             />
           )}
-          {known === 0 && <p className="absolute inset-x-0 top-[124px] text-center text-sm text-secondary">No weights in this period.</p>}
+          {known === 0 && <p className="absolute inset-x-0 top-[124px] text-center text-sm text-secondary">No weights</p>}
         </div>
       </div>
       <div className="ml-11 mt-2.5 flex justify-between text-[11px] text-secondary">
@@ -252,9 +253,12 @@ function GoalPanel({ targetKg, paceKg, weeks, progress }: { targetKg: number | n
           </div>
         </div>
       </div>
-      <div className="mt-3.5 flex justify-between text-[13px] text-secondary">
-        <span>Estimated time to goal</span>
-        <span className="font-semibold text-text">{eta}</span>
+      <div className="mt-3.5 flex items-center justify-between text-[13px] text-secondary">
+        <span className="flex items-center gap-1.5">
+          <Glyph name="flag" size={14} />
+          Time to goal
+        </span>
+        <span className="text-[17px] font-bold text-text">{eta}</span>
       </div>
       <div
         className="mt-2.5 h-1.5 rounded-[3px] bg-border"
@@ -296,6 +300,7 @@ export function DesktopWeight() {
   const estimate = goal ? goalEstimate({ weight_kg: latestKg, start_kg: goal.weight_kg, target_kg: targetKg, pace_kg_per_week: goal.pace_kg_per_week, goal_type: goal.goal_type }) : { weeks: null, progress: null };
   const editing = mode === 'edit' && data ? (weights.find((w) => w.id === id) ?? null) : null;
 
+  const rangeSub = RANGES.find((r) => r.id === range)?.sub ?? '';
   let toGoalText = '?';
   if (distance?.reached) toGoalText = 'Reached';
   else if (distance && distance.kg !== null) toGoalText = withUnit(distance.kg);
@@ -311,12 +316,12 @@ export function DesktopWeight() {
         <section className="flex min-w-0 flex-col gap-5">
           <div className={`${CARD} p-6`}>
             <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[13px] text-secondary">Weight, {RANGES.find((r) => r.id === range)?.sub}</div>
-                <div className="mt-1 flex items-baseline gap-3.5">
-                  <span className="text-[48px] font-bold leading-[1.2] tracking-[-1.4px]">{withUnit(latestKg)}</span>
-                  <span className="text-[15px] font-semibold text-accent-2">{change === null ? '?' : `${signedKg(change)} kg`}</span>
-                </div>
+              <div className="flex items-baseline gap-3.5">
+                <span className="text-[48px] font-bold leading-[1.2] tracking-[-1.4px]">{withUnit(latestKg)}</span>
+                <span className="text-[15px] font-semibold text-accent-2" data-testid="weight-change" title={`Change, ${rangeSub}`}>
+                  <span className="sr-only">Change, {rangeSub}: </span>
+                  {change === null ? '?' : `${signedKg(change)} kg`}
+                </span>
               </div>
               <div className="flex gap-2">
                 {RANGES.map((r) => (
@@ -324,6 +329,7 @@ export function DesktopWeight() {
                     key={r.id}
                     type="button"
                     aria-pressed={range === r.id}
+                    title={r.sub}
                     onClick={() => setRange(r.id)}
                     className={`tap flex h-8 items-center rounded-full px-3.5 text-[13px] ${range === r.id ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
                   >
@@ -340,7 +346,7 @@ export function DesktopWeight() {
               <Stat label="Highest">{withUnit(summary.stats.highest_kg)}</Stat>
               <Stat label="Average">{withUnit(summary.stats.average_kg)}</Stat>
               <Stat label="Weigh-ins">{rows.length}</Stat>
-              <Stat label={targetKg === null ? 'To goal' : `To goal ${kgText(targetKg)}`} accent>
+              <Stat label="To goal" accent>
                 {toGoalText}
               </Stat>
             </div>
@@ -352,9 +358,9 @@ export function DesktopWeight() {
               <span>Date</span>
               <span className="text-right">Weight</span>
               <span className="text-right">Change</span>
-              <span>Source</span>
+              <span className="sr-only">Source</span>
             </div>
-            {rows.length === 0 && <p className="border-t border-border px-6 py-3 text-sm text-secondary">No weigh-ins in this period.</p>}
+            {rows.length === 0 && <p className="border-t border-border px-6 py-3 text-sm text-secondary">No weigh-ins</p>}
             <ul aria-label="Weigh-ins">
               {rows.map(({ w, change: delta }) => {
                 const shown = delta === null ? '' : signedKg(delta);
@@ -368,7 +374,9 @@ export function DesktopWeight() {
                       <span className="font-semibold">{dayLabel(w.local_date).replace(',', '')}</span>
                       <span className="text-right font-bold">{kgText(w.weight_kg)} kg</span>
                       <span className={`text-right ${delta !== null && (roundForDisplay(delta, 1) as number) > 0 ? 'text-accent-2' : 'text-secondary'}`}>{shown}</span>
-                      <span className="text-secondary">{w.source === 'apple_health' ? 'Apple Health' : 'Manual'}</span>
+                      <span className="flex justify-center">
+                        <WeightSource source={w.source} />
+                      </span>
                     </a>
                   </li>
                 );

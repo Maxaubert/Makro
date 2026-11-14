@@ -38,31 +38,33 @@ test('desktop Trends: average, ranges, stats, weekday pattern, macros and weight
 
   await page.goto('/#/trends');
   await expect(page.getByRole('heading', { name: 'Trends', exact: true })).toBeVisible();
-  await expect(page.getByText('Average intake, last 7 days')).toBeVisible();
+  await expect(page.getByText('Daily average', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '7D' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('trends-average')).toHaveText('428 kcal');
   await expect(page.getByTestId('trends-vs-goal')).toContainText('under goal');
   await expect(page.getByText(/^Goal 2,250$/)).toBeVisible();
-  await expect(page.getByTestId('trends-logged')).toHaveText('5 of 7');
-  await expect(page.getByTestId('trends-on-target')).toHaveText('0 of 5');
+  await expect(page.getByTestId('trends-logged')).toHaveText('5/7');
+  await expect(page.getByTestId('trends-on-target')).toHaveText('0/5');
   await expect(page.getByTestId('trends-highest')).toHaveText('744');
   await expect(page.getByTestId('trends-lowest')).toHaveText('186');
-  // Days with nothing logged are left out and said so, never counted as 0.
-  await expect(page.getByTestId('trends-coverage')).toContainText('2 days with nothing logged are left out, not counted as 0.');
+  // Days with nothing logged are left out and counted in a chip, never counted as 0.
+  await expect(page.getByTestId('trends-coverage').getByRole('img', { name: /^2 days with nothing logged, left out, not counted as 0/ })).toHaveText('2');
   await expect(page.getByTestId('trends-bar')).toHaveCount(7);
   // Skyr has no fibre value: unknown, not 0.
   await expect(page.getByTestId('trends-macro-fibre_g')).toContainText('?');
-  await expect(page.getByTestId('trends-macro-coverage')).toContainText('Fibre covers 0 of 5 entries');
+  await expect(page.getByTestId('trends-macro-fibre_g').getByTestId('trends-macro-coverage')).toHaveText('0/5');
+  await expect(page.getByTestId('trends-macro-coverage')).toHaveCount(1);
   // One weigh-in only: the change is unknown.
   await expect(page.getByTestId('trends-weight')).toHaveText('?');
 
   // Ranges change the title, the number of bars and the weight card.
   await page.getByRole('button', { name: '30D' }).click();
-  await expect(page.getByText('Average intake, last 30 days')).toBeVisible();
+  await expect(page.getByRole('button', { name: '30D' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('trends-bar')).toHaveCount(30);
-  await expect(page.getByTestId('trends-logged')).toHaveText('5 of 30');
-  await expect(page.getByText('Weight, last 30 days')).toBeVisible();
+  await expect(page.getByTestId('trends-logged')).toHaveText('5/30');
+  await expect(page.getByRole('link', { name: /^Weight change, last 30 days/ })).toBeVisible();
   await page.getByRole('button', { name: '90D' }).click();
-  await expect(page.getByText('Average intake, last 90 days')).toBeVisible();
+  await expect(page.getByText('Daily average, by week')).toBeVisible();
   await expect(page.getByTestId('trends-average')).toHaveText('428 kcal');
 
   // The weight card opens the Weight screen.
@@ -147,7 +149,7 @@ test('desktop Profile: account, your data, popular foods switch and the delete d
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export my data/ }).click();
   expect((await download).suggestedFilename()).toBe('makro-data.json');
-  await expect(page.getByText('Saved as JSON')).toBeVisible();
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
 
   // The popular-foods switch flips.
   const popular = page.getByRole('switch', { name: 'Count toward popular foods' });

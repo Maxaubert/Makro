@@ -5,14 +5,14 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { barcodeDestination } from '../data/barcodeResult';
 import { href, navigate, useApp, useAppState } from '../lib/hooks';
 import { browserScanEnv, scanSupport, startScan, type ScanError, type ScanSession } from '../lib/scanner';
-import { Notice, Page, SecondaryButton } from '../ui/kit';
+import { Icon, Notice, Page, SecondaryButton } from '../ui/kit';
 import { TypeCode } from './TypeCode';
 
 const CAMERA_PROBLEM: Record<ScanError, string> = {
-  denied: 'Makro is not allowed to use the camera. Allow it in your browser settings, or type the code.',
-  'no-camera': 'No camera was found on this device. Type the code instead.',
-  busy: 'Another app is using the camera. Close it and try again, or type the code.',
-  failed: 'The camera could not start. Try again, or type the code.',
+  denied: 'Camera blocked. Allow it in browser settings.',
+  'no-camera': 'No camera found.',
+  busy: 'Camera in use by another app.',
+  failed: 'Camera could not start.',
 };
 
 export function Scan() {
@@ -66,7 +66,7 @@ function Camera() {
           (route) => {
             if (!live) return;
             if (route) navigate(route);
-            else setProblem('That was not a food barcode. Try again, or type the code.');
+            else setProblem('Not a food barcode.');
           },
           (e) => live && setProblem(e instanceof Error ? e.message : String(e)),
         );
@@ -124,10 +124,10 @@ function Camera() {
         ) : products.status === 'loading' ? (
           <Notice>{products.message}...</Notice>
         ) : products.status === 'error' ? (
-          <Notice tone="error">
-            The food database could not be loaded: {products.message}. You can still{' '}
-            <a href={href('custom')} className="font-semibold underline">add a custom food</a>.
-          </Notice>
+          <div className="flex flex-col gap-2">
+            <Notice tone="error">Food database failed: {products.message}</Notice>
+            <SecondaryButton href={href('custom')}>Add custom food</SecondaryButton>
+          </div>
         ) : (
           <div className="text-lg font-semibold">Point at the barcode</div>
         )}
@@ -138,7 +138,10 @@ function Camera() {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="mr-2" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="3" /><path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8" /></svg>
           Type the code
         </SecondaryButton>
-        <a href={href('add')} className="flex h-[52px] items-center justify-center text-[15px] font-semibold text-accent-2">Search by name instead</a>
+        <a href={href('add')} className="flex h-[52px] items-center justify-center gap-2 text-[15px] font-semibold text-accent-2">
+          <Icon name="search" size={18} />
+          Search by name
+        </a>
       </div>
     </Page>
   );

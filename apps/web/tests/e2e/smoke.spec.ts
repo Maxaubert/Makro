@@ -16,7 +16,7 @@ async function logSkyr(page: Page, grams: string) {
   await page.getByRole('textbox', { name: 'Search foods' }).fill('skyr');
   const row = page.getByTestId('food-row').filter({ hasText: 'Skyr Naturell' });
   await expect(row).toBeVisible();
-  await expect(row).toContainText('Verified');
+  await expect(row.getByTestId('source-badge')).toHaveAttribute('aria-label', /^Verified/);
   await row.click();
   await expect(page.getByTestId('portion-name')).toHaveText('Skyr Naturell');
   await page.getByLabel('Amount').fill(grams);

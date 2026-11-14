@@ -55,9 +55,13 @@ export function amountText(value: number | null, key: string): string {
   return formatNumber(value, digitsFor(key, value));
 }
 
-export function weeklyHeadline(m: WeeklyMeasure, key: WeeklyMeasureKey): { caption: string; value: string } {
-  if (m.average === null) return { caption: 'No values logged', value: '?' };
-  return { caption: m.covered < m.count ? 'At least, per logged day' : 'Average per logged day', value: amountText(m.average, key) };
+/** The big number of the weekly card. "≥" when some entries had no value, so it is a lower bound; "?" when nothing is known. */
+export function weeklyHeadline(m: WeeklyMeasure, key: WeeklyMeasureKey): { value: string; label: string } {
+  if (m.average === null) return { value: '?', label: 'No values logged' };
+  const text = amountText(m.average, key);
+  return m.covered < m.count
+    ? { value: `≥ ${text}`, label: `At least ${text}, per logged day` }
+    : { value: text, label: `${text} on average per logged day` };
 }
 
 const VALUE_NAME: Record<Nutrient, string> = {
@@ -115,40 +119,38 @@ export function differenceText(s: DayStatus): string {
 
 const clock = (minutes: number): string => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
-const MEAL_ORDER: readonly Meal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
-const MEAL_WORD: Record<Meal, string> = { breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner', snack: 'snacks' };
-
-function joinWords(words: readonly string[]): string {
-  return words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+/** "1 of 5 entries has no calorie value": the label of a compact count of entries without a value. */
+export function missingKcalLabel(without: number, count: number): string {
+  return `${without} of ${count} ${count === 1 ? 'entry' : 'entries'} ${without === 1 ? 'has' : 'have'} no calorie value`;
 }
 
-/** The body of the "may be incomplete" card: what the log shows, in plain words. */
-export function incompleteText({ status, meals, lastMinutes }: { status: DayStatus; meals: readonly Meal[]; lastMinutes: number | null }): string {
-  const sentences: string[] = [];
+export type IncompleteMark = { kind: 'last' | 'no_dinner' | 'long_gap' | 'few' | 'missing'; text: string; label: string };
+
+/** Why a day may be incomplete, as short chips: a few words each, the full meaning in the label. */
+export function incompleteMarks({ status, meals, lastMinutes }: { status: DayStatus; meals: readonly Meal[]; lastMinutes: number | null }): IncompleteMark[] {
+  const marks: IncompleteMark[] = [];
   const { reasons, count, covered } = status;
 
   if (reasons.some((r) => r !== 'missing_values')) {
-    const clauses: string[] = [];
-    if (reasons.includes('ended_early') && lastMinutes !== null) clauses.push(`nothing after ${clock(lastMinutes)}`);
-    if (!meals.includes('dinner')) clauses.push('there is no dinner');
-    if (reasons.includes('long_gap')) clauses.push('there is a long gap between entries');
-
-    if (clauses.length > 0) {
-      const names = MEAL_ORDER.filter((m) => meals.includes(m)).map((m) => MEAL_WORD[m]);
-      const list = joinWords(names);
-      const verb = names.length === 1 && names[0] !== 'snacks' ? 'is' : 'are';
-      const rest = clauses.length === 1 ? `and ${clauses[0]}` : `${clauses.slice(0, -1).join(', ')}, and ${clauses[clauses.length - 1]}`;
-      sentences.push(`${list.charAt(0).toUpperCase()}${list.slice(1)} ${verb} logged, ${rest}.`);
-    } else {
-      sentences.push(count === 1 ? 'Only 1 entry is logged.' : `Only ${count} entries are logged.`);
+    if (reasons.includes('ended_early') && lastMinutes !== null) {
+      marks.push({ kind: 'last', text: `Last ${clock(lastMinutes)}`, label: `Nothing after ${clock(lastMinutes)}` });
+    }
+    if (!meals.includes('dinner')) marks.push({ kind: 'no_dinner', text: 'No dinner', label: 'No dinner logged' });
+    if (reasons.includes('long_gap')) marks.push({ kind: 'long_gap', text: 'Long gap', label: 'A long gap between entries' });
+    if (marks.length === 0) {
+      const entries = count === 1 ? '1 entry' : `${count} entries`;
+      marks.push({ kind: 'few', text: entries, label: `Only ${entries} logged` });
     }
   }
   if (reasons.includes('missing_values')) {
     const without = count - covered;
-    sentences.push(`${without} of ${count} ${count === 1 ? 'entry' : 'entries'} ${without === 1 ? 'has' : 'have'} no calorie value.`);
+    marks.push({
+      kind: 'missing',
+      text: `${without}/${count} no kcal`,
+      label: missingKcalLabel(without, count),
+    });
   }
-  sentences.push('A day with missing entries is never counted as fasting, so the totals above show only what was logged.');
-  return sentences.join(' ');
+  return marks;
 }
 
 export function remainingText(r: RemainingValue, key: string): { value: string; over: boolean } {

@@ -3,8 +3,10 @@
 import { formatNumber, formatTotal } from '../domain/format';
 import { href, useApp, useAppState, useData } from '../lib/hooks';
 import { canTryScan } from '../lib/scanner';
-import { Card, HalfGauge, Icon, Page, Ring, SyncPill, UnknownNote } from '../ui/kit';
+import { InfoChip } from '../ui/icons-today-guidance';
+import { Card, HalfGauge, Icon, Page, Ring, SyncPill } from '../ui/kit';
 import { dayLabel, today, totalsOf } from './day';
+import { missingKcalLabel } from './guidanceCopy';
 import { GuidanceCards } from './TodayGuidance';
 
 const MACROS = [
@@ -44,9 +46,11 @@ export function Today() {
       </header>
 
       <Card className="mt-4 p-4">
-        <div className="flex justify-between text-[13px] text-secondary">
-          <span>Calories</span>
-          <span>{goal ? `Goal ${formatNumber(goal.kcal_target, 0)} kcal` : 'No goal set'}</span>
+        <div className="flex justify-end text-[13px] text-secondary">
+          <span className="flex items-center gap-1">
+            <Icon name="goals" size={14} stroke={2} />
+            {goal ? `Goal ${formatNumber(goal.kcal_target, 0)} kcal` : 'No goal set'}
+          </span>
         </div>
         <div className="relative mt-1.5">
           <HalfGauge
@@ -63,15 +67,20 @@ export function Today() {
           </div>
         </div>
         <div className="mt-3 flex items-center justify-between text-[13px] text-secondary">
-          <span>
+          <span className="flex items-center gap-1.5">
             Eaten{' '}
-            <b className="num text-text" data-testid="kcal-eaten">
+            <b className="num text-[15px] text-text" data-testid="kcal-eaten">
               {kcal.text}
-            </b>{' '}
-            <UnknownNote count={kcal.unknown} />
+            </b>
+            {kcal.unknown > 0 && (
+              <InfoChip icon="partial" tone="warn" label={missingKcalLabel(kcal.unknown, totals.kcal.count)}>
+                {totals.kcal.covered}/{totals.kcal.count}
+              </InfoChip>
+            )}
           </span>
-          <span>
-            Foods logged <b className="text-text" data-testid="foods-logged">{entries.length}</b>
+          <span className="flex items-center gap-1.5" title="Foods logged" aria-label={`Foods logged ${entries.length}`}>
+            <Icon name="diary" size={16} />
+            <b className="num text-[15px] text-text" data-testid="foods-logged">{entries.length}</b>
           </span>
         </div>
       </Card>
@@ -87,9 +96,10 @@ export function Today() {
                 <Ring fraction={target && t.value !== null ? t.value / target : null} color={m.color} />
               </div>
               <div className="mt-1.5 text-[12px] text-secondary">{m.label}</div>
-              <div className="num text-[13px] font-semibold">{f.text} g</div>
-              {f.unknown > 0 && <div className="text-[11px] text-secondary">+? ({f.unknown})</div>}
-              {target !== null && <div className="text-[11px] text-secondary">of {formatNumber(target, 0)}</div>}
+              <div className="num text-[15px] font-semibold" title={target !== null ? `${f.text} of ${formatNumber(target, 0)} g` : undefined}>
+                {f.text} g
+                {f.unknown > 0 && <span className="text-[12px] text-accent-2" title={`${f.unknown} without a value`}> +?</span>}
+              </div>
             </div>
           );
         })}

@@ -5,6 +5,7 @@ import { emptyGoalForm, evaluateGoalForm, profileChange, withLatestWeight, type 
 import type { Db } from '../lib/db';
 import { kcalFloor, GOAL_CONSTANTS, type ActivityLevel, type GoalType } from '../domain/goals';
 import { Chip, Notice } from '../ui/kit';
+import { Glyph, LevelBars } from '../ui/icons-weight-goals-profile';
 import { MacroEditor, RepairedNote } from './macroEditor';
 
 export const ACTIVITY: { value: ActivityLevel; label: string }[] = [
@@ -41,9 +42,9 @@ export async function loadGoal(db: Db) {
 }
 
 const PROFILE_NOTE = {
-  age: 'Type your age in whole years.',
-  height: 'Height must be between 100 and 250 cm.',
-  weight: 'Weight must be between 30 and 400 kg.',
+  age: 'Age: whole years',
+  height: 'Height: 100 to 250 cm',
+  weight: 'Weight: 30 to 400 kg',
 } as const;
 
 /** Why Continue is disabled: a value outside the limits. Nothing while a field is still empty. */
@@ -66,22 +67,33 @@ export function useGoalForm(initial: Prefill = FIRST_RUN): GoalFormState {
   return { form, set: (patch) => setForm((f) => ({ ...f, ...patch })), evaluation, prefill };
 }
 
-function NumberField({ label, unit, value, onChange }: { label: string; unit?: string; value: string; onChange: (v: string) => void }) {
+function NumberField({ label, unit, placeholder, value, onChange }: { label: string; unit?: string; placeholder?: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-[12px] text-secondary">{label}{unit ? ` (${unit})` : ''}</span>
-      <input className="field num" inputMode="decimal" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} />
+      <input className="field num" inputMode="decimal" aria-label={label} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
 
+/** Where to get help if food or weight feels hard: ROS (eating disorder advice), by phone or web. */
 export function HelpNote() {
+  const link = 'tap flex h-11 items-center gap-1.5 rounded-full border border-border bg-raised px-3.5 text-[14px] font-semibold text-accent-2';
   return (
-    <p className="text-[13px] leading-relaxed text-secondary">
-      If food or weight feels hard, you can talk to someone. ROS, advice on eating disorders:{' '}
-      <a className="font-semibold text-accent-2" href="tel:+4794817818">948 17 818</a>,{' '}
-      <a className="font-semibold text-accent-2" href="https://www.nettros.no" target="_blank" rel="noreferrer">nettros.no</a>. Your GP can help too.
-    </p>
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Help with eating disorders">
+      <span className="mr-1 flex items-center gap-2 text-[14px] font-semibold">
+        <Glyph name="heart" size={18} className="text-accent-2" />
+        ROS help
+      </span>
+      <a className={link} href="tel:+4794817818" aria-label="Call ROS, eating disorder advice, 948 17 818">
+        <Glyph name="phone" size={15} />
+        948 17 818
+      </a>
+      <a className={link} href="https://www.nettros.no" target="_blank" rel="noreferrer" aria-label="ROS website, nettros.no">
+        <Glyph name="globe" size={15} />
+        nettros.no
+      </a>
+    </div>
   );
 }
 
@@ -91,7 +103,7 @@ export function Under18Note({ state }: { state: GoalFormState }) {
   if (evaluation.profileIssue !== 'under_18' || form.age.trim() === '') return null;
   return (
     <div className="mt-3">
-      <Notice>Makro is for people aged 18 and up.</Notice>
+      <Notice>Makro is for ages 18 and up.</Notice>
       <div className="mt-2"><HelpNote /></div>
     </div>
   );
@@ -113,16 +125,17 @@ export function AboutFields({ state }: { state: GoalFormState }) {
       </div>
       <Under18Note state={state} />
       <ProfileNote state={state} />
-      <p className="mt-4 text-[13px] text-secondary">How active are you?</p>
+      <p className="mt-4 text-[13px] text-secondary">Activity</p>
       <div className="mt-2 flex flex-col gap-2">
-        {ACTIVITY.map((a) => (
+        {ACTIVITY.map((a, i) => (
           <button
             key={a.value}
             type="button"
             aria-pressed={form.activity === a.value}
             onClick={() => set({ activity: a.value })}
-            className={`rounded-2xl bg-card p-4 text-left text-[15px] font-semibold ${form.activity === a.value ? 'border-[1.5px] border-accent' : 'border border-border'}`}
+            className={`flex items-center gap-3 rounded-2xl bg-card p-4 text-left text-[15px] font-semibold ${form.activity === a.value ? 'border-[1.5px] border-accent' : 'border border-border'}`}
           >
+            <LevelBars level={(i + 1) as 1 | 2 | 3} className={form.activity === a.value ? 'text-accent' : 'text-secondary'} />
             {a.label}
           </button>
         ))}
@@ -137,14 +150,17 @@ export function GoalNotes({ state, error }: { state: GoalFormState; error: strin
   const [showHelp, setShowHelp] = useState(false);
   return (
     <>
-      {e.problem === 'below_floor' && form.sex && <div className="mt-3"><Notice>Makro doesn't set goals under {kcalFloor(form.sex)} kcal a day.</Notice></div>}
-      {e.problem === 'pace_too_fast' && <div className="mt-3"><Notice>Makro doesn't set a pace above {GOAL_CONSTANTS.max_loss_kg_per_week} kg a week.</Notice></div>}
-      {e.floored && <div className="mt-3"><Notice>This is the lowest goal Makro sets for you.</Notice></div>}
-      {e.targetIssue === 'not_below' && <div className="mt-3"><Notice>To lose weight, the target weight must be below your weight now.</Notice></div>}
-      {e.targetIssue === 'not_above' && <div className="mt-3"><Notice>To gain weight, the target weight must be above your weight now.</Notice></div>}
+      {e.problem === 'below_floor' && form.sex && <div className="mt-3"><Notice>Minimum {kcalFloor(form.sex)} kcal a day</Notice></div>}
+      {e.problem === 'pace_too_fast' && <div className="mt-3"><Notice>Maximum pace {GOAL_CONSTANTS.max_loss_kg_per_week} kg a week</Notice></div>}
+      {e.floored && <div className="mt-3"><Notice>Set to the minimum</Notice></div>}
+      {e.targetIssue === 'not_below' && <div className="mt-3"><Notice>Target must be below your weight now</Notice></div>}
+      {e.targetIssue === 'not_above' && <div className="mt-3"><Notice>Target must be above your weight now</Notice></div>}
       {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
-      <p className="mt-3 text-center text-[12px] text-secondary">
-        <button type="button" className="font-semibold text-accent-2" onClick={() => setShowHelp(!showHelp)}>Need help?</button>
+      <p className="mt-3 flex justify-center">
+        <button type="button" aria-expanded={showHelp} className="tap flex h-11 items-center gap-1.5 px-3 text-[13px] font-semibold text-accent-2" onClick={() => setShowHelp(!showHelp)}>
+          <Glyph name="heart" size={15} />
+          Need help?
+        </button>
       </p>
       {showHelp && <div className="mt-2"><HelpNote /></div>}
     </>
@@ -165,7 +181,7 @@ export function GoalFields({ state, error }: { state: GoalFormState; error: stri
       </div>
       {form.goalType !== 'maintain' && (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <NumberField label="Target weight" unit="kg, optional" value={form.targetWeight} onChange={(targetWeight) => set({ targetWeight })} />
+          <NumberField label="Target weight" unit="kg" placeholder="Optional" value={form.targetWeight} onChange={(targetWeight) => set({ targetWeight })} />
           <NumberField label="Pace" unit="kg / week" value={form.pace} onChange={(pace) => set(changePace(pace))} />
         </div>
       )}

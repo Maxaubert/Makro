@@ -6,10 +6,11 @@ import { TREND_MEASURES, TREND_RANGES, TREND_RANGE_DAYS, trendsSummary, type Tre
 import { signedKg, trendChange } from '../../domain/weight';
 import { href, useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
+import { CountChip, HomeIcon, UnknownChip } from '../../ui/icons-desktop-home';
 import { Card, Icon } from '../../ui/kit';
 import { dayLine } from '../guidanceCopy';
 import { addDays, today } from '../day';
-import { averageTitle, axisLabels, coverageLine, onTargetText, rangeLabel, vsGoalText } from './trendsCopy';
+import { averageTitle, axisLabels, coverageCount, coverageLabel, ofText, onTargetText, rangeLabel, vsGoalText } from './trendsCopy';
 
 // The bars ask for every day of the longest range at once, so switching range never waits on the database.
 const LONGEST_RANGE = TREND_RANGE_DAYS['90D'];
@@ -66,18 +67,24 @@ export function DesktopTrends() {
           <aside className="flex flex-col gap-5">
             <div className="grid grid-cols-2 gap-3">
               <Stat label="Days on target" value={onTargetText(summary.days_on_target, summary.days_judged)} testId="trends-on-target" />
-              <Stat label="Logged days" value={`${summary.window.counted_days} of ${summary.window.dates.length}`} testId="trends-logged" />
+              <Stat label="Logged days" value={ofText(summary.window.counted_days, summary.window.dates.length)} testId="trends-logged" />
               <Stat label="Highest day" value={formatNumber(summary.highest?.kcal, 0)} title={summary.highest ? dayLine(summary.highest.local_date) : undefined} testId="trends-highest" />
               <Stat label="Lowest day" value={formatNumber(summary.lowest?.kcal, 0)} title={summary.lowest ? dayLine(summary.lowest.local_date) : undefined} testId="trends-lowest" />
             </div>
             <WeekdayCard summary={summary} />
-            <a href={href('weight')} className="card tap flex items-center gap-3.5 p-[22px]">
+            <a
+              href={href('weight')}
+              aria-label={`Weight change, ${rangeLabel(range)}: ${weightChange === null ? 'not enough weigh-ins' : `${signedKg(weightChange)} kg`}`}
+              className="card tap flex items-center gap-3.5 p-[22px]"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-raised text-soft">
+                <HomeIcon name="scale" size={22} />
+              </span>
               <div className="grow">
-                <div className="text-[12px] text-secondary">Weight, {rangeLabel(range)}</div>
-                <div className="num mt-1 text-[26px] font-bold" data-testid="trends-weight">
+                <div className="text-[12px] text-secondary">Weight</div>
+                <div className="num mt-0.5 text-[26px] font-bold" data-testid="trends-weight">
                   {weightChange === null ? '?' : `${signedKg(weightChange)} kg`}
                 </div>
-                {weightChange === null && <div className="mt-0.5 text-[12px] text-secondary">Not enough weigh-ins yet</div>}
               </div>
               <Icon name="next" size={18} className="shrink-0 text-secondary" />
             </a>
@@ -93,7 +100,7 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
   const goal = target !== null && target > 0 ? target : null;
   const [axis0, axis1, axis2] = axisLabels(summary.bars, range);
   const leftOut = summary.window.left_out.length;
-  const coverage = coverageLine('The average', kcal);
+  const unknown = kcal.count - kcal.covered;
   const described = summary.bars
     .map((b) => `${dayLine(b.from)}: ${b.value === null ? 'nothing logged' : `${formatNumber(b.value, 0)} kcal`}`)
     .join(', ');
@@ -118,8 +125,9 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
               key={r}
               type="button"
               aria-pressed={r === range}
+              aria-label={`${r}, ${rangeLabel(r)}`}
               onClick={() => onRange(r)}
-              className={`tap flex h-8 items-center rounded-full px-3.5 text-[13px] ${r === range ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
+              className={`tap relative flex h-8 items-center rounded-full px-3.5 text-[13px] after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] ${r === range ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
             >
               {r}
             </button>
@@ -133,7 +141,8 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
             <div
               key={b.from}
               data-testid="trends-bar"
-              className="min-w-0 flex-1 rounded-[5px_5px_2px_2px]"
+              title={b.value === null ? `${dayLine(b.from)}: nothing logged, left out` : undefined}
+              className={`min-w-0 flex-1 ${b.value === null ? 'h-[3px] border-t border-dashed border-faint' : 'rounded-[5px_5px_2px_2px]'}`}
               style={b.value === null ? undefined : { height: percent(b.value, summary.top), minHeight: 2, background: b.band ? BAND_COLOR[b.band] : NO_GOAL_COLOR }}
             />
           ))}
@@ -146,7 +155,7 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
             </span>
           </>
         )}
-        {summary.window.counted_days === 0 && <p className="absolute inset-x-0 top-1/3 text-center text-sm text-secondary">Nothing logged in this period.</p>}
+        {summary.window.counted_days === 0 && <p className="absolute inset-x-0 top-1/3 text-center text-sm text-secondary">Nothing logged</p>}
       </div>
 
       <div className="mt-2.5 flex justify-between text-[11px] text-secondary">
@@ -155,21 +164,26 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
         <span>{axis2}</span>
       </div>
 
-      {goal !== null && (
-        <div className="mt-4 flex gap-[18px] text-[12px] text-secondary">
-          <LegendDot color={BAND_COLOR.on_target} label="On target (within 10%)" />
-          <LegendDot color={BAND_COLOR.over} label="Over" />
-          <LegendDot color={BAND_COLOR.under} label="Under" />
-        </div>
-      )}
-
-      {(leftOut > 0 || coverage !== '') && (
-        <p className="mt-3 text-[12px] leading-[1.4] text-secondary" data-testid="trends-coverage">
-          {leftOut > 0 && `${leftOut} ${leftOut === 1 ? 'day' : 'days'} with nothing logged ${leftOut === 1 ? 'is' : 'are'} left out, not counted as 0.`}
-          {leftOut > 0 && coverage !== '' && ' '}
-          {coverage}
-        </p>
-      )}
+      <div className="mt-4 flex min-h-6 flex-wrap items-center gap-[18px] text-[12px] text-secondary">
+        {goal !== null && (
+          <>
+            <span title="Within 10% of the goal">
+              <LegendDot color={BAND_COLOR.on_target} label="On target" />
+            </span>
+            <LegendDot color={BAND_COLOR.over} label="Over" />
+            <LegendDot color={BAND_COLOR.under} label="Under" />
+          </>
+        )}
+        {/* Rule 2: a day with nothing logged is a dashed stub and is counted here; so are entries with no value. */}
+        <span className="ml-auto flex gap-2" data-testid="trends-coverage">
+          {leftOut > 0 && (
+            <CountChip icon="calendar" label={`${leftOut} ${leftOut === 1 ? 'day' : 'days'} with nothing logged, left out, not counted as 0`}>
+              {leftOut}
+            </CountChip>
+          )}
+          <UnknownChip count={unknown} what="calorie value" />
+        </span>
+      </div>
     </Card>
   );
 }
@@ -184,34 +198,37 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 }
 
 function MacrosCard({ summary, targets }: { summary: TrendsSummary; targets: Record<string, number | null> }) {
-  const notes = MACROS.map((m) => coverageLine(m.name, summary.window.measures[m.key])).filter((line) => line !== '');
   return (
     <Card className="p-6">
-      <h2 className="text-[17px] font-bold">Macros, daily average</h2>
+      <h2 className="text-[17px] font-bold">Macros</h2>
       <div className="mt-5 flex flex-col gap-[18px]">
         {MACROS.map((m) => {
-          const average = summary.window.measures[m.key].average;
+          const measure = summary.window.measures[m.key];
+          const average = measure.average;
+          const covered = coverageCount(measure);
           const target = targets[m.key];
           const pct = average !== null && target !== null && target > 0 ? Math.min(100, Math.round((average / target) * 100)) : 0;
           return (
-            <div key={m.key} className="grid grid-cols-[90px_minmax(0,1fr)_140px] items-center gap-4" data-testid={`trends-macro-${m.key}`}>
+            <div key={m.key} className="grid grid-cols-[90px_minmax(0,1fr)_120px_64px] items-center gap-4" data-testid={`trends-macro-${m.key}`}>
               <span className="text-[14px] font-semibold">{m.name}</span>
               <div className="h-2.5 rounded-[5px] bg-border">
                 <div className="h-2.5 rounded-[5px]" style={{ width: `${pct}%`, background: m.color }} />
               </div>
               <span className="num text-right text-[14px]">
                 <b>{average === null ? '?' : `${formatNumber(average, 0)} g`}</b>{' '}
-                <span className="text-secondary">{target === null ? 'no goal' : `of ${formatNumber(target, 0)} g`}</span>
+                <span className="text-secondary">{target === null ? '' : `/ ${formatNumber(target, 0)}`}</span>
+              </span>
+              <span className="flex justify-end">
+                {covered !== '' && (
+                  <CountChip icon="unknown" tone="warn" label={coverageLabel(m.name, measure)} testId="trends-macro-coverage">
+                    {covered}
+                  </CountChip>
+                )}
               </span>
             </div>
           );
         })}
       </div>
-      {notes.length > 0 && (
-        <p className="mt-4 text-[12px] leading-[1.4] text-secondary" data-testid="trends-macro-coverage">
-          {notes.join(' ')} Entries with no value are left out, not counted as 0.
-        </p>
-      )}
     </Card>
   );
 }
@@ -233,7 +250,7 @@ function WeekdayCard({ summary }: { summary: TrendsSummary }) {
     <Card className="p-[22px]">
       <div className="flex items-center justify-between">
         <h2 className="text-[17px] font-bold">Weekday pattern</h2>
-        <span className="text-[12px] text-secondary">kcal, average</span>
+        <span className="text-[12px] text-secondary">kcal</span>
       </div>
       <div className="mt-4 flex h-[130px] items-end gap-2.5" role="img" aria-label={described}>
         {summary.weekdays.map((d) => (

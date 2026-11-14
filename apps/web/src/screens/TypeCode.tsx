@@ -28,7 +28,7 @@ export function TypeCode() {
     e?.preventDefault();
     setError(null);
     if (products.status !== 'ready') {
-      setError('The food database is still loading. Try again in a moment.');
+      setError('Food database still loading.');
       return;
     }
     try {
@@ -75,7 +75,10 @@ export function TypeCode() {
         {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
         <div className="mt-auto pt-6">
           <PrimaryButton type="submit" disabled={!valid}>Find product</PrimaryButton>
-          <a href={href('add')} className="mt-2 flex h-11 items-center justify-center text-sm font-semibold text-accent-2">Search by name instead</a>
+          <a href={href('add')} className="mt-2 flex h-11 items-center justify-center gap-2 text-sm font-semibold text-accent-2">
+            <Icon name="search" size={18} />
+            Search by name
+          </a>
         </div>
       </form>
     </Page>

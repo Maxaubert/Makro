@@ -11,7 +11,7 @@ export function DeleteAccount() {
   return (
     <div className="rounded-[20px] border border-border bg-card p-4" role="group" aria-label="Delete account and data">
       <h2 className="text-[20px] font-bold">Delete account and data?</h2>
-      <p className="mt-2 text-[14px] text-secondary">Your log, weight, goals and account are removed from this device and the server. This cannot be undone.</p>
+      <p className="mt-2 text-[14px] text-secondary">Removes your log, weight, goals and account here and on the server. This cannot be undone.</p>
       {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
       <div className="mt-4 flex gap-2">
         <button type="button" className="h-14 rounded-full border border-border bg-raised px-5 text-[15px] font-semibold" onClick={() => setAsking(false)}>Cancel</button>

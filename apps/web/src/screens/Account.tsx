@@ -2,6 +2,7 @@
 import { href, useApp, useAppState, useData } from '../lib/hooks';
 import { APP_VERSION } from '../lib/app';
 import { Card, Notice, Page, SecondaryButton, SyncPill } from '../ui/kit';
+import { Glyph, type GlyphName } from '../ui/icons-weight-goals-profile';
 import { aboutSummary, goalsSummary } from '../domain/goalForm';
 import { useDataActions } from './accountActions';
 import { DeleteAccount } from './DeleteAccount';
@@ -14,10 +15,13 @@ export function Account() {
   const { popular, togglePopular, download, dataError } = useDataActions();
   const { data: goal } = useData(() => loadGoal(app.db), []);
 
-  const row = (label: string, value: string) => (
-    <div className="flex justify-between gap-4 border-t border-border py-3 first:border-t-0">
-      <span className="text-secondary">{label}</span>
-      <span className="text-right">{value}</span>
+  const row = (icon: GlyphName, label: string, value: string) => (
+    <div className="flex items-center justify-between gap-4 border-t border-border py-3 first:border-t-0">
+      <span className="flex items-center gap-2.5 text-secondary">
+        <Glyph name={icon} size={18} />
+        {label}
+      </span>
+      <span className="min-w-0 truncate text-right">{value}</span>
     </div>
   );
 
@@ -38,18 +42,17 @@ export function Account() {
         </a>
       </Card>
       <Card className="mt-3 px-4 py-1 text-[15px]">
-        {row('Signed in as', session?.user.email ?? '')}
-        {row('Waiting to sync', String(pending))}
-        {row('Last synced', sync.lastSyncedAt ? sync.lastSyncedAt.toLocaleTimeString('en-GB') : 'Not yet')}
-        {row('Food database', products.status === 'ready' ? `${products.meta.db_version} (${products.meta.variant ?? 'full'})` : products.status === 'loading' ? 'Loading' : 'Not available')}
-        {row('App', APP_VERSION)}
+        {row('mail', 'Email', session?.user.email ?? '')}
+        {row('cloud', 'Last synced', sync.lastSyncedAt ? sync.lastSyncedAt.toLocaleTimeString('en-GB') : 'Not yet')}
+        {row('database', 'Food database', products.status === 'ready' ? `${products.meta.db_version} (${products.meta.variant ?? 'full'})` : products.status === 'loading' ? 'Loading' : 'Not available')}
+        {row('app', 'App', APP_VERSION)}
       </Card>
       {products.status === 'ready' && products.note && <div className="mt-3"><Notice>{products.note}</Notice></div>}
       {sync.error && <div className="mt-3"><Notice tone="error">Last sync failed: {sync.error}</Notice></div>}
       {rejected && rejected.length > 0 && (
         <div className="mt-3">
           <Notice tone="error">
-            {rejected.length} change{rejected.length === 1 ? ' was' : 's were'} refused by the server: {rejected[0].reason}{' '}
+            {rejected.length} {rejected.length === 1 ? 'change' : 'changes'} refused: {rejected[0].reason}{' '}
             <button type="button" className="font-semibold text-text underline underline-offset-2" onClick={() => void app.db.clearRejected().then(() => app.changed())}>
               Dismiss
             </button>

@@ -1,12 +1,14 @@
-// The words and number formats of D_Trends. Rounding goes through the shared display rule;
-// unknown shows as "?" and is never printed as 0 (rule 2).
+// The words and number formats of the desktop home screens (Trends, and the short counts of Today and Diary).
+// Rounding goes through the shared display rule; unknown shows as "?" and is never printed as 0 (rule 2).
 import { roundForDisplay } from '../../domain/display';
 import { formatNumber } from '../../domain/format';
+import type { WeeklyAverage } from '../../domain/guidance';
 import { TREND_RANGE_DAYS, type TrendBar, type TrendRange } from '../../domain/trends';
-import { dayLine } from '../guidanceCopy';
+import { dayLine, weekday } from '../guidanceCopy';
 
+/** The chart title. The range chip says how long; 90D bars are whole weeks. */
 export function averageTitle(range: TrendRange): string {
-  return `Average intake, last ${TREND_RANGE_DAYS[range]} days${range === '90D' ? ' (weekly)' : ''}`;
+  return range === '90D' ? 'Daily average, by week' : 'Daily average';
 }
 
 export function rangeLabel(range: TrendRange): string {
@@ -35,12 +37,26 @@ export function axisLabels(bars: readonly TrendBar[], range: TrendRange): [strin
   return [label(bars[0].from), label(bars[Math.floor((bars.length - 1) / 2)].from), 'Today'];
 }
 
-/** "4 of 7". Unknown with no goal, or with no day to judge, so it never reads as 0 days. */
+/** "4/7". Unknown with no goal, or with no day to judge, so it never reads as 0 days. */
 export function onTargetText(onTarget: number | null, judged: number): string {
-  return onTarget === null || judged === 0 ? '?' : `${onTarget} of ${judged}`;
+  return onTarget === null || judged === 0 ? '?' : `${onTarget}/${judged}`;
 }
 
-/** "Fibre covers 2 of 6 entries.", or nothing when every entry has a value. */
-export function coverageLine(name: string, m: { covered: number; count: number }): string {
-  return m.count === 0 || m.covered === m.count ? '' : `${name} covers ${m.covered} of ${m.count} entries.`;
+/** "5/7": a count out of a whole, for the compact chips. */
+export const ofText = (part: number, whole: number): string => `${part}/${whole}`;
+
+/** "0/5" when some entries have no value for a measure, or nothing when every entry has one. */
+export function coverageCount(m: { covered: number; count: number }): string {
+  return m.count === 0 || m.covered === m.count ? '' : ofText(m.covered, m.count);
+}
+
+/** The full meaning of a coverage count, for screen readers and hover. */
+export function coverageLabel(name: string, m: { covered: number; count: number }): string {
+  return `${name}: ${m.covered} of ${m.count} entries have a value; the others are left out, not counted as 0`;
+}
+
+/** The full meaning of the days chip of a weekly average: "4 of 5 days counted, Tue left out". */
+export function daysLabel(week: Pick<WeeklyAverage, 'counted_days' | 'dates' | 'left_out'>): string {
+  const head = `${week.counted_days} of ${week.dates.length} days counted`;
+  return week.left_out.length === 0 ? head : `${head}, ${week.left_out.map(weekday).join(', ')} not logged and left out`;
 }

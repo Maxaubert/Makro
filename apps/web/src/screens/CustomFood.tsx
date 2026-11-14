@@ -15,8 +15,8 @@ const MAIN: { key: Nutrient; label: string; unit: string }[] = [
   { key: 'fat_g', label: 'Fat', unit: 'g' },
 ];
 const MORE: { key: Nutrient; label: string; unit: string }[] = [
-  { key: 'sat_fat_g', label: 'of which saturated', unit: 'g' },
-  { key: 'sugars_g', label: 'of which sugars', unit: 'g' },
+  { key: 'sat_fat_g', label: 'Saturated fat', unit: 'g' },
+  { key: 'sugars_g', label: 'Sugars', unit: 'g' },
   { key: 'fibre_g', label: 'Fibre', unit: 'g' },
   { key: 'salt_g', label: 'Salt', unit: 'g' },
 ];
@@ -68,6 +68,7 @@ export function CustomFood() {
           className="num w-24 rounded-xl border border-border bg-ground px-3 py-2 text-right text-[16px] outline-none placeholder:text-faint focus:border-accent-2"
           inputMode="decimal"
           placeholder="?"
+          title="Empty means unknown, not 0"
           aria-label={`${n.label} per 100 ${form.per_100_unit}`}
           value={form.nutrients[n.key] ?? ''}
           onChange={(e) => setN(n.key, e.target.value)}
@@ -88,11 +89,11 @@ export function CustomFood() {
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5">
-              <span className="text-[13px] text-secondary">Brand (optional)</span>
+              <span className="text-[13px] text-secondary">Brand</span>
               <input className="field" value={form.brand} onChange={(e) => set({ brand: e.target.value })} />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-[13px] text-secondary">Barcode (optional)</span>
+              <span className="text-[13px] text-secondary">Barcode</span>
               <input className="field num" inputMode="numeric" maxLength={14} value={form.ean} onChange={(e) => set({ ean: e.target.value.replace(/\D/g, '') })} />
             </label>
           </div>
@@ -100,7 +101,7 @@ export function CustomFood() {
 
         <Card className="mt-3 p-4">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] text-secondary">Per 100 {form.per_100_unit}, from the label</span>
+            <span className="text-[15px] font-semibold">Per 100 {form.per_100_unit}</span>
             <span className="flex gap-1.5">
               <Chip selected={form.per_100_unit === 'g'} onClick={() => set({ per_100_unit: 'g' })}>g</Chip>
               <Chip selected={form.per_100_unit === 'ml'} onClick={() => set({ per_100_unit: 'ml' })}>ml</Chip>
@@ -111,11 +112,10 @@ export function CustomFood() {
             <summary className="tap cursor-pointer py-2 text-sm font-semibold text-accent-2">More nutrients</summary>
             {MORE.map(numberField)}
           </details>
-          <p className="mt-1 text-[12px] text-secondary">Leave a field empty if the label does not say. Empty means unknown, not 0.</p>
         </Card>
 
         <label className="card mt-3 flex items-center justify-between px-4 py-2.5">
-          <span className="text-[15px]">Serving size (optional)</span>
+          <span className="text-[15px]">Serving</span>
           <span className="flex items-baseline gap-1.5">
             <input
               className="num w-24 rounded-xl border border-border bg-ground px-3 py-2 text-right text-[16px] outline-none focus:border-accent-2"

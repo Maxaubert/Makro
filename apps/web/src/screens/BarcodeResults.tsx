@@ -54,7 +54,7 @@ export function BarcodeNoData({ id }: { id: string }) {
       <Page>
         <Header title="" back="/scan" />
         {error && <div className="mt-4"><Notice tone="error">{error}</Notice></div>}
-        {data?.status === 'removed' && <div className="mt-4"><Notice>This product is no longer in the food database.</Notice></div>}
+        {data?.status === 'removed' && <div className="mt-4"><Notice>No longer in the food database.</Notice></div>}
       </Page>
     );
   }
@@ -68,9 +68,13 @@ export function BarcodeNoData({ id }: { id: string }) {
           <Icon name="alert" size={52} stroke={1.6} />
         </span>
         <h2 className="mt-7 text-[30px] font-bold tracking-[-0.03em]" data-testid="no-data-name">{p.name}</h2>
-        <div className="mt-1.5 text-[15px] text-secondary">{productSubtext(p)}</div>
-        <div className="mt-5 flex h-[34px] items-center rounded-full border border-border bg-card px-4 text-sm font-semibold text-accent-2">No nutrition data</div>
-        <div className="mt-3"><SourceBadge sourceName={p.source_name} verified={p.verified} /></div>
+        {productSubtext(p) && <div className="mt-1.5 text-[15px] text-secondary">{productSubtext(p)}</div>}
+        <div className="mt-5 flex items-center gap-3">
+          <div className="flex h-[34px] items-center rounded-full border border-border bg-card px-4 text-sm font-semibold text-accent-2">
+            No nutrition data
+          </div>
+          <SourceBadge sourceName={p.source_name} verified={p.verified} detail />
+        </div>
       </div>
       <div className="flex flex-col gap-2 pt-3">
         <a href={customHref({ name: p.name, brand: p.brand, ean: ean ?? p.ean })} className={PRIMARY_LINK}>Enter numbers from the label</a>

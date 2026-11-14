@@ -1,7 +1,7 @@
 // D_Log: search with tabs, a table of results with macro columns, and the portion panel on the
 // right that adds without leaving the page. Same data calls and domain code as AddFood and Portion.
-// Missing values stay unknown (rule 2), every row shows source and verified (rule 4), and "Add
-// custom food" is always there (rule 5).
+// Missing values stay unknown as "?" (rule 2), verified rows carry the seal and the panel opens the
+// source on tap (rule 4, decision 46), and "Add custom food" is always there (rule 5).
 import { useDeferredValue, useState, type FormEvent, type ReactNode } from 'react';
 import { BARCODE_LENGTHS, canonicalEan } from '../../data/barcode';
 import { resolveBarcode, type BarcodeResult } from '../../data/barcodeResult';
@@ -19,7 +19,8 @@ import { packAmounts } from '../../domain/packSizes';
 import { portion } from '../../domain/portion';
 import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../../lib/hooks';
 import { DesktopSidebar, StreakPill } from '../../ui/desktop';
-import { Icon, Notice, VerifiedSeal } from '../../ui/kit';
+import { RepeatIcon } from '../../ui/icons-add-food';
+import { Icon, Notice, SourceBadge, type IconName } from '../../ui/kit';
 import { dayLabel, MEAL_LABEL, mealForNow, today, withDay } from '../day';
 
 type Tab = 'recent' | 'favourites' | 'mine' | 'all';
@@ -84,18 +85,11 @@ function Pill({ selected, onClick, small = false, children }: { selected: boolea
   );
 }
 
-// Below 1360 px the panel and the columns narrow and the source moves under the product name.
-const COLUMNS = 'grid grid-cols-[minmax(0,1fr)_52px_40px_40px_40px] gap-1.5 px-3 min-[1360px]:grid-cols-[minmax(0,1fr)_64px_64px_64px_64px_130px] min-[1360px]:gap-2 min-[1360px]:px-5';
-
-function VerifiedText({ verified }: { verified: boolean | null }) {
-  if (verified === true) return <VerifiedSeal size={15} />;
-  if (verified === false) return <span>Not verified</span>;
-  return null;
-}
+// Below 1360 px the panel and the columns narrow.
+const COLUMNS = 'grid grid-cols-[minmax(0,1fr)_52px_40px_40px_40px] gap-1.5 px-3 min-[1360px]:grid-cols-[minmax(0,1fr)_64px_64px_64px_64px] min-[1360px]:gap-2 min-[1360px]:px-5';
 
 function FoodRow({ row, selected, onPick }: { row: Row; selected: boolean; onPick: () => void }) {
-  const blank = row.kcal === null && row.protein_g === null && row.carbs_g === null && row.fat_g === null;
-  const macro = (v: number | null) => <span className="num text-right text-secondary">{blank ? '' : formatNumber(v, 1)}</span>;
+  const macro = (v: number | null) => <span className="num text-right text-secondary">{formatNumber(v, 1)}</span>;
   const sub = [row.sub, row.unit === 'ml' ? 'per 100 ml' : row.unit === 'portion' ? 'per portion' : null].filter(Boolean).join(' · ');
   return (
     <li>
@@ -104,24 +98,25 @@ function FoodRow({ row, selected, onPick }: { row: Row; selected: boolean; onPic
         aria-pressed={selected}
         onClick={onPick}
         data-testid="food-row"
-        className={`${COLUMNS} w-full items-center border-t border-border py-[13px] text-left text-[14px] ${selected ? 'bg-raised-2 shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-raised'}`}
+        className={`${COLUMNS} min-h-11 w-full items-center border-t border-border py-[13px] text-left text-[14px] ${selected ? 'bg-raised-2 shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-raised'}`}
       >
         <span className="min-w-0">
-          <span className="block truncate text-[15px] font-semibold">{row.name}</span>
-          {sub && <span className="mt-0.5 block truncate text-[12px] text-secondary">{sub}</span>}
-          <span className="mt-0.5 flex gap-1.5 truncate text-[12px] text-secondary min-[1360px]:hidden">
-            <span className="truncate">{row.sourceName}</span>
-            <VerifiedText verified={row.verified} />
+          <span className="flex items-center gap-1.5">
+            <span className="truncate text-[15px] font-semibold">{row.name}</span>
+            <SourceBadge sourceName={row.sourceName} verified={row.verified} />
           </span>
+          {sub && <span className="mt-0.5 block truncate text-[12px] text-secondary">{sub}</span>}
         </span>
-        <span className={`num whitespace-nowrap text-right text-[13px] font-bold min-[1360px]:text-[16px] ${row.kcal === null ? 'text-secondary' : ''}`}>{row.kcal === null ? 'No data' : formatNumber(row.kcal, 0)}</span>
+        <span
+          className={`num whitespace-nowrap text-right text-[13px] font-bold min-[1360px]:text-[16px] ${row.kcal === null ? 'text-secondary' : ''}`}
+          title={row.kcal === null ? 'No nutrition data' : undefined}
+        >
+          {formatNumber(row.kcal, 0)}
+          {row.kcal === null && <span className="sr-only"> No nutrition data</span>}
+        </span>
         {macro(row.protein_g)}
         {macro(row.carbs_g)}
         {macro(row.fat_g)}
-        <span className="hidden min-w-0 flex-col text-[12px] text-secondary min-[1360px]:flex">
-          <span className="truncate">{row.sourceName}</span>
-          <VerifiedText verified={row.verified} />
-        </span>
       </button>
     </li>
   );
@@ -195,7 +190,7 @@ export function DesktopLog() {
     if (!typingCode || !codeValid) return;
     setCodeError(null);
     if (!ready) {
-      setCodeError('The food database is still loading. Try again in a moment.');
+      setCodeError('Food database still loading.');
       return;
     }
     try {
@@ -216,14 +211,14 @@ export function DesktopLog() {
   );
   const anyMl = rows.some((r) => r.unit === 'ml');
 
-  let emptyText: string | null = null;
+  let empty: { icon: IconName; text: string } | null = null;
   if (rows.length === 0) {
-    if (notFound) emptyText = `Not in the database: ${notFound.ean}`;
-    else if (typingCode) emptyText = 'Type the code from the package and press Find product.';
-    else if (tab === 'all' && q.trim() && results) emptyText = `No food matches "${q.trim()}".`;
-    else if (tab === 'recent' && recents) emptyText = 'Foods you log show up here.';
-    else if (tab === 'favourites' && favourites) emptyText = 'Tap the heart on a food to keep it here.';
-    else if (tab === 'mine' && mine) emptyText = 'Foods you add yourself show up here.';
+    if (notFound) empty = { icon: 'noBarcode', text: `Not in the database: ${notFound.ean}` };
+    else if (typingCode) empty = { icon: 'barcode', text: 'Type the code' };
+    else if (tab === 'all' && q.trim() && results) empty = { icon: 'search', text: 'No match' };
+    else if (tab === 'recent' && recents) empty = { icon: 'repeat', text: 'No recents' };
+    else if (tab === 'favourites' && favourites) empty = { icon: 'heart', text: 'No favourites' };
+    else if (tab === 'mine' && mine) empty = { icon: 'profile', text: 'No own foods' };
   }
 
   return (
@@ -312,41 +307,46 @@ export function DesktopLog() {
 
               {codeError && typingCode && <Notice tone="error">{codeError}</Notice>}
               {!typingCode && products.status === 'loading' && (tab === 'all' || tab === 'favourites') && <Notice>{products.message}...</Notice>}
-              {!typingCode && products.status === 'error' && tab === 'all' && <Notice tone="error">The food database could not be loaded: {products.message}. You can still add a custom food.</Notice>}
+              {!typingCode && products.status === 'error' && tab === 'all' && <Notice tone="error">Food database failed: {products.message}</Notice>}
               {error && <Notice tone="error">{error}</Notice>}
 
               {!typingCode && tab === 'mine' && !day && savedMeals && savedMeals.length > 0 && <SavedMeals meals={savedMeals} />}
 
               <div className="overflow-hidden rounded-card border border-border bg-card">
                 <div className={`${COLUMNS} pb-2.5 pt-3.5 text-[11px] text-secondary`}>
-                  <span>Product, per 100 {anyMl ? 'g or ml' : 'g'}</span>
+                  <span>Per 100 {anyMl ? 'g/ml' : 'g'}</span>
                   <span className="text-right">kcal</span>
                   <span className="text-right">Protein</span>
                   <span className="text-right">Carbs</span>
                   <span className="text-right">Fat</span>
-                  <span className="hidden min-[1360px]:block">Source</span>
                 </div>
                 <ul aria-label="Results">
                   {rows.map((r) => (
                     <FoodRow key={r.key} row={r} selected={r.key === selected?.key} onPick={() => setPicked(r.key)} />
                   ))}
-                  {emptyText && <li className="border-t border-border px-5 py-6 text-center text-sm text-secondary">{emptyText}</li>}
+                  {empty && (
+                    <li className="flex items-center justify-center gap-2 border-t border-border px-5 py-6 text-[15px] font-semibold text-secondary" data-testid="log-empty">
+                      <Icon name={empty.icon} size={20} />
+                      {empty.text}
+                    </li>
+                  )}
                 </ul>
               </div>
 
-              <div className="flex items-center gap-3 rounded-2xl border border-dashed border-strong px-5 py-4">
-                <span className="grow text-sm font-semibold">Can't find it?</span>
-                <a href={customHref} className="tap flex h-11 shrink-0 items-center rounded-full bg-text px-[18px] text-sm font-bold text-ground">
-                  Add custom food
-                </a>
-              </div>
+              <a href={customHref} className="tap flex h-14 items-center justify-center gap-2 rounded-2xl border border-dashed border-strong text-[15px] font-bold">
+                <Icon name="plus" size={20} stroke={2.2} />
+                Add custom food
+              </a>
             </section>
 
             <aside aria-label="Portion" className="desktop-scroll sticky top-6 max-h-[calc(100dvh-48px)] overflow-y-auto rounded-card border border-border bg-card p-6">
               {selected ? (
                 <PortionPanel key={selected.key} kind={selected.kind} id={selected.id} day={day} scannedEan={typingCode && lookup?.kind === 'no-nutrition' ? lookup.ean : null} />
               ) : (
-                <p className="py-10 text-center text-sm text-secondary">Choose a food from the list to see its portion.</p>
+                <div className="flex flex-col items-center gap-2 py-10 text-secondary" data-testid="portion-empty">
+                  <Icon name="search" size={32} stroke={1.6} />
+                  <p className="text-[15px] font-semibold">Pick a food</p>
+                </div>
               )}
             </aside>
           </div>
@@ -450,8 +450,12 @@ function Macro({ label, name, value }: { label: string; name: string; value: num
   return (
     <div>
       <div className="text-[11px] text-secondary">{label}</div>
-      <div className={`num text-[14px] font-semibold min-[1360px]:text-[16px] ${value === null ? 'text-secondary' : ''}`} data-testid={`portion-${name}`}>
-        {value === null ? 'Unknown' : `${formatNumber(value, 1)} g`}
+      <div
+        className={`num text-[14px] font-semibold min-[1360px]:text-[16px] ${value === null ? 'text-secondary' : ''}`}
+        data-testid={`portion-${name}`}
+        title={value === null ? 'No value in the source, not counted as 0' : undefined}
+      >
+        {value === null ? '?' : `${formatNumber(value, 1)} g`}
       </div>
     </div>
   );
@@ -520,7 +524,7 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
         const s = buildDailySupplement({ food: food.ref, quantity, unit, at: saved_at, tz });
         await app.db.addDailySupplement(s, supplementEntry({ supplement: s, food: food.ref, snapshot: null, at: saved_at, tz }));
         await app.changed();
-        setAdded('Added to daily supplements. It is added every day from today.');
+        setAdded('Added to daily supplements.');
         return;
       }
       await app.db.saveLogEntry(buildLogEntry({ food: food.ref, quantity, unit, meal, at: day ? mealTimeOn(day, meal, tz) : saved_at, tz, saved_at }));
@@ -557,13 +561,17 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
   const sub = 'pack_size' in p ? productSubtext(p) : p.brand;
   const labelHref = withDay(`${href('custom')}?name=${encodeURIComponent(p.name)}&brand=${encodeURIComponent(p.brand ?? '')}&ean=${encodeURIComponent(scannedEan ?? p.ean ?? '')}`, day);
 
-  const tag = noData ? { text: 'No nutrition data', cls: 'bg-[#2A1308] text-accent-2' } : food.verified ? { text: 'Verified', cls: 'bg-[#16261b] text-[#7FD99A]' } : { text: 'Check the numbers', cls: 'bg-[#2A2415] text-[#E8C46A]' };
   const status = (
     <>
       {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
       {added && (
-        <p role="status" className="mt-3 text-center text-[13px] text-accent-2" data-testid="portion-added">
-          {added} <a href={href('diary')} className="font-semibold underline">See the diary</a>
+        <p role="status" className="mt-3 flex items-center justify-center gap-1.5 text-[14px] font-semibold text-accent-2" data-testid="portion-added">
+          <Icon name="check" size={16} stroke={2.4} />
+          {added}
+          <a href={href('diary')} className="tap -my-2 ml-1 flex h-11 items-center gap-1 rounded-full px-2 text-text underline">
+            <Icon name="diary" size={16} />
+            Diary
+          </a>
         </p>
       )}
     </>
@@ -573,7 +581,10 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
     <>
       <div className="flex items-start gap-3">
         <div className="min-w-0 grow">
-          <div className="text-[26px] font-bold tracking-[-0.5px]" data-testid="portion-name">{p.name}</div>
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 text-[26px] font-bold tracking-[-0.5px]" data-testid="portion-name">{p.name}</div>
+            <SourceBadge sourceName={food.sourceName} verified={food.verified} detail />
+          </div>
           {sub && <div className="mt-[3px] text-[13px] text-secondary">{sub}</div>}
         </div>
         <button
@@ -586,18 +597,12 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
           <Icon name="heart" size={20} filled={food.favourite} />
         </button>
       </div>
-      <div className="mt-3.5 flex flex-wrap gap-2">
-        {food.verified && !noData ? (
-          <VerifiedSeal size={22} />
-        ) : (
-          <span className={`flex h-[26px] items-center rounded-full px-2.5 text-[12px] font-semibold ${tag.cls}`}>{tag.text}</span>
-        )}
-        <span className="flex h-[26px] items-center rounded-full border border-border bg-raised px-2.5 text-[12px] text-soft">{food.sourceName}</span>
-      </div>
-
       {noData ? (
         <div>
-          <div className="mt-5 rounded-2xl bg-raised p-4 text-[14px] leading-normal text-soft">This product has no nutrition data yet. It will be saved without numbers, and unknown stays unknown, never zero.</div>
+          <div className="mt-4 flex items-center gap-2.5 rounded-2xl bg-raised p-4 text-[15px] font-semibold text-accent-2" data-testid="no-nutrition">
+            <Icon name="alert" size={20} />
+            No nutrition data
+          </div>
           <button type="button" className={PRIMARY} disabled={grams === null || saving} onClick={() => void add()}>Log without numbers</button>
           <a href={labelHref} className="tap mt-2.5 flex h-[50px] items-center justify-center rounded-full border border-border bg-raised text-[15px] font-semibold">Enter numbers from the label</a>
           {status}
@@ -609,7 +614,7 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
             </button>
             <div className="min-w-0 text-center">
-              <label htmlFor="desktop-qty" className="block text-[12px] text-secondary">Amount</label>
+              <label htmlFor="desktop-qty" className="sr-only">Amount</label>
               <div className="flex items-baseline justify-center gap-1">
                 <input
                   id="desktop-qty"
@@ -628,7 +633,7 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
             </button>
           </div>
           {!byWeight && unit !== 'portion' && grams !== null && <div className="num mt-1.5 text-center text-[13px] text-secondary">{formatNumber(grams, 0)} g</div>}
-          {unit === 'ml' && <div className="mt-1.5 text-center text-[12px] text-secondary">About {formatNumber(grams, 0)} g (1 ml counted as 1 g)</div>}
+          {unit === 'ml' && <div className="num mt-1.5 text-center text-[13px] text-secondary" title="1 ml counted as 1 g">≈ {formatNumber(grams, 0)} g</div>}
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {units.map((u) => (
               <Pill key={u} selected={unitSelected(u)} onClick={() => pickUnit(u)}>{unitLabel(u)}</Pill>
@@ -640,15 +645,10 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
 
           {values && (
             <div className="mt-[18px] rounded-2xl bg-raised p-4">
-              <div className="flex items-baseline justify-between">
-                <span className="text-[13px] text-secondary">This portion</span>
-                {values.kcal === null ? (
-                  <span className="text-[16px] font-semibold text-secondary" data-testid="portion-kcal">Unknown</span>
-                ) : (
-                  <span className="num text-[28px] font-bold text-accent-2" data-testid="portion-kcal">
-                    {formatNumber(values.kcal, 0)} <span className="text-[13px] font-medium text-secondary">kcal</span>
-                  </span>
-                )}
+              <div className="text-center">
+                <span className={`num text-[36px] font-bold leading-none ${values.kcal === null ? 'text-secondary' : 'text-accent-2'}`} data-testid="portion-kcal">
+                  {formatNumber(values.kcal, 0)} <span className="text-[14px] font-medium text-secondary">kcal</span>
+                </span>
               </div>
               <MacroBar values={values} />
               <div className="mt-3 grid grid-cols-4 gap-2 text-center">
@@ -669,9 +669,9 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
               className="mt-[18px] flex w-full items-center justify-between gap-4 rounded-2xl border border-border px-4 py-2.5 text-left"
               data-testid="add-every-day"
             >
-              <span>
-                <span className="block text-[14px] font-semibold">Add every day</span>
-                <span className="block text-[12px] text-secondary">For supplements like creatine or omega-3</span>
+              <span className="flex items-center gap-2.5 text-[14px] font-semibold">
+                <RepeatIcon size={18} className={daily ? 'text-accent' : 'text-secondary'} />
+                Add every day
               </span>
               <span className={`relative h-[26px] w-11 flex-none rounded-full ${daily ? 'bg-accent' : 'bg-strong'}`}>
                 <span className={`absolute top-[3px] h-5 w-5 rounded-full bg-ground ${daily ? 'left-[21px]' : 'left-[3px]'}`} />
@@ -681,7 +681,6 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
 
           {!supplement && (
             <div role="group" aria-label="Meal" className="mt-[18px] flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[13px] text-secondary">Meal</span>
               {MEALS.map((m) => (
                 <Pill key={m} small selected={meal === m} onClick={() => { setMeal(m); setAdded(null); }}>{MEAL_LABEL[m]}</Pill>
               ))}

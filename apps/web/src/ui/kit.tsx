@@ -1,6 +1,6 @@
 // Shared pieces of the B Night look (canvas https://claude.ai/artifact/K6QcNcoePkCkXds6arS4fo):
 // dark ground, 20 px cards with a 1 px border, one orange accent, Space Grotesk.
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { SyncStatus } from '../data/sync';
 import { href, useBack, useRoute } from '../lib/hooks';
 
@@ -240,21 +240,33 @@ export function VerifiedSeal({ size = 14, className = '' }: { size?: number; cla
   );
 }
 
-/** Where the numbers come from and whether they are verified (accuracy rule 4). */
-export function SourceBadge({ sourceName, verified }: { sourceName: string; verified: boolean | null }) {
-  return (
-    <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-secondary">
-      {verified === true && (
+/**
+ * Where the numbers come from and whether they are verified (accuracy rule 4, decision 46).
+ * In lists only the seal shows, and only for a verified food; the source is in its label.
+ * On a food's own screen (detail) the seal, or an info mark when unverified, opens the source on tap.
+ */
+export function SourceBadge({ sourceName, verified, detail = false }: { sourceName: string; verified: boolean | null; detail?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const label = `${verified === true ? 'Verified' : verified === false ? 'Not verified' : 'Source'}: ${sourceName}`;
+  if (!detail) {
+    return verified === true ? (
+      <span className="inline-flex shrink-0 items-center" title={label} aria-label={label} role="img" data-testid="source-badge">
         <VerifiedSeal />
-      )}
-      {verified === false && (
-        <>
-          <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full border-[1.5px] border-dashed border-faint" />
-          <span>Not verified</span>
-          <span aria-hidden="true" className="text-faint">·</span>
-        </>
-      )}
-      <span className="truncate">{sourceName}</span>
+      </span>
+    ) : null;
+  }
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2" data-testid="source-badge">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={open ? 'Hide source' : label}
+        onClick={() => setOpen(!open)}
+        className="tap -m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+      >
+        {verified === true ? <VerifiedSeal size={18} /> : <Icon name="info" size={18} className="text-secondary" />}
+      </button>
+      {open && <span className="truncate text-[13px] text-secondary">{label}</span>}
     </span>
   );
 }

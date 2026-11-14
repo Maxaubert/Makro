@@ -1,5 +1,5 @@
-// Desktop Add food (board D_Log) at 1440 px against the local stack: tabs, results table with source
-// and verified, the portion panel, favourite, a barcode typed by hand, and the add flow.
+// Desktop Add food (board D_Log) at 1440 px against the local stack: tabs, results table with the
+// verified seal, the portion panel, favourite, a barcode typed by hand, and the add flow.
 import { devices, expect, test } from '@playwright/test';
 import { pgRows } from './local';
 import { desktopSignIn } from './desktop';
@@ -11,26 +11,28 @@ test('desktop Add food: search, portion panel, favourite, barcode, add', async (
   await page.getByRole('link', { name: 'Add food', exact: true }).first().click();
   await expect(page.getByRole('heading', { name: 'Add food', exact: true })).toBeVisible();
 
-  // Empty Recent: the board's empty state, and the panel asks for a choice.
-  await expect(page.getByText('Foods you log show up here.')).toBeVisible();
-  await expect(page.getByText('Choose a food from the list to see its portion.')).toBeVisible();
+  // Empty Recent: an icon and a short word, and the panel asks for a choice.
+  await expect(page.getByTestId('log-empty')).toHaveText('No recents');
+  await expect(page.getByTestId('portion-empty')).toHaveText('Pick a food');
 
-  // Results table: columns, kcal per 100 g, source and verified on every row, unknown stays "No data".
+  // Results table: columns, kcal per 100 g, the seal on verified rows only, unknown stays "?".
   await page.getByRole('textbox', { name: 'Search foods' }).fill('skyr');
   const rows = page.getByTestId('food-row');
   await expect(rows.first()).toContainText('Skyr Naturell');
   await expect(rows.first()).toContainText('62');
-  await expect(rows.first()).toContainText('Verified');
-  await expect(page.getByText('Product, per 100 g')).toBeVisible();
-  await expect(rows.filter({ hasText: 'No data' }).first()).toContainText('Not verified');
+  await expect(rows.first().getByTestId('source-badge')).toHaveAttribute('aria-label', /^Verified/);
+  await expect(page.getByText('Per 100 g', { exact: true })).toBeVisible();
+  const noData = rows.filter({ hasText: 'Skyr Mango' }).first();
+  await expect(noData).toContainText('?');
+  await expect(noData.getByTestId('source-badge')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
 
-  // The panel follows the first row; a no-data row says unknown stays unknown and does not invent numbers.
+  // The panel follows the first row; a no-data row says so and does not invent numbers.
   const panel = page.getByRole('complementary', { name: 'Portion' });
   await expect(panel.getByTestId('portion-name')).toHaveText('Skyr Naturell');
-  await expect(panel.getByRole('img', { name: 'Verified' })).toBeVisible();
-  await rows.filter({ hasText: 'No data' }).first().click();
-  await expect(panel.getByText(/no nutrition data yet.*unknown stays unknown, never zero/)).toBeVisible();
+  await expect(panel.getByRole('button', { name: /^Verified/ })).toBeVisible();
+  await noData.click();
+  await expect(panel.getByTestId('no-nutrition')).toHaveText('No nutrition data');
   await expect(panel.getByRole('button', { name: 'Log without numbers' })).toBeVisible();
   await expect(panel.getByRole('link', { name: 'Enter numbers from the label' })).toBeVisible();
 
@@ -46,7 +48,7 @@ test('desktop Add food: search, portion panel, favourite, barcode, add', async (
   await expect(panel.getByTestId('portion-kcal')).toContainText('279');
   await panel.getByLabel('Amount').fill('150');
   await expect(panel.getByTestId('portion-kcal')).toContainText('93');
-  await expect(panel.getByTestId('portion-fibre_g')).toHaveText('Unknown');
+  await expect(panel.getByTestId('portion-fibre_g')).toHaveText('?');
   await panel.getByRole('button', { name: 'Breakfast', exact: true }).click();
 
   // Favourite, then the Favourites tab lists it.
