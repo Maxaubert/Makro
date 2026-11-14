@@ -89,6 +89,21 @@ export function trendChange(entries: WeightPoint[], to: string, days: number): n
   return end !== null && start !== null ? end - start : null;
 }
 
+/**
+ * The first and last weigh-in day inside from..to (a day's value is the mean of its weigh-ins), their change
+ * and its weekly rate. null with fewer than two weigh-in days: one point has no change (Trends, 2026-11-14).
+ */
+export function rangeChange(entries: WeightPoint[], from: string, to: string): { first: { date: string; kg: number }; last: { date: string; kg: number }; change: number; per_week: number } | null {
+  const days = [...dailyValues(entries)].filter(([date]) => date >= from && date <= to).sort(([a], [b]) => (a < b ? -1 : 1));
+  if (days.length < 2) return null;
+  const [fd, f] = days[0];
+  const [ld, l] = days[days.length - 1];
+  const utc = (d: string) => Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8)));
+  const span = (utc(ld) - utc(fd)) / 86_400_000;
+  const change = l.value - f.value;
+  return { first: { date: fd, kg: f.value }, last: { date: ld, kg: l.value }, change, per_week: (change / span) * 7 };
+}
+
 /** "+0.6", "-1.5" or "?". The sign comes from the rounded value, so a tiny change never shows as "-0.0". */
 export function signedKg(kg: number | null): string {
   if (kg === null) return '?';

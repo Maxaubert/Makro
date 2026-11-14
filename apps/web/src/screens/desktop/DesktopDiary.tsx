@@ -1,23 +1,20 @@
 // D_Diary: the day list with the week, the picked day with its meals in a table and an inline
-// edit, and the weekly average with the top sources. The route holds the picked day.
+// edit. The weekly average moved to Trends (2026-11-14). The route holds the picked day.
 import { useState } from 'react';
-import { MacroRing } from '../MacroRing';
 import { notYetRepeated } from '../../data/fastRepeat';
 import type { GoalRow, LocalLogEntry } from '../../data/logStore';
 import { isMeal, mealEntries, MEALS, type Meal } from '../../domain/entry';
 import { formatNumber, formatTotal } from '../../domain/format';
-import { daySkip, remainingToday, weekWindow, weeklyAverage, type DayChoice, type Verdict, type WeeklyDay, type WeeklyMeasure } from '../../domain/guidance';
+import { daySkip, remainingToday, weekWindow, weeklyAverage, type DayChoice, type WeeklyMeasure } from '../../domain/guidance';
 import { browserTimeZone } from '../../domain/localDate';
 import { NUTRIENTS, type Nutrient } from '../../domain/nutrients';
 import { href, navigate, useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
-import { CountChip, HomeIcon, UnknownChip } from '../../ui/icons-desktop-home';
+import { HomeIcon, UnknownChip } from '../../ui/icons-desktop-home';
 import { Icon, Notice, SourceBadge } from '../../ui/kit';
 import { addDays, amountLabel, DIARY_GROUPS, GROUP_LABEL, longDayLabel, MEAL_LABEL, today, totalsOf, withDay } from '../day';
-import { SKIPPED_BAR, dayStatusLabel } from '../dayChoice';
-import { VERDICT_LABEL, amountText, remainingText, weekRange, weekday } from '../guidanceCopy';
-import { canPageForward, dayRowSummary, listWindow, pageDay, parsedQuantity, previewEntry, steppedAmount, topSources } from './diaryView';
-import { daysLabel, ofText } from './trendsCopy';
+import { remainingText, weekday } from '../guidanceCopy';
+import { canPageForward, dayRowSummary, listWindow, pageDay, parsedQuantity, previewEntry, steppedAmount } from './diaryView';
 
 const TABLE_COLUMNS = 'grid grid-cols-[minmax(0,1fr)_64px_64px_64px_72px] gap-2';
 
@@ -27,55 +24,6 @@ const MACRO_TILES = [
   { key: 'protein_g', label: 'Protein', target: 'protein_g_target', color: 'var(--color-accent)' },
   { key: 'fibre_g', label: 'Fibre', target: 'fibre_g_target', color: 'var(--color-muted)' },
 ] as const;
-
-const MEASURES: { key: Nutrient; label: string; group: string }[] = [
-  { key: 'kcal', label: 'Calories', group: 'Macros' },
-  { key: 'protein_g', label: 'Protein', group: 'Macros' },
-  { key: 'carbs_g', label: 'Carbs', group: 'Macros' },
-  { key: 'fat_g', label: 'Fat', group: 'Macros' },
-  { key: 'sat_fat_g', label: 'Saturated fat', group: 'Macros' },
-  { key: 'sugars_g', label: 'Sugars', group: 'Macros' },
-  { key: 'fibre_g', label: 'Fibre', group: 'Macros' },
-  { key: 'salt_g', label: 'Salt', group: 'Minerals and other' },
-];
-const MEASURE_GROUPS = ['Macros', 'Minerals and other'];
-
-// The panel's choices outlive a day change (the route remounts this screen for each day) and a reload.
-interface Prefs {
-  measure: Nutrient;
-  enabled: Nutrient[];
-}
-const PREFS_KEY = 'makro.diary.measures';
-const DEFAULT_PREFS: Prefs = { measure: 'protein_g', enabled: ['kcal', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g'] };
-
-function loadPrefs(): Prefs {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? 'null') as Partial<Prefs> | null;
-    const enabled = saved?.enabled?.filter((k) => NUTRIENTS.includes(k)) ?? [];
-    if (saved?.measure && NUTRIENTS.includes(saved.measure) && enabled.length > 0) return { measure: saved.measure, enabled };
-  } catch {
-    // Blocked or damaged storage: the defaults are fine.
-  }
-  return DEFAULT_PREFS;
-}
-
-let currentPrefs: Prefs | null = null;
-
-function usePrefs(): [Prefs, (next: Prefs) => void] {
-  const [prefs, setPrefs] = useState<Prefs>(() => (currentPrefs ??= loadPrefs()));
-  return [
-    prefs,
-    (next) => {
-      currentPrefs = next;
-      setPrefs(next);
-      try {
-        localStorage.setItem(PREFS_KEY, JSON.stringify(next));
-      } catch {
-        // Kept for this visit only.
-      }
-    },
-  ];
-}
 
 interface EditState {
   id: string;
@@ -89,7 +37,6 @@ function monthLabel(localDate: string): string {
 }
 
 const dayOfMonth = (localDate: string): number => Number(localDate.split('-')[2]);
-const unitOf = (key: Nutrient): string => (key === 'kcal' ? 'kcal' : 'g');
 const withUnknown = (t: { text: string; unknown: number }): string => `${t.text}${t.unknown > 0 ? ' +?' : ''}`;
 
 function targetsOf(goal: GoalRow | null): Partial<Record<Nutrient, number>> {
@@ -274,7 +221,8 @@ function DayList({
           const summary = listed ? dayRowSummary(listed.filter((e) => e.local_date === d), goals?.[i]?.kcal_target ?? null) : null;
           const kcal = summary ? formatTotal(summary.kcal, 0) : null;
           const logged = summary !== null && summary.kcal.count > 0;
-          const bar = summary?.over ? 'bg-accent-2' : selected || d >= yesterday ? 'bg-accent' : 'bg-strong';
+          // Over the target is not singled out: no light orange and no "over" label (Max, 2026-11-14).
+          const bar = selected || d >= yesterday ? 'bg-accent' : 'bg-strong';
           return (
             <a
               key={d}
@@ -293,7 +241,7 @@ function DayList({
                 {/* A fixed line height, so a row is as tall before its numbers are read as after. */}
                 <div className="flex h-[17px] items-center justify-between gap-1 whitespace-nowrap text-[13px]">
                   {logged && kcal ? <span className="num font-semibold">{withUnknown(kcal)} kcal</span> : <span className="text-secondary">{summary ? 'Not logged' : ''}</span>}
-                  <span className="text-secondary">{d === now ? 'Today' : summary?.over ? 'over' : ''}</span>
+                  <span className="text-secondary">{d === now ? 'Today' : ''}</span>
                 </div>
                 <div className="mt-2 h-1.5 rounded-[3px] bg-border">
                   <div className={`h-1.5 rounded-[3px] ${bar}`} style={{ width: `${summary?.pct ?? 0}%` }} />
@@ -401,10 +349,10 @@ function DayCard({
         </span>
       </div>
 
-      {/* One bar for the day against the target, not split by meal (Max, 2026-11-14). Over the target it turns light orange. */}
+      {/* One bar for the day against the target, not split by meal and not recoloured when over (Max, 2026-11-14). */}
       <div className="mt-4 h-2.5 overflow-hidden rounded-[5px] bg-border" data-testid="day-kcal-bar">
         <div
-          className={`h-2.5 rounded-[5px] ${goal && (totals.kcal.value ?? 0) > goal.kcal_target ? 'bg-accent-2' : 'bg-accent'}`}
+          className="h-2.5 rounded-[5px] bg-accent"
           style={{ width: `${Math.min(100, ((totals.kcal.value ?? 0) / barWhole) * 100)}%` }}
         />
       </div>
@@ -618,236 +566,3 @@ function EditRow({
   );
 }
 
-const GOOD_PILL = 'bg-[#16261b] text-[#7FD99A]';
-const BAD_PILL = 'bg-[#2A1308] text-accent-2';
-
-function isGoodVerdict(verdict: Verdict, key: Nutrient): boolean {
-  // More protein or fibre than the target is not a problem, unlike calories, carbs or fat.
-  return verdict === 'on_target' || (verdict === 'above_target' && (key === 'protein_g' || key === 'fibre_g'));
-}
-
-/** The weekly average panel, shown on Trends (moved from the Diary, Max 2026-11-14). date is the day the week ends before. */
-export function WeeklyPanel({ date, now, entries, weekEntries, goal, choices }: {
-  date: string; now: string; entries: LocalLogEntry[]; weekEntries: LocalLogEntry[]; goal: GoalRow | null;
-  choices: Record<string, DayChoice>;
-}) {
-  const [prefs, setPrefs] = usePrefs();
-  const [menu, setMenu] = useState<'menu' | 'cfg' | null>(null);
-
-  const enabled = MEASURES.filter((m) => prefs.enabled.includes(m.key));
-  const current = enabled.find((m) => m.key === prefs.measure) ?? enabled[0] ?? MEASURES[1];
-  const key = current.key;
-  const unit = unitOf(key);
-
-  const week = weekOf(date, weekEntries, goal, choices);
-  const m = week.measures[key];
-  const target = targetsOf(goal)[key] ?? null;
-  const dayValue = totalsOf(entries)[key].value;
-  const values = [...m.days.map((d) => d.value), dayValue].filter((v): v is number => v !== null);
-  const top = Math.max(target !== null ? target * 1.25 : 0, ...values.map((v) => v * 1.05), 1);
-  const heightOf = (v: number | null) => `${v === null ? 0 : (v / top) * 100}%`;
-  const bars = [
-    ...m.days.map((d) => ({ date: d.local_date, value: d.value, picked: false, day: d as WeeklyDay | null })),
-    { date, value: dayValue, picked: true, day: null as WeeklyDay | null },
-  ];
-
-  const before = date === now ? 'today' : 'this day';
-  const lowerBound = m.average !== null && m.covered < m.count;
-  // Hover only: the headline, its chips and the bars say this on screen.
-  const caption = m.average === null ? `${current.label}: no values logged before ${before}` : `${current.label}, ${lowerBound ? 'at least, per logged day' : 'average per logged day'} before ${before}`;
-  const sources = topSources(entries, key);
-  const inRing = key === 'kcal' || key === 'protein_g' || key === 'carbs_g' || key === 'fat_g';
-
-  return (
-    <aside className="card relative p-5" aria-label="Weekly average">
-      <div className="flex items-baseline justify-between">
-        <span className="text-[17px] font-bold">Weekly average</span>
-        <span className="text-[12px] text-secondary">{weekRange(week.dates)}</span>
-      </div>
-
-      <div className="mt-3.5 flex gap-2">
-        <button
-          type="button"
-          aria-haspopup="listbox"
-          aria-expanded={menu === 'menu'}
-          onClick={() => setMenu(menu === 'menu' ? null : 'menu')}
-          className="flex h-11 min-w-0 flex-1 items-center justify-between rounded-[14px] border border-border bg-raised px-3.5 text-[14px] font-semibold"
-        >
-          {current.label}
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="text-secondary">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          aria-label="Choose which nutrients to show"
-          aria-expanded={menu === 'cfg'}
-          onClick={() => setMenu(menu === 'cfg' ? null : 'cfg')}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-border text-soft ${menu === 'cfg' ? 'bg-border' : 'bg-raised'}`}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-          </svg>
-        </button>
-      </div>
-
-      {menu !== null && <div className="fixed inset-0 z-[4]" onClick={() => setMenu(null)} />}
-
-      {menu === 'menu' && (
-        <div role="listbox" aria-label="Nutrient" className="desktop-scroll absolute inset-x-5 top-28 z-[5] max-h-[340px] overflow-auto rounded-[14px] border border-strong bg-raised-2 p-1.5 shadow-[0_14px_34px_rgba(0,0,0,0.55)]">
-          {enabled.map((o) => (
-            <button
-              key={o.key}
-              type="button"
-              role="option"
-              aria-selected={o.key === key}
-              onClick={() => {
-                setPrefs({ ...prefs, measure: o.key });
-                setMenu(null);
-              }}
-              className={`flex w-full items-center justify-between rounded-[10px] px-3 py-2.5 text-left text-[14px] ${o.key === key ? 'bg-border font-bold' : ''}`}
-            >
-              <span>{o.label}</span>
-              {o.key === key && <Icon name="check" size={16} stroke={2.6} className="text-accent" />}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {menu === 'cfg' && (
-        <div className="desktop-scroll absolute inset-x-3 top-28 z-[6] max-h-[560px] overflow-auto rounded-2xl border border-strong bg-raised-2 p-4 shadow-[0_14px_34px_rgba(0,0,0,0.55)]">
-          <div className="flex items-center justify-between">
-            <span className="text-[15px] font-bold">Show in the list</span>
-            <button type="button" onClick={() => setMenu(null)} className="-my-3 -mr-2 h-11 px-2 text-[13px] font-bold text-accent-2">
-              Done
-            </button>
-          </div>
-          {MEASURE_GROUPS.map((group) => (
-            <div key={group}>
-              <div className="mt-3.5 pb-1 text-[11px] text-secondary">{group}</div>
-              {MEASURES.filter((o) => o.group === group).map((o) => {
-                const on = prefs.enabled.includes(o.key);
-                return (
-                  <button
-                    key={o.key}
-                    type="button"
-                    role="checkbox"
-                    aria-checked={on}
-                    onClick={() => {
-                      const next = on ? prefs.enabled.filter((k) => k !== o.key) : [...prefs.enabled, o.key];
-                      if (next.length > 0) setPrefs({ ...prefs, enabled: next });
-                    }}
-                    className="flex w-full items-center justify-between border-t border-border py-[9px] text-left text-[14px]"
-                  >
-                    <span>{o.label}</span>
-                    <span className={`flex h-[22px] w-[22px] items-center justify-center rounded-[7px] ${on ? 'bg-accent text-ground' : 'border-[1.5px] border-strong'}`}>
-                      {on && <Icon name="check" size={13} stroke={3.2} />}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-4">
-        <MacroRing week={week} targets={{ kcal: targetsOf(goal).kcal ?? undefined, protein_g: targetsOf(goal).protein_g ?? undefined, carbs_g: targetsOf(goal).carbs_g ?? undefined, fat_g: targetsOf(goal).fat_g ?? undefined }} />
-      </div>
-
-      {/* The average per logged day before the picked one. "≥" when some entries have no value (rule 2).
-          Calories and the macros are in the ring above, so the big number shows only for the other nutrients. */}
-      {!inRing && (<>
-      <div className="mt-5 flex items-baseline gap-2 whitespace-nowrap" title={caption}>
-        <span className="num text-[38px] font-bold tracking-[-1px]" data-testid="weekly-average">
-          {lowerBound ? '≥ ' : ''}
-          {amountText(m.average, key)} {unit}
-        </span>
-        {target !== null && <span className="num text-[13px] text-secondary">/ {amountText(target, key)}</span>}
-      </div>
-      {target !== null && target > 0 && (
-        <div
-          className="mt-2 h-1.5 rounded-[3px] bg-border"
-          role="img"
-          aria-label={m.average === null ? 'Target progress unknown' : `${formatNumber((m.average / target) * 100, 0)}% of target`}
-          data-testid="weekly-progress"
-        >
-          {m.average !== null && <div className="h-1.5 rounded-[3px] bg-accent" style={{ width: `${Math.min(100, (m.average / target) * 100)}%` }} />}
-        </div>
-      )}
-      </>)}
-      <div className="mt-3 flex min-h-6 flex-wrap items-center gap-2" data-testid="weekly-coverage">
-        {m.verdict && (
-          <span className={`flex h-6 items-center rounded-xl px-2.5 text-[12px] font-semibold ${isGoodVerdict(m.verdict, key) ? GOOD_PILL : BAD_PILL}`} data-testid="weekly-verdict">
-            {VERDICT_LABEL[m.verdict]}
-          </span>
-        )}
-        {week.dates.length > 0 && (
-          <CountChip icon="calendar" label={daysLabel(week)} testId="weekly-days">
-            {ofText(week.counted_days, week.dates.length)}
-          </CountChip>
-        )}
-        <UnknownChip count={m.count - m.covered} what={`${current.label.toLowerCase()} value`} testId="weekly-unknown" />
-      </div>
-
-      <div className="relative mt-3.5 h-[120px]" role="img" aria-label={bars.map((b) => `${weekday(b.date)} ${amountText(b.value, key)} ${unit}`).join(', ')}>
-        {target !== null && <div className="absolute inset-x-0 border-t border-dashed border-faint" style={{ bottom: heightOf(target) }} />}
-        <div className="absolute inset-0 flex items-end gap-2">
-          {bars.map((b) => {
-            const skipped = b.day !== null && !b.day.counted;
-            const bar =
-              b.value === null ? (
-                // No value: a dashed stub, so it reads as left out rather than 0 (rule 2).
-                <div className="h-[3px] w-full border-t border-dashed border-faint" />
-              ) : (
-                // Decision 47: a left-out day keeps its bar, striped. Track / Untrack is on the day card.
-                <div
-                  className={`w-full rounded-[5px_5px_2px_2px] ${b.picked ? 'bg-accent' : skipped ? '' : 'bg-strong'}`}
-                  style={{ height: heightOf(b.value), ...(skipped ? SKIPPED_BAR : {}) }}
-                />
-              );
-            const title = b.day !== null && b.day.logged ? dayStatusLabel(b.day, `${amountText(b.value, key)} ${unit}`) : undefined;
-            return (
-              <div key={b.date} title={title} data-testid={`week-day-${b.date}`} data-counted={b.day?.counted ?? undefined} className="flex h-full min-w-0 flex-1 items-end">
-                {bar}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="mt-1.5 flex gap-2">
-        {bars.map((b) => (
-          <span key={b.date} className={`min-w-0 flex-1 text-center text-[11px] ${b.day !== null && !b.day.counted ? 'text-faint' : 'text-secondary'}`}>
-            {weekday(b.date)}
-          </span>
-        ))}
-      </div>
-
-      <div className="mt-[22px] border-t border-border pt-4">
-        <div className="text-[14px] font-bold">Top sources</div>
-        {sources.length === 0 ? (
-          <p className="num mt-2 text-[20px] font-bold text-secondary" title={`No known ${current.label.toLowerCase()} values for ${before}`}>
-            ?
-          </p>
-        ) : (
-          <div className="mt-3.5 flex flex-col gap-3">
-            {sources.map((s) => (
-              <div key={s.id} data-testid="top-source">
-                <div className="flex justify-between gap-2 text-[13px]">
-                  <span className="min-w-0 truncate font-semibold">{s.name}</span>
-                  <span className="num shrink-0 text-secondary">
-                    {amountText(s.value, key)} {unit}
-                  </span>
-                </div>
-                <div className="mt-[7px] h-[5px] rounded-[3px] bg-border">
-                  <div className="h-[5px] rounded-[3px] bg-accent" style={{ width: `${s.pct}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </aside>
-  );
-}

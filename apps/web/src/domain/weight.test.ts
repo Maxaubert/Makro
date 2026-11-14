@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { expectClose, loadGolden } from './golden';
 import type { GoalType } from './goals';
-import { chartLayout, entryDayLabel, goalEstimate, isPlausibleWeight, rangeStart, toGoal, weighInChanges, weightLine, weightLineFill, weightLineGaps, weightLineTicks, weightSummary, type TrendDay, type WeightSummary } from './weight';
+import { chartLayout, entryDayLabel, goalEstimate, isPlausibleWeight, rangeChange, rangeStart, toGoal, weighInChanges, weightLine, weightLineFill, weightLineGaps, weightLineTicks, weightSummary, type TrendDay, type WeightSummary } from './weight';
 
 const trend = loadGolden<{ entries: { local_date: string; weight_kg: number }[]; from: string; to: string }, WeightSummary>('weight/trend.json');
 const goal = loadGolden<{ weight_kg: number | null; target_kg: number | null; goal_type: GoalType }, { kg: number | null; reached: boolean }>('weight/to_goal.json');
@@ -301,5 +301,19 @@ describe('entryDayLabel', () => {
 
   it('writes other days as on the board, without a comma', () => {
     expect(entryDayLabel('2026-10-16', '2026-11-09')).toBe('Fri 16 Oct');
+  });
+});
+
+describe('rangeChange', () => {
+  const w = (local_date: string, weight_kg: number) => ({ local_date, weight_kg });
+  it('is the last weigh-in day minus the first, inside the range, with a weekly rate', () => {
+    const r = rangeChange([w('2026-11-01', 90), w('2026-11-08', 82.6), w('2026-11-10', 82.4), w('2026-11-10', 82.2), w('2026-11-14', 81.5)], '2026-11-08', '2026-11-14');
+    expect(r?.first).toEqual({ date: '2026-11-08', kg: 82.6 });
+    expect(r?.last).toEqual({ date: '2026-11-14', kg: 81.5 });
+    expect(r?.change).toBeCloseTo(-1.1);
+    expect(r?.per_week).toBeCloseTo((-1.1 / 6) * 7);
+  });
+  it('is unknown with one weigh-in day', () => {
+    expect(rangeChange([w('2026-11-10', 82), w('2026-11-10', 82.4)], '2026-11-08', '2026-11-14')).toBeNull();
   });
 });

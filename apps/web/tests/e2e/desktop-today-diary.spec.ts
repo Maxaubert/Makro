@@ -79,15 +79,10 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   // The day bar is one bar against the target, not split by meal; the weekly panel is on Trends now.
   await expect(page.getByTestId('day-kcal-bar')).toBeVisible();
   await expect(page.getByRole('complementary', { name: 'Weekly average' })).toHaveCount(0);
+  // The weekly panel merged into the Trends card (2026-11-14): the triangle is there now.
   await page.getByRole('link', { name: 'Trends', exact: true }).click();
-  await expect(page.getByRole('complementary', { name: 'Weekly average' })).toBeVisible();
-  if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/desktop-trends-weekly.png`, fullPage: true });
-
-  // The weekly panel switches measure and keeps unknown as "?".
-  await page.getByRole('button', { name: 'Protein' }).first().click();
-  await page.getByRole('option', { name: 'Calories' }).click();
-  await expect(page.getByTestId('weekly-average')).toHaveCount(0);
-  await expect(page.getByTestId('ring-kcal')).toHaveText('?');
+  await expect(page.getByTestId('trends-average')).toBeVisible();
+  if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/desktop-trends.png`, fullPage: true });
 
   // A wide window does not break the layout, and 390 px is still the phone column.
   await page.getByRole('link', { name: 'Diary', exact: true }).click();
