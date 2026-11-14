@@ -112,8 +112,8 @@ reset role;
 -- Protocol version and input checks
 -- ---------------------------------------------------------------------------
 select tests.as_user('aaaaaaaa-0000-4000-8000-000000000001');
-select throws_ok($$select public.sync_push(0, '{}')$$, '22023', 'sync protocol 0 is not supported: this server accepts 1 to 1. Update the app.', 'push refuses an old protocol version');
-select throws_ok($$select public.sync_pull(0, 0, 10)$$, '22023', 'sync protocol 0 is not supported: this server accepts 1 to 1. Update the app.', 'pull refuses an old protocol version');
+select throws_ok($$select public.sync_push(0, '{}')$$, '22023', 'sync protocol 0 is not supported: this server accepts 1 to 2. Update the app.', 'push refuses an old protocol version');
+select throws_ok($$select public.sync_pull(0, 0, 10)$$, '22023', 'sync protocol 0 is not supported: this server accepts 1 to 2. Update the app.', 'pull refuses an old protocol version');
 select throws_ok($$select public.sync_push(99, '{}')$$, '22023', null, 'push refuses an unknown newer protocol version');
 select throws_ok($$select public.sync_push(1, '{"misses": []}')$$, '22023', null, 'push refuses a table that is not synced');
 select is(tests.push('log_entries', tests.row('log_entries', '01900000-0000-4000-8000-000000000001', '2026-10-20T08:00:00.000Z')) ->> 'status',

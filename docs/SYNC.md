@@ -84,7 +84,7 @@ Returns the caller's rows with `server_seq > since`, across all tables, ordered 
 
 ## Protocol version
 
-`protocol` is the **sync protocol** version, separate from the phone's `pragma user_version` and from the product file's `schema_version`. The server accepts 1 to 1 today (`private.sync_check_protocol`). A protocol below the minimum raises `22023` with "sync protocol N is not supported: this server accepts 1 to 1. Update the app."; one above the maximum raises `22023` too. Raise the maximum when the protocol changes and the minimum when old clients must stop.
+`protocol` is the **sync protocol** version, separate from the phone's `pragma user_version` and from the product file's `schema_version`. The server accepts 1 to 2 today (`private.sync_check_protocol`). Protocol 2 (2026-11-14, #52) adds the `daily_supplements` table, the `supplements` meal and `log_entries.daily_supplement_id`, with one live entry per supplement and day (natural key). A protocol 1 client can neither push nor pull any of them, so an old client keeps working without seeing supplements. A protocol below the minimum raises `22023` with "sync protocol N is not supported: this server accepts 1 to 2. Update the app."; one above the maximum raises `22023` too. Raise the maximum when the protocol changes and the minimum when old clients must stop.
 
 ## Sign-in
 

@@ -3,15 +3,15 @@
 import { useState } from 'react';
 import { notYetRepeated } from '../../data/fastRepeat';
 import type { GoalRow, LocalLogEntry } from '../../data/logStore';
-import { MEALS, type Meal } from '../../domain/entry';
+import { isMeal, mealEntries, MEALS, type Meal } from '../../domain/entry';
 import { formatNumber, formatTotal } from '../../domain/format';
 import { remainingToday, weekWindow, weeklyAverage, type Verdict, type WeeklyMeasure } from '../../domain/guidance';
 import { browserTimeZone } from '../../domain/localDate';
 import { NUTRIENTS, type Nutrient } from '../../domain/nutrients';
-import { href, useApp, useData } from '../../lib/hooks';
+import { href, navigate, useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
 import { Icon, Notice, SourceBadge, UnknownNote } from '../../ui/kit';
-import { addDays, amountLabel, longDayLabel, MEAL_LABEL, today, totalsOf, withDay } from '../day';
+import { addDays, amountLabel, DIARY_GROUPS, GROUP_LABEL, longDayLabel, MEAL_LABEL, today, totalsOf, withDay } from '../day';
 import { VERDICT_LABEL, amountText, coverageNote, leftOutNote, remainingText, weekRange, weekday } from '../guidanceCopy';
 import { canPageForward, dayRowSummary, listWindow, pageDay, parsedQuantity, previewEntry, steppedAmount, topSources } from './diaryView';
 
@@ -124,7 +124,7 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
   // Totals, meals and the panel follow the edit while it is open; Cancel simply drops it.
   const entries = open && editing ? stored.map((e) => (e.id === open.id ? previewEntry(e, { quantity: draftQuantity, meal: editing.meal }) : e)) : stored;
   const goal = data?.goal ?? null;
-  const repeatable = date === now ? notYetRepeated(data?.previous ?? [], stored) : [];
+  const repeatable = date === now ? notYetRepeated(mealEntries(data?.previous ?? []), stored) : [];
 
   async function run(work: () => Promise<unknown>) {
     setBusy(true);
@@ -143,6 +143,7 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
   const repeat = () => run(() => app.db.repeatMeals({ from: yesterday, meals: [...new Set(repeatable.map((e) => e.meal))] }, new Date(), browserTimeZone()));
   const pick = (entry: LocalLogEntry) => {
     setProblem(null);
+    if (!isMeal(entry.meal)) return;
     setEditing(editing?.id === entry.id ? null : { id: entry.id, quantity: String(entry.quantity), meal: entry.meal });
   };
 
@@ -426,13 +427,16 @@ function MealTable({
         </div>
       )}
 
-      {MEALS.map((meal) => {
+      {DIARY_GROUPS.map((meal) => {
         const rows = entries.filter((e) => e.meal === meal);
         if (rows.length === 0) return null;
         return (
-          <div key={meal} role="group" aria-label={MEAL_LABEL[meal]}>
+          <div key={meal} role="group" aria-label={GROUP_LABEL[meal]}>
             <div className={`${TABLE_COLUMNS} items-center border-t border-border bg-raised px-5 py-2.5`}>
-              <span className="text-[13px] font-bold text-soft">{MEAL_LABEL[meal]}</span>
+              <span className="text-[13px] font-bold text-soft">
+                {GROUP_LABEL[meal]}
+                {meal === 'supplements' && <span className="ml-2 text-[12px] font-normal text-secondary">Added every day</span>}
+              </span>
               <span className="num text-right text-[13px] font-bold">{withUnknown(formatTotal(totalsOf(rows).kcal, 0))}</span>
             </div>
             {rows.map((e) => {
@@ -443,6 +447,8 @@ function MealTable({
                     type="button"
                     aria-expanded={isOpen}
                     onClick={() => {
+                      // A daily supplement has its own edit screen (amount from today on, skip, stop).
+                      if (e.daily_supplement_id !== null) return navigate(href('entry', e.id));
                       const original = stored.find((s) => s.id === e.id);
                       if (original) onPick(original);
                     }}

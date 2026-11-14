@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "description": "Daily supplements (#52, log-schema.md): which supplements need an entry made today. Input: the supplement rows (id, start_date, stopped_on or null, deleted true for a tombstone), the supplement entries already stored for today (daily_supplement_id, deleted true for a tombstone, which is how Skip today is stored) and today's local date. Expected: the ids that need an entry today, in the order the rows were given. A supplement is active on a day when it is not deleted, start_date is on or before the day and stopped_on is null or after the day. Any row for today, a tombstone included, means no new entry. Only today is ever filled in: no back-filling of days the app was not opened.",
+  "cases": [
+    { "id": "nothing-set-up", "input": { "today": "2026-11-14", "supplements": [], "entries_today": [] }, "expected": { "due": [] } },
+    { "id": "one-active-no-entry-yet", "input": { "today": "2026-11-14", "supplements": [{ "id": "s1", "start_date": "2026-11-10", "stopped_on": null, "deleted": false }], "entries_today": [] }, "expected": { "due": ["s1"] } },
+    { "id": "already-made-today", "input": { "today": "2026-11-14", "supplements": [{ "id": "s1", "start_date": "2026-11-10", "stopped_on": null, "deleted": false }], "entries_today": [{ "daily_supplement_id": "s1", "deleted": false }] }, "expected": { "due": [] } },
+    { "id": "skipped-today-stays-skipped", "input": { "today": "2026-11-14", "supplements": [{ "id": "s1", "start_date": "2026-11-10", "stopped_on": null, "deleted": false }], "entries_today": [{ "daily_supplement_id": "s1", "deleted": true }] }, "expected": { "due": [] } },
+    { "id": "starts-today", "input": { "today": "2026-11-14", "supplements": [{ "id": "s1", "start_date": "2026-11-14", "stopped_on": null, "deleted": false }], "entries_today": [] }, "expected": { "due": ["s1"] } },
+    { "id": "starts-tomorrow", "input": { "today": "2026-11-14", "supplements": [{ "id": "s1", "start_date": "2026-11-15", "stopped_on": null, "deleted": false }], "entries_today": [] }, "expected": { "due": [] } },
+    { "id": "stopped-from-tomorrow-still-due-today", "input": { "today": "2026-11-14", "supplements": [{ "id": "s1", "start_date": "2026-11-01", "stopped_on": "2026-11-15", "deleted": false }], "entries_today": [] }, "expected": { "due": ["s1"] } },
+    { "id": "stopped-today-not-due", "input": { "today": "2026-11-14", "supplements": [{ "id": "s1", "start_date": "2026-11-01", "stopped_on": "2026-11-14", "deleted": false }], "entries_today": [] }, "expected": { "due": [] } },
+    { "id": "deleted-supplement-not-due", "input": { "today": "2026-11-14", "supplements": [{ "id": "s1", "start_date": "2026-11-01", "stopped_on": null, "deleted": true }], "entries_today": [] }, "expected": { "due": [] } },
+    { "id": "two-supplements-one-done", "input": { "today": "2026-11-14", "supplements": [{ "id": "s1", "start_date": "2026-11-01", "stopped_on": null, "deleted": false }, { "id": "s2", "start_date": "2026-11-01", "stopped_on": null, "deleted": false }], "entries_today": [{ "daily_supplement_id": "s1", "deleted": false }] }, "expected": { "due": ["s2"] } },
+    { "id": "an-entry-of-another-supplement-does-not-count", "input": { "today": "2026-11-14", "supplements": [{ "id": "s2", "start_date": "2026-11-01", "stopped_on": null, "deleted": false }], "entries_today": [{ "daily_supplement_id": "s1", "deleted": false }] }, "expected": { "due": ["s2"] } }
+  ]
+}

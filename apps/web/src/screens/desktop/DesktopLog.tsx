@@ -9,6 +9,7 @@ import type { RecentFood, SavedMeal } from '../../data/logStore';
 import { productSubtext, type Per100Unit, type Product } from '../../data/products';
 import { roundForDisplay } from '../../domain/display';
 import { buildFavourite, buildLogEntry, MEALS, mealTimeOn, parseQuantity, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../../domain/entry';
+import { buildDailySupplement, supplementEntry } from '../../domain/supplements';
 import { formatNumber } from '../../domain/format';
 import { resolveGrams, type AmountUnit } from '../../domain/grams';
 import { browserTimeZone, pastLocalDate } from '../../domain/localDate';
@@ -482,6 +483,9 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
+  // Add every day (#52): the food goes to Daily supplements. Not when adding to an earlier day.
+  const [daily, setDaily] = useState(false);
+  const supplement = daily && !day;
 
   const quantity = parseQuantity(qty);
   const grams = quantity === null ? null : resolveGrams({ quantity, unit, serving_g: food.per.serving_g }).grams;
@@ -512,6 +516,13 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
     try {
       const tz = browserTimeZone();
       const saved_at = new Date();
+      if (supplement) {
+        const s = buildDailySupplement({ food: food.ref, quantity, unit, at: saved_at, tz });
+        await app.db.addDailySupplement(s, supplementEntry({ supplement: s, food: food.ref, snapshot: null, at: saved_at, tz }));
+        await app.changed();
+        setAdded('Added to daily supplements. It is added every day from today.');
+        return;
+      }
       await app.db.saveLogEntry(buildLogEntry({ food: food.ref, quantity, unit, meal, at: day ? mealTimeOn(day, meal, tz) : saved_at, tz, saved_at }));
       await app.changed();
       if (day) navigate(`/day-end/${day}`);
@@ -649,14 +660,35 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
             </div>
           )}
 
-          <div role="group" aria-label="Meal" className="mt-[18px] flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[13px] text-secondary">Meal</span>
-            {MEALS.map((m) => (
-              <Pill key={m} small selected={meal === m} onClick={() => { setMeal(m); setAdded(null); }}>{MEAL_LABEL[m]}</Pill>
-            ))}
-          </div>
+          {!day && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={daily}
+              onClick={() => { setDaily(!daily); setAdded(null); }}
+              className="mt-[18px] flex w-full items-center justify-between gap-4 rounded-2xl border border-border px-4 py-2.5 text-left"
+              data-testid="add-every-day"
+            >
+              <span>
+                <span className="block text-[14px] font-semibold">Add every day</span>
+                <span className="block text-[12px] text-secondary">For supplements like creatine or omega-3</span>
+              </span>
+              <span className={`relative h-[26px] w-11 flex-none rounded-full ${daily ? 'bg-accent' : 'bg-strong'}`}>
+                <span className={`absolute top-[3px] h-5 w-5 rounded-full bg-ground ${daily ? 'left-[21px]' : 'left-[3px]'}`} />
+              </span>
+            </button>
+          )}
 
-          <button type="button" className={PRIMARY} disabled={grams === null || saving} onClick={() => void add()}>Add to {MEAL_LABEL[meal]}</button>
+          {!supplement && (
+            <div role="group" aria-label="Meal" className="mt-[18px] flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[13px] text-secondary">Meal</span>
+              {MEALS.map((m) => (
+                <Pill key={m} small selected={meal === m} onClick={() => { setMeal(m); setAdded(null); }}>{MEAL_LABEL[m]}</Pill>
+              ))}
+            </div>
+          )}
+
+          <button type="button" className={PRIMARY} disabled={grams === null || saving} onClick={() => void add()}>{supplement ? 'Add to daily supplements' : `Add to ${MEAL_LABEL[meal]}`}</button>
           {status}
         </div>
       )}

@@ -2,6 +2,7 @@
 // Every save lands here first, so logging works without a connection (rule 5, decision 8).
 // The sync loop (sync.ts) drains the outbox through sync_push and applies sync_pull pages.
 import type { CustomFoodRow, FavouriteRow, FoodKey, GoalWriteRow, LogEntryRow, Meal, SavedMealItemRow, SavedMealRow, StoredGoal, WeightEntryRow } from '../domain/entry';
+import { nextDay, type DailySupplementRow } from '../domain/supplements';
 import { MEALS } from '../domain/entry';
 import type { AmountUnit } from '../domain/grams';
 import { stampLocalDay } from '../domain/localDate';
@@ -101,6 +102,9 @@ export class LogStore {
   migrate(): void {
     this.sql.tx(() => {
       this.sql.run(localSchemaSql());
+      // Version 2 (#52): a file made before it has log_entries without daily_supplement_id.
+      const cols = this.sql.all<{ name: string }>('pragma table_info(log_entries)').map((c) => c.name);
+      if (!cols.includes('daily_supplement_id')) this.sql.run('alter table log_entries add column daily_supplement_id text');
       this.sql.run(`pragma user_version = ${LOCAL_SCHEMA_VERSION}`);
     });
   }
@@ -142,6 +146,77 @@ export class LogStore {
 
   saveGoal(row: GoalWriteRow): void {
     this.save('goals', row as unknown as Record<string, unknown>);
+  }
+
+  // ---- daily supplements (#52) ------------------------------------------------------------
+
+  /** A new daily supplement and today's entry for it, together. */
+  addDailySupplement(supplement: DailySupplementRow, todayEntry: LogEntryRow): void {
+    this.sql.tx(() => {
+      this.save('daily_supplements', supplement as unknown as Record<string, unknown>);
+      this.saveLogEntry(todayEntry);
+    });
+  }
+
+  /** Every supplement row, tombstones included, oldest first. */
+  dailySupplementRows(): DailySupplementRow[] {
+    return this.sql.all<DailySupplementRow>('select * from daily_supplements order by sort_order, created_at, id');
+  }
+
+  dailySupplement(id: string): DailySupplementRow | null {
+    return this.sql.get<DailySupplementRow>('select * from daily_supplements where id = ?', [id]) ?? null;
+  }
+
+  /** Supplement entries of a day, tombstones included: a skipped day must not be filled in again. */
+  supplementEntriesOn(localDate: string): LocalLogEntry[] {
+    return this.sql.all<LocalLogEntry>('select * from log_entries where local_date = ? and daily_supplement_id is not null', [localDate]);
+  }
+
+  /** A new amount from today on: the supplement and today's live entry change, earlier days do not. */
+  updateSupplementAmount(id: string, quantity: number, today: string): void {
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('The amount must be more than 0. To stop it, use Stop adding daily.');
+    this.sql.tx(() => {
+      const s = this.dailySupplement(id);
+      if (!s || s.deleted_at) throw new Error(`no daily supplement ${id}`);
+      const perUnit = s.unit === 'g' || s.unit === 'ml' ? 1 : s.quantity > 0 ? s.grams / s.quantity : null;
+      if (perUnit === null) throw new Error('cannot rescale a supplement with no amount');
+      this.save('daily_supplements', { ...s, quantity, grams: quantity * perUnit, updated_at: this.nextUpdatedAt(s.updated_at) });
+      for (const e of this.supplementEntriesOn(today)) {
+        if (e.daily_supplement_id === id && !e.deleted_at) this.updateLogEntry(e.id, { quantity });
+      }
+    });
+  }
+
+  /** Skip today only: today's entry becomes a tombstone, which also stops it being made again today. */
+  skipSupplementToday(id: string, today: string, makeEntry: () => LogEntryRow): void {
+    this.sql.tx(() => {
+      const mine = this.supplementEntriesOn(today).filter((e) => e.daily_supplement_id === id);
+      if (mine.length === 0) {
+        const e = makeEntry();
+        this.saveLogEntry({ ...e, deleted_at: e.updated_at });
+        return;
+      }
+      for (const e of mine) this.tombstone('log_entries', e.id);
+    });
+  }
+
+  /** Undo Skip today: today's newest supplement entry comes back. */
+  unskipSupplementToday(id: string, today: string): void {
+    this.sql.tx(() => {
+      const mine = this.supplementEntriesOn(today).filter((e) => e.daily_supplement_id === id);
+      if (mine.some((e) => !e.deleted_at)) return;
+      const last = mine.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
+      if (last) this.save('log_entries', { ...last, deleted_at: null, updated_at: this.nextUpdatedAt(last.updated_at) });
+    });
+  }
+
+  /** Stop adding daily from tomorrow; today's entry and earlier days stay. */
+  stopSupplement(id: string, today: string): void {
+    this.sql.tx(() => {
+      const s = this.dailySupplement(id);
+      if (!s || s.deleted_at || s.stopped_on !== null) return;
+      this.save('daily_supplements', { ...s, stopped_on: nextDay(today), updated_at: this.nextUpdatedAt(s.updated_at) });
+    });
   }
 
   /** Several entries at once: a whole meal is logged or none of it. */

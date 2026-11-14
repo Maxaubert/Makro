@@ -12,6 +12,12 @@ import { uuidv7 } from './uuid';
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 export type Meal = (typeof MEALS)[number];
+/** A stored entry's meal: one of the four, or the day's entry of a daily supplement (#52, sync protocol 2). */
+export type EntryMeal = Meal | 'supplements';
+export const isMeal = (m: string): m is Meal => (MEALS as readonly string[]).includes(m);
+/** The entries of the four meals, without the daily supplements (those are never copied or saved as a meal). */
+export const mealEntries = <T extends { meal: EntryMeal }>(entries: readonly T[]): (T & { meal: Meal })[] =>
+  entries.filter((e): e is T & { meal: Meal } => isMeal(e.meal));
 
 type NutrientColumns = Record<Nutrient, number | null>;
 
@@ -26,7 +32,7 @@ export interface LogEntryRow extends SyncFields, NutrientColumns {
   eaten_at: string;
   tz: string;
   local_date: string;
-  meal: Meal;
+  meal: EntryMeal;
   quantity: number;
   unit: AmountUnit;
   grams: number;
@@ -39,6 +45,8 @@ export interface LogEntryRow extends SyncFields, NutrientColumns {
   db_version: string | null;
   verified: 0 | 1 | null;
   per_100_unit: Per100Unit;
+  /** Set on the day's entry a daily supplement made (#52), null otherwise. */
+  daily_supplement_id: string | null;
 }
 
 export interface CustomFoodRow extends SyncFields, NutrientColumns {
@@ -144,6 +152,7 @@ export function buildLogEntry(input: {
     db_version: f.kind === 'product' ? f.db_version : null,
     verified: f.kind === 'product' ? (f.product.verified ? 1 : 0) : null,
     per_100_unit: per.per_100_unit,
+    daily_supplement_id: null,
     ...nutrients,
   };
 }
@@ -237,6 +246,7 @@ export function buildRepeatedEntry(input: {
     db_version: snap?.db_version ?? null,
     verified: snap?.verified ?? null,
     per_100_unit: snap?.per_100_unit ?? (item.unit === 'ml' ? 'ml' : 'g'),
+    daily_supplement_id: null,
     ...nutrients,
   };
 }

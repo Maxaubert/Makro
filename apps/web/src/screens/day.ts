@@ -1,6 +1,6 @@
 // Shared helpers for the day screens.
 import type { LocalLogEntry } from '../data/logStore';
-import type { Meal } from '../domain/entry';
+import { MEALS, type EntryMeal, type Meal } from '../domain/entry';
 import { NUTRIENTS } from '../domain/nutrients';
 import { dayTotals, type NutrientTotal } from '../domain/totals';
 import { stampLocalDay } from '../domain/localDate';
@@ -23,6 +23,10 @@ export const MEAL_LABEL: Record<Meal, string> = {
   dinner: 'Dinner',
   snack: 'Snacks',
 };
+
+/** The day's groups in order: daily supplements first (#52), then the four meals. */
+export const DIARY_GROUPS = ['supplements', ...MEALS] as const;
+export const GROUP_LABEL: Record<EntryMeal, string> = { supplements: 'Daily supplements', ...MEAL_LABEL };
 
 /** A sensible default meal for the time of day. */
 export function mealForNow(d = new Date()): Meal {

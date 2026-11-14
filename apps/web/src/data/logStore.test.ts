@@ -180,15 +180,28 @@ describe('popularity', () => {
 });
 
 describe('local schema', () => {
-  it('has the seven synced tables, the outbox and user_version 1', () => {
-    expect(store.schemaVersion()).toBe(1);
-    for (const t of ['log_entries', 'custom_foods', 'saved_meals', 'saved_meal_items', 'favourites', 'goals', 'weight_entries', 'outbox']) {
+  it('has the eight synced tables, the outbox and user_version 2', () => {
+    expect(store.schemaVersion()).toBe(2);
+    for (const t of ['log_entries', 'custom_foods', 'saved_meals', 'saved_meal_items', 'favourites', 'goals', 'weight_entries', 'daily_supplements', 'outbox']) {
       expect(store.hasTable(t), t).toBe(true);
     }
   });
   it('migrates twice without harm', () => {
     store.migrate();
-    expect(store.schemaVersion()).toBe(1);
+    expect(store.schemaVersion()).toBe(2);
+  });
+  it('upgrades a version 1 file: entries keep their rows and get daily_supplement_id (#52)', async () => {
+    const sql = await memoryDb();
+    const old = new LogStore(sql);
+    old.migrate();
+    old.saveLogEntry(entry());
+    sql.run('alter table log_entries drop column daily_supplement_id');
+    sql.run('drop table daily_supplements');
+    sql.run('pragma user_version = 1');
+    old.migrate();
+    expect(old.schemaVersion()).toBe(2);
+    expect(old.hasTable('daily_supplements')).toBe(true);
+    expect(old.dayEntries('2026-10-20')[0]).toMatchObject({ daily_supplement_id: null });
   });
 });
 

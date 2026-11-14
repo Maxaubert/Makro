@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { notYetRepeated } from '../data/fastRepeat';
 import type { LocalLogEntry } from '../data/logStore';
-import { buildSavedMeal, MEALS, type Meal } from '../domain/entry';
+import { buildSavedMeal, mealEntries, MEALS, type Meal } from '../domain/entry';
 import { formatNumber, formatTotal } from '../domain/format';
 import { browserTimeZone } from '../domain/localDate';
 import { href, navigate, useApp, useData } from '../lib/hooks';
@@ -23,7 +23,7 @@ export function Diary({ date: dateParam }: { date?: string }) {
   const totals = totalsOf(entries);
   const kcal = formatTotal(totals.kcal, 0);
   const goal = data?.goal ?? null;
-  const repeatable = notYetRepeated(data?.previous ?? [], entries);
+  const repeatable = notYetRepeated(mealEntries(data?.previous ?? []), entries);
   const [repeating, setRepeating] = useState(false);
   const [saving, setSaving] = useState<Meal | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -101,6 +101,8 @@ export function Diary({ date: dateParam }: { date?: string }) {
           </a>
         </div>
       )}
+
+      <SupplementSection entries={entries} />
 
       {MEALS.map((meal) => {
         const rows = entries.filter((e) => e.meal === meal);
@@ -254,5 +256,42 @@ function SaveMealSheet({ meal, entries, onClose, onSaved }: { meal: Meal; entrie
         <PrimaryButton onClick={save} disabled={busy || !name.trim()}>Save</PrimaryButton>
       </div>
     </Sheet>
+  );
+}
+
+/** Daily supplements (#52): added every day, first in the day. A row opens its edit screen. */
+export function SupplementSection({ entries }: { entries: readonly LocalLogEntry[] }) {
+  const rows = entries.filter((e) => e.meal === 'supplements');
+  if (rows.length === 0) return null;
+  const t = formatTotal(totalsOf(rows).kcal, 0);
+  return (
+    <section aria-label="Daily supplements">
+      <div className="flex items-baseline justify-between pb-1.5 pt-5">
+        <div className="flex items-baseline gap-2.5">
+          <h2 className="text-[15px] font-bold text-secondary">Daily supplements</h2>
+          <span className="text-[12px] text-secondary">Added every day</span>
+        </div>
+        <span className="num text-sm text-secondary">
+          {t.text} kcal
+          <UnknownNote count={t.unknown} className="ml-1.5" />
+        </span>
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        {rows.map((e, i) => (
+          <a
+            key={e.id}
+            href={href('entry', e.id)}
+            className={`tap flex items-baseline justify-between gap-3 p-4 ${i > 0 ? 'border-t border-border' : ''}`}
+            data-testid="supplement-entry"
+          >
+            <span className="min-w-0 text-[17px] font-semibold">
+              {e.name} <span className="text-sm font-normal text-secondary">{amountLabel(e)}</span>
+              <span className="ml-1.5 rounded-md border border-[#4A2D1C] px-1.5 text-[11px] font-bold text-accent-2">daily</span>
+            </span>
+            <span className="num shrink-0 text-[17px] font-bold">{formatNumber(e.kcal_total, 0)}</span>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }

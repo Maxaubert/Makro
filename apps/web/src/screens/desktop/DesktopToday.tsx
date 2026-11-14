@@ -12,7 +12,7 @@ import { rangeStart, toGoal, weightLine, weightLineFill, weightSummary, type Wei
 import { href, useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
 import { Card, Icon, Notice, Ring, SourceBadge, UnknownNote } from '../../ui/kit';
-import { addDays, amountLabel, longDayLabel, MEAL_LABEL, today, totalsOf } from '../day';
+import { addDays, amountLabel, DIARY_GROUPS, GROUP_LABEL, longDayLabel, today, totalsOf } from '../day';
 import { amountText, dayLine, weekday } from '../guidanceCopy';
 
 const MACROS = [
@@ -263,14 +263,17 @@ function TodayTable({ date, entries }: { date: string; entries: LocalLogEntry[] 
             <span className="text-right">Fat</span>
             <span className="text-right">Protein</span>
           </div>
-          {MEALS.map((meal) => {
+          {DIARY_GROUPS.map((meal) => {
             const rows = entries.filter((e) => e.meal === meal);
             if (rows.length === 0) return null;
             const total = formatTotal(totalsOf(rows).kcal, 0);
             return (
-              <section key={meal} aria-label={MEAL_LABEL[meal]}>
+              <section key={meal} aria-label={GROUP_LABEL[meal]}>
                 <div className={`grid ${TABLE_COLUMNS} items-center gap-2 border-t border-border bg-raised px-5 py-2.5`}>
-                  <span className="text-[13px] font-bold text-soft">{MEAL_LABEL[meal]}</span>
+                  <span className="text-[13px] font-bold text-soft">
+                    {GROUP_LABEL[meal]}
+                    {meal === 'supplements' && <span className="ml-2 text-[12px] font-normal text-secondary">Added every day</span>}
+                  </span>
                   <span />
                   <span className="num text-right text-[13px] font-bold">
                     {total.text}
