@@ -69,7 +69,8 @@ function bar(days: WeeklyDay[], target: number | null): TrendBar {
   };
 }
 
-function barsFor(days: WeeklyDay[], range: TrendRange, target: number | null): TrendBar[] {
+/** The chart's bars for any measure: one per day, or one per week (mean of counted days) for 90D. */
+export function barsFor(days: WeeklyDay[], range: TrendRange, target: number | null): TrendBar[] {
   if (range !== '90D') return days.map((d) => bar([d], target));
   const bars: TrendBar[] = [];
   for (let end = days.length; end > 0; end -= WEEK_DAYS) bars.unshift(bar(days.slice(Math.max(0, end - WEEK_DAYS), end), target));

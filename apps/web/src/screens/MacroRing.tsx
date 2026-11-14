@@ -9,10 +9,11 @@ import { useEffect, useState } from 'react';
 import type { WeeklyAverage } from '../domain/guidance';
 import { formatNumber } from '../domain/format';
 
-export const MACRO_COLORS = { protein: '#FF4C00', carbs: '#FF8A57', fat: '#FFB38F' } as const;
+// One orange for all three macros (Max, 2026-11-14: "make them all the same orange").
+export const MACRO_COLORS = { protein: '#FF4C00', carbs: '#FF4C00', fat: '#FF4C00' } as const;
 
 type Targets = Partial<Record<'kcal' | 'protein_g' | 'carbs_g' | 'fat_g', number>>;
-type Macro = 'protein' | 'carbs' | 'fat';
+export type Macro = 'protein' | 'carbs' | 'fat';
 type Key = 'protein_g' | 'carbs_g' | 'fat_g';
 const MACROS: readonly (readonly [Macro, string, Key])[] = [
   ['protein', 'Protein', 'protein_g'],
@@ -22,8 +23,6 @@ const MACROS: readonly (readonly [Macro, string, Key])[] = [
 
 /** The radar's outer edge, as a share of the target. Further out is drawn at the edge. */
 const EDGE = 1.2;
-/** Above this share of the target, the percent turns orange. A display hint only. */
-const OVER = 1.05;
 
 /** A measure is complete when it has a value and every counted entry had one. */
 function complete(week: WeeklyAverage, key: string): number | null {
@@ -61,8 +60,57 @@ const ang = (i: number) => (i / 3) * Math.PI * 2;
 const pt = (i: number, share: number): [number, number] => [CX + R * (share / EDGE) * Math.sin(ang(i)), CY - R * (share / EDGE) * Math.cos(ang(i))];
 const path = (shares: number[]) => 'M' + shares.map((s, i) => pt(i, s).map((n) => n.toFixed(2)).join(' ')).join('L') + 'Z';
 
-export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Targets }) {
+/**
+ * The triangle alone: protein, carbs and fat, each as a share of its target (1 = 100%). Shared by the weekly
+ * card on Today and the Trends page. One orange for all three, no colour for "over" (Max, 2026-11-14).
+ */
+export function MacroRadar({ axes, className }: { axes: { k: Macro; label: string; share: number }[]; className?: string }) {
   const grow = useGrow();
+  const pct = (share: number) => formatNumber(share * 100, 0);
+  const at = (share: number) => Math.max(0.001, Math.min(share, EDGE) * grow);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={className} role="img" aria-label={`Share of target: ${axes.map((a) => `${a.label} ${pct(a.share)}%`).join(', ')}`} data-testid="macro-radar">
+      <defs>
+        <linearGradient id="radar-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="var(--color-accent)" stopOpacity="0.42" />
+          <stop offset="1" stopColor="var(--color-accent)" stopOpacity="0.1" />
+        </linearGradient>
+      </defs>
+      {axes.map((_, i) => {
+        const [x, y] = pt(i, 1);
+        return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="#fff" strokeOpacity="0.04" />;
+      })}
+      {/* 100% of each target, faint. */}
+      <path d={path([1, 1, 1])} fill="#fff" fillOpacity="0.02" stroke="#fff" strokeOpacity="0.08" strokeLinejoin="round" />
+      <path d={path(axes.map((a) => at(a.share)))} fill="url(#radar-fill)" stroke="var(--color-accent)" strokeOpacity="0.75" strokeWidth="1.5" strokeLinejoin="round" />
+      {axes.map((a, i) => {
+        const [x, y] = pt(i, at(a.share));
+        return <circle key={a.k} cx={x} cy={y} r="3" fill={MACRO_COLORS[a.k]} stroke="var(--color-card)" strokeWidth="1.5" opacity={grow} />;
+      })}
+      {axes.map((a, i) => {
+        // The label sits above the top corner and beside the two lower ones.
+        const [x, y] = pt(i, EDGE);
+        const top = i === 0;
+        const right = Math.sin(ang(i)) > 0;
+        const tx = top ? x : x + (right ? 12 : -12);
+        const ny = top ? y - 28 : y - 3;
+        const anchor = top ? 'middle' : right ? 'start' : 'end';
+        return (
+          <g key={a.k} data-testid={`radar-${a.k}`}>
+            <text x={tx} y={ny} textAnchor={anchor} fontSize="11" fill="var(--color-text-secondary)" letterSpacing="0.02em">
+              <tspan fill={MACRO_COLORS[a.k]}>●</tspan> {a.label}
+            </text>
+            <text x={tx} y={ny + 17} textAnchor={anchor} fontSize="15" fontWeight="600" fill="var(--color-text)" className="num">
+              {pct(a.share)}%
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Targets }) {
   const kcal = week.measures.kcal?.average ?? null;
   const kcalLower = !!week.measures.kcal && week.measures.kcal.covered < week.measures.kcal.count;
   // Only a complete average gets a share, so a lower bound never shows as a smaller bar (rule 2).
@@ -82,7 +130,6 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
     if (!m || m.average === null) return '?';
     return `${m.covered < m.count ? '≥' : ''}${formatNumber(m.average, 0)}`;
   };
-  const pct = (share: number) => formatNumber(share * 100, 0);
 
   return (
     <div data-testid="macro-ring">
@@ -105,57 +152,7 @@ export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Tar
       </div>
 
       {drawable ? (
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className="mx-auto mt-[22px] block w-full max-w-[300px]"
-          role="img"
-          aria-label={`Share of target: ${axes.map((a) => `${a.label} ${pct(a.share as number)}%`).join(', ')}`}
-          data-testid="macro-radar"
-        >
-          <defs>
-            <linearGradient id="radar-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--color-accent)" stopOpacity="0.42" />
-              <stop offset="1" stopColor="var(--color-accent)" stopOpacity="0.1" />
-            </linearGradient>
-          </defs>
-          {axes.map((_, i) => {
-            const [x, y] = pt(i, 1);
-            return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="#fff" strokeOpacity="0.05" />;
-          })}
-          {/* 100% of each target. */}
-          <path d={path([1, 1, 1])} fill="#fff" fillOpacity="0.025" stroke="#fff" strokeOpacity="0.16" strokeLinejoin="round" />
-          <path
-            d={path(axes.map((a) => Math.max(0.001, Math.min(a.share as number, EDGE) * grow)))}
-            fill="url(#radar-fill)"
-            stroke="var(--color-accent)"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-          />
-          {axes.map((a, i) => {
-            const [x, y] = pt(i, Math.max(0.001, Math.min(a.share as number, EDGE) * grow));
-            return <circle key={a.k} cx={x} cy={y} r="3" fill={MACRO_COLORS[a.k]} stroke="var(--color-card)" strokeWidth="1.5" opacity={grow} />;
-          })}
-          {axes.map((a, i) => {
-            // The label sits above the top corner and beside the two lower ones.
-            const [x, y] = pt(i, EDGE);
-            const top = i === 0;
-            const right = Math.sin(ang(i)) > 0;
-            const tx = top ? x : x + (right ? 12 : -12);
-            const ny = top ? y - 28 : y - 3;
-            const anchor = top ? 'middle' : right ? 'start' : 'end';
-            const share = a.share as number;
-            return (
-              <g key={a.k} data-testid={`radar-${a.k}`}>
-                <text x={tx} y={ny} textAnchor={anchor} fontSize="11" fill="var(--color-text-secondary)" letterSpacing="0.02em">
-                  <tspan fill={MACRO_COLORS[a.k]}>●</tspan> {a.label}
-                </text>
-                <text x={tx} y={ny + 17} textAnchor={anchor} fontSize="15" fontWeight="600" fill={share > OVER ? 'var(--color-accent-2)' : 'var(--color-text)'} className="num">
-                  {pct(share)}%
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+        <MacroRadar axes={axes.map((a) => ({ k: a.k, label: a.label, share: a.share as number }))} className="mx-auto mt-[22px] block w-full max-w-[300px]" />
       ) : (
         // The same box as the radar, so the card keeps its height whether or not the shape can be drawn.
         <p className="mx-auto mt-[22px] flex aspect-[300/188] w-full max-w-[300px] items-center justify-center px-6 text-center text-[13px] text-secondary" data-testid="radar-missing">
