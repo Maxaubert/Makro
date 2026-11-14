@@ -6,7 +6,7 @@ import { notYetRepeated } from '../../data/fastRepeat';
 import type { GoalRow, LocalLogEntry } from '../../data/logStore';
 import { isMeal, mealEntries, MEALS, type Meal } from '../../domain/entry';
 import { formatNumber, formatTotal } from '../../domain/format';
-import { remainingToday, weekWindow, weeklyAverage, type Verdict, type WeeklyMeasure } from '../../domain/guidance';
+import { remainingToday, weekWindow, weeklyAverage, type DayChoice, type Verdict, type WeeklyDay, type WeeklyMeasure } from '../../domain/guidance';
 import { browserTimeZone } from '../../domain/localDate';
 import { NUTRIENTS, type Nutrient } from '../../domain/nutrients';
 import { href, navigate, useApp, useData } from '../../lib/hooks';
@@ -14,6 +14,7 @@ import { DesktopShell } from '../../ui/desktop';
 import { CountChip, HomeIcon, UnknownChip } from '../../ui/icons-desktop-home';
 import { Icon, Notice, SourceBadge } from '../../ui/kit';
 import { addDays, amountLabel, DIARY_GROUPS, GROUP_LABEL, longDayLabel, MEAL_LABEL, today, totalsOf, withDay } from '../day';
+import { SKIPPED_BAR, dayChoiceLabel, nextChoice } from '../dayChoice';
 import { VERDICT_LABEL, amountText, remainingText, weekRange, weekday } from '../guidanceCopy';
 import { canPageForward, dayRowSummary, listWindow, pageDay, parsedQuantity, previewEntry, steppedAmount, topSources } from './diaryView';
 import { daysLabel, ofText } from './trendsCopy';
@@ -106,15 +107,16 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
   const week = weekWindow(date);
 
   const { data, error: readError } = useData(async () => {
-    const [entries, goal, previous, listed, listGoals, weekEntries] = await Promise.all([
+    const [entries, goal, previous, listed, listGoals, weekEntries, choices] = await Promise.all([
       app.db.dayEntries(date),
       app.db.goalFor(date),
       date === now ? app.db.dayEntries(yesterday) : Promise.resolve([]),
       app.db.entriesBetween(days[6], days[0]),
       Promise.all(days.map((d) => app.db.goalFor(d))),
       week.length > 0 ? app.db.entriesBetween(week[0], week[week.length - 1]) : Promise.resolve([]),
+      week.length > 0 ? app.db.dayChoices(week[0], week[week.length - 1]) : Promise.resolve({} as Record<string, DayChoice>),
     ]);
-    return { entries, goal, previous, listed, listGoals, weekEntries };
+    return { entries, goal, previous, listed, listGoals, weekEntries, choices };
   }, [date, now]);
 
   const [editing, setEditing] = useState<EditState | null>(null);
@@ -154,7 +156,7 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
     <DesktopShell active="diary" title="Diary">
       {/* Three columns from the board's width down to 1360 px; narrower, the panel moves under the day. */}
       <div className="grid grid-cols-[244px_minmax(0,1fr)] items-start gap-5 min-[1360px]:grid-cols-[244px_minmax(0,1fr)_300px]">
-        <DayList date={date} now={now} days={days} listed={data?.listed} goals={data?.listGoals} week={data ? weekOf(date, data.weekEntries, goal).measures.kcal : null} />
+        <DayList date={date} now={now} days={days} listed={data?.listed} goals={data?.listGoals} week={data ? weekOf(date, data.weekEntries, goal, data.choices).measures.kcal : null} />
 
         <section className="flex min-w-0 flex-col gap-5">
           {readError && <Notice tone="error">{readError}</Notice>}
@@ -185,20 +187,31 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
           )}
         </section>
 
-        {data && <WeeklyPanel date={date} now={now} entries={entries} weekEntries={data.weekEntries} goal={goal} />}
+        {data && (
+          <WeeklyPanel
+            date={date}
+            now={now}
+            entries={entries}
+            weekEntries={data.weekEntries}
+            goal={goal}
+            choices={data.choices}
+            onChoice={(d, c) => void run(() => app.db.setDayChoice(d, c))}
+          />
+        )}
       </div>
     </DesktopShell>
   );
 }
 
 /** The weekly average of the days before `date`, the same sums as the Today card. */
-function weekOf(date: string, weekEntries: LocalLogEntry[], goal: GoalRow | null) {
+function weekOf(date: string, weekEntries: LocalLogEntry[], goal: GoalRow | null, choices: Record<string, DayChoice>) {
   const byDate = new Map<string, LocalLogEntry[]>();
   for (const e of weekEntries) byDate.set(e.local_date, [...(byDate.get(e.local_date) ?? []), e]);
   return weeklyAverage(
     {
       today: date,
       targets: targetsOf(goal),
+      choices,
       days: [...byDate].map(([local_date, day]) => ({ local_date, items: day.map((e) => Object.fromEntries(NUTRIENTS.map((n) => [n, e[`${n}_total`]]))) })),
     },
     NUTRIENTS,
@@ -580,7 +593,10 @@ function isGoodVerdict(verdict: Verdict, key: Nutrient): boolean {
   return verdict === 'on_target' || (verdict === 'above_target' && (key === 'protein_g' || key === 'fibre_g'));
 }
 
-function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; now: string; entries: LocalLogEntry[]; weekEntries: LocalLogEntry[]; goal: GoalRow | null }) {
+function WeeklyPanel({ date, now, entries, weekEntries, goal, choices, onChoice }: {
+  date: string; now: string; entries: LocalLogEntry[]; weekEntries: LocalLogEntry[]; goal: GoalRow | null;
+  choices: Record<string, DayChoice>; onChoice: (date: string, choice: DayChoice) => void;
+}) {
   const [prefs, setPrefs] = usePrefs();
   const [menu, setMenu] = useState<'menu' | 'cfg' | null>(null);
 
@@ -589,14 +605,17 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
   const key = current.key;
   const unit = unitOf(key);
 
-  const week = weekOf(date, weekEntries, goal);
+  const week = weekOf(date, weekEntries, goal, choices);
   const m = week.measures[key];
   const target = targetsOf(goal)[key] ?? null;
   const dayValue = totalsOf(entries)[key].value;
   const values = [...m.days.map((d) => d.value), dayValue].filter((v): v is number => v !== null);
   const top = Math.max(target !== null ? target * 1.25 : 0, ...values.map((v) => v * 1.05), 1);
   const heightOf = (v: number | null) => `${v === null ? 0 : (v / top) * 100}%`;
-  const bars = [...m.days.map((d) => ({ date: d.local_date, value: d.value, picked: false })), { date, value: dayValue, picked: true }];
+  const bars = [
+    ...m.days.map((d) => ({ date: d.local_date, value: d.value, picked: false, day: d as WeeklyDay | null })),
+    { date, value: dayValue, picked: true, day: null as WeeklyDay | null },
+  ];
 
   const before = date === now ? 'today' : 'this day';
   const lowerBound = m.average !== null && m.covered < m.count;
@@ -741,19 +760,42 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
       <div className="relative mt-3.5 h-[120px]" role="img" aria-label={bars.map((b) => `${weekday(b.date)} ${amountText(b.value, key)} ${unit}`).join(', ')}>
         {target !== null && <div className="absolute inset-x-0 border-t border-dashed border-faint" style={{ bottom: heightOf(target) }} />}
         <div className="absolute inset-0 flex items-end gap-2">
-          {bars.map((b) => (
-            b.value === null ? (
-              // No value: a dashed stub, so it reads as left out rather than 0 (rule 2).
-              <div key={b.date} className="h-[3px] min-w-0 flex-1 border-t border-dashed border-faint" />
-            ) : (
-              <div key={b.date} className={`min-w-0 flex-1 rounded-[5px_5px_2px_2px] ${b.picked ? 'bg-accent' : 'bg-strong'}`} style={{ height: heightOf(b.value) }} />
-            )
-          ))}
+          {bars.map((b) => {
+            const skipped = b.day !== null && !b.day.counted;
+            const bar =
+              b.value === null ? (
+                // No value: a dashed stub, so it reads as left out rather than 0 (rule 2).
+                <div className="h-[3px] w-full border-t border-dashed border-faint" />
+              ) : (
+                // Decision 47: a left-out day keeps its bar, striped, so it can be seen and clicked back in.
+                <div
+                  className={`w-full rounded-[5px_5px_2px_2px] ${b.picked ? 'bg-accent' : skipped ? '' : 'bg-strong'}`}
+                  style={{ height: heightOf(b.value), ...(skipped ? SKIPPED_BAR : {}) }}
+                />
+              );
+            if (b.day === null || !b.day.logged) return <div key={b.date} className="flex h-full min-w-0 flex-1 items-end">{bar}</div>;
+            const d = b.day;
+            const label = dayChoiceLabel(d, `${amountText(b.value, key)} ${unit}`);
+            return (
+              <button
+                key={b.date}
+                type="button"
+                title={label}
+                aria-label={label}
+                aria-pressed={d.counted}
+                data-testid={`week-day-${b.date}`}
+                onClick={() => onChoice(b.date, nextChoice(d))}
+                className="flex h-full min-w-0 flex-1 cursor-pointer items-end rounded-[5px] hover:bg-raised/60"
+              >
+                {bar}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="mt-1.5 flex gap-2">
         {bars.map((b) => (
-          <span key={b.date} className="min-w-0 flex-1 text-center text-[11px] text-secondary">
+          <span key={b.date} className={`min-w-0 flex-1 text-center text-[11px] ${b.day !== null && !b.day.counted ? 'text-faint' : 'text-secondary'}`}>
             {weekday(b.date)}
           </span>
         ))}

@@ -62,3 +62,29 @@ describe('weight/change.json', () => {
     expectClose(trendChange(c.input.entries, c.input.to, c.input.days), c.expected.change_kg, `${id} change_kg`);
   });
 });
+
+describe('a partly logged day in Trends (decision 47)', () => {
+  const item = (kcal: number) => ({ kcal, protein_g: 10, carbs_g: 10, fat_g: 10, fibre_g: 1 });
+  const input = {
+    today: '2026-11-14',
+    range: '7D' as const,
+    targets: { kcal: 2000, protein_g: null, carbs_g: null, fat_g: null, fibre_g: null },
+    days: [
+      { local_date: '2026-11-12', items: [item(144)] },
+      { local_date: '2026-11-13', items: [item(1800)] },
+      { local_date: '2026-11-14', items: [item(2200)] },
+    ],
+  };
+  it('is not the lowest day and is not in the average', () => {
+    const s = trendsSummary(input);
+    expect(s.lowest).toEqual({ local_date: '2026-11-13', kcal: 1800 });
+    expect(s.window.measures.kcal.average).toBe(2000);
+    expect(s.window.skipped).toEqual([{ local_date: '2026-11-12', why: 'auto' }]);
+    expect(s.days_judged).toBe(2);
+  });
+  it('counts again when the user counts it', () => {
+    const s = trendsSummary({ ...input, choices: { '2026-11-12': 'count' } });
+    expect(s.lowest).toEqual({ local_date: '2026-11-12', kcal: 144 });
+    expect(s.window.skipped).toEqual([]);
+  });
+});

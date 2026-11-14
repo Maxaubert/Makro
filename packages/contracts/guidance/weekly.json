@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Weekly average (#53). Only days of the window with at least one entry count. For each measure, a day's value is the sum of its known values (null when none is known); the average is the sum of day values over the days that have a value. covered and count add up the entries of the counted days. Values are unrounded.",
+  "description": "Weekly average (#53). Only days of the window with at least one entry count. For each measure, a day's value is the sum of its known values (null when none is known); the average is the sum of day values over the days that have a value. covered and count add up the entries of the counted days. Values are unrounded. Decision 47: a logged day is skipped (not counted) when the user left it out, or, without a user choice, when its known calories are under partial_day_below of the calorie target. A user \"count\" always counts it. Unknown calories or no calorie target never skip a day. Skipped days stay in days with counted false, and covered and count add up counted days only. input.choices maps a date to \"count\" or \"skip\".",
   "nutrients": ["kcal", "fibre_g"],
   "cases": [
     {
@@ -168,6 +168,295 @@
             "days": [
               { "local_date": "2026-10-12", "logged": true, "value": 0, "covered": 1, "count": 1 },
               { "local_date": "2026-10-13", "logged": true, "value": 10, "covered": 1, "count": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "partly-logged-day-is-left-out",
+      "note": "Target 2000, so under 1000 kcal looks partly logged. Monday (144) is skipped on its own. Tuesday (900) is skipped but the user counts it. Wednesday is left out by the user although it is full. Thursday has unknown calories, which never skips a day.",
+      "input": {
+        "today": "2026-11-14",
+        "targets": {
+          "kcal": 2000,
+          "fibre_g": 30
+        },
+        "choices": {
+          "2026-11-10": "count",
+          "2026-11-11": "skip"
+        },
+        "days": [
+          {
+            "local_date": "2026-11-09",
+            "items": [
+              {
+                "kcal": 144,
+                "fibre_g": 2
+              }
+            ]
+          },
+          {
+            "local_date": "2026-11-10",
+            "items": [
+              {
+                "kcal": 900,
+                "fibre_g": 9
+              }
+            ]
+          },
+          {
+            "local_date": "2026-11-11",
+            "items": [
+              {
+                "kcal": 2100,
+                "fibre_g": 25
+              }
+            ]
+          },
+          {
+            "local_date": "2026-11-12",
+            "items": [
+              {
+                "kcal": null,
+                "fibre_g": 20
+              }
+            ]
+          },
+          {
+            "local_date": "2026-11-13",
+            "items": [
+              {
+                "kcal": 1900,
+                "fibre_g": 31
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "dates": [
+          "2026-11-09",
+          "2026-11-10",
+          "2026-11-11",
+          "2026-11-12",
+          "2026-11-13"
+        ],
+        "counted_days": 3,
+        "left_out": [],
+        "skipped": [
+          {
+            "local_date": "2026-11-09",
+            "why": "auto"
+          },
+          {
+            "local_date": "2026-11-11",
+            "why": "user"
+          }
+        ],
+        "measures": {
+          "kcal": {
+            "average": 1400,
+            "days_with_value": 2,
+            "covered": 2,
+            "count": 3,
+            "verdict": "well_under",
+            "days": [
+              {
+                "local_date": "2026-11-09",
+                "logged": true,
+                "counted": false,
+                "skipped": "auto",
+                "value": 144,
+                "covered": 1,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-10",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": 900,
+                "covered": 1,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-11",
+                "logged": true,
+                "counted": false,
+                "skipped": "user",
+                "value": 2100,
+                "covered": 1,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-12",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": null,
+                "covered": 0,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-13",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": 1900,
+                "covered": 1,
+                "count": 1
+              }
+            ]
+          },
+          "fibre_g": {
+            "average": 20,
+            "days_with_value": 3,
+            "covered": 3,
+            "count": 3,
+            "verdict": "well_under",
+            "days": [
+              {
+                "local_date": "2026-11-09",
+                "logged": true,
+                "counted": false,
+                "skipped": "auto",
+                "value": 2,
+                "covered": 1,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-10",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": 9,
+                "covered": 1,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-11",
+                "logged": true,
+                "counted": false,
+                "skipped": "user",
+                "value": 25,
+                "covered": 1,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-12",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": 20,
+                "covered": 1,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-13",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": 31,
+                "covered": 1,
+                "count": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "no-calorie-target-never-skips",
+      "note": "Without a calorie target there is no \"half\", so a 144 kcal day counts.",
+      "input": {
+        "today": "2026-11-11",
+        "targets": {
+          "kcal": null,
+          "fibre_g": null
+        },
+        "days": [
+          {
+            "local_date": "2026-11-09",
+            "items": [
+              {
+                "kcal": 144,
+                "fibre_g": 1
+              }
+            ]
+          },
+          {
+            "local_date": "2026-11-10",
+            "items": [
+              {
+                "kcal": 1856,
+                "fibre_g": 3
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "dates": [
+          "2026-11-09",
+          "2026-11-10"
+        ],
+        "counted_days": 2,
+        "left_out": [],
+        "skipped": [],
+        "measures": {
+          "kcal": {
+            "average": 1000,
+            "days_with_value": 2,
+            "covered": 2,
+            "count": 2,
+            "verdict": null,
+            "days": [
+              {
+                "local_date": "2026-11-09",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": 144,
+                "covered": 1,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-10",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": 1856,
+                "covered": 1,
+                "count": 1
+              }
+            ]
+          },
+          "fibre_g": {
+            "average": 2,
+            "days_with_value": 2,
+            "covered": 2,
+            "count": 2,
+            "verdict": null,
+            "days": [
+              {
+                "local_date": "2026-11-09",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": 1,
+                "covered": 1,
+                "count": 1
+              },
+              {
+                "local_date": "2026-11-10",
+                "logged": true,
+                "counted": true,
+                "skipped": null,
+                "value": 3,
+                "covered": 1,
+                "count": 1
+              }
             ]
           }
         }

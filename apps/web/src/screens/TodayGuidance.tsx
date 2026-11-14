@@ -12,6 +12,7 @@ import {
   remainingToday,
   weekWindow,
   weeklyAverage,
+  type DayChoice,
   type RemainingKey,
   type Verdict,
   type WeeklyMeasureKey,
@@ -21,6 +22,7 @@ import { href, useApp, useAppState, useData } from '../lib/hooks';
 import { GIcon, InfoChip, type GuidanceIconName } from '../ui/icons-today-guidance';
 import { Card, Icon, SourceBadge } from '../ui/kit';
 import { addDays, amountLabel, totalsOf } from './day';
+import { SKIPPED_BAR, dayChoiceLabel, nextChoice } from './dayChoice';
 import {
   VERDICT_LABEL,
   amountText,
@@ -57,13 +59,18 @@ export function GuidanceCards({ date, entries, goal }: { date: string; entries: 
       yesterday: await app.db.dayEntries(yesterday),
       yesterdayGoal: await app.db.goalFor(yesterday),
       yesterdayComplete: await app.db.isDayComplete(yesterday),
+      choices: dates.length > 0 ? await app.db.dayChoices(dates[0], dates[dates.length - 1]) : {},
     };
   }, [date]);
+  const choose = async (day: string, choice: DayChoice) => {
+    await app.db.setDayChoice(day, choice);
+    await app.changed();
+  };
   return (
     <>
       {data && <YesterdayRow date={yesterday} entries={data.yesterday} kcalTarget={data.yesterdayGoal?.kcal_target ?? null} confirmedComplete={data.yesterdayComplete} />}
       {goal && <WhatIsLeft entries={entries} goal={goal} />}
-      {data && <WeeklyCard today={date} entries={data.week} goal={goal} />}
+      {data && <WeeklyCard today={date} entries={data.week} goal={goal} choices={data.choices} onChoice={(d, c) => void choose(d, c)} />}
     </>
   );
 }
@@ -173,7 +180,7 @@ function SuggestionRow({ s, first }: { s: FoodSuggestion; first: boolean }) {
 const RING_MEASURES = [...WEEKLY_MEASURES, 'sugars_g', 'sat_fat_g'] as const;
 const BAR_HEIGHT = 90;
 
-function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLogEntry[]; goal: GoalRow | null }) {
+function WeeklyCard({ today, entries, goal, choices, onChoice }: { today: string; entries: LocalLogEntry[]; goal: GoalRow | null; choices: Record<string, DayChoice>; onChoice: (date: string, choice: DayChoice) => void }) {
   const [selected, setSelected] = useState<WeeklyMeasureKey>('protein_g');
   const byDate = new Map<string, LocalLogEntry[]>();
   for (const e of entries) byDate.set(e.local_date, [...(byDate.get(e.local_date) ?? []), e]);
@@ -181,6 +188,7 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
   const week = weeklyAverage({
     today,
     targets,
+    choices,
     days: [...byDate].map(([local_date, day]) => ({
       local_date,
       items: day.map((e) => Object.fromEntries(RING_MEASURES.map((n) => [n, e[`${n}_total`]]))),
@@ -204,12 +212,13 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-[15px] font-semibold">Weekly average</h2>
         {week.dates.length > 0 && (
-          <InfoChip icon="calendar" label={`${range}. ${leftOutNote(week)}`} testId="weekly-days" tone={week.left_out.length > 0 ? 'warn' : 'plain'}>
+          <InfoChip icon="calendar" label={`${range}. ${leftOutNote(week)}`} testId="weekly-days" tone={week.left_out.length > 0 || week.skipped.length > 0 ? 'warn' : 'plain'}>
             {week.counted_days}/{week.dates.length}
           </InfoChip>
         )}
       </div>
-      {week.dates.length === 0 || week.counted_days === 0 ? (
+      {/* A week where every logged day is left out still shows its bars, so a day can be tapped back in. */}
+      {week.dates.length === 0 || (week.counted_days === 0 && week.skipped.length === 0) ? (
         <div className="mt-3 flex items-center gap-2 text-[15px] font-semibold text-secondary">
           <GIcon name="calendar" size={18} />
           {week.dates.length === 0 ? 'From tomorrow' : 'No meals yet'}
@@ -283,27 +292,38 @@ function WeeklyCard({ today, entries, goal }: { today: string; entries: LocalLog
               <div className="absolute inset-x-0 h-0 border-t border-dashed border-soft" style={{ bottom: Math.round((target / top) * BAR_HEIGHT) }} />
             )}
             <div className="absolute inset-0 flex gap-2.5">
-              {m.days.map((d) => (
-                <div key={d.local_date} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end">
-                  {d.logged && (
-                    <div className="num mb-[3px] text-[11px] text-secondary">
-                      {amountText(d.value, selected)}
-                      {d.value !== null && d.covered < d.count && <span className="text-accent-2">+?</span>}
-                    </div>
-                  )}
-                  {d.value !== null ? (
-                    <div className="w-3/5 max-w-[34px] rounded bg-accent opacity-70" style={{ height: barPx(d.value) }} />
-                  ) : (
-                    <div className="h-1 w-3/5 max-w-[34px] rounded border border-dashed border-faint" />
-                  )}
-                </div>
-              ))}
+              {m.days.map((d) => {
+                const inner = (
+                  <>
+                    {d.logged && (
+                      <div className={`num mb-[3px] text-[11px] ${d.counted ? 'text-secondary' : 'text-faint'}`}>
+                        {amountText(d.value, selected)}
+                        {d.value !== null && d.covered < d.count && <span className="text-accent-2">+?</span>}
+                      </div>
+                    )}
+                    {d.value !== null ? (
+                      // Decision 47: a left-out day keeps its bar, striped, so it can be seen and tapped back in.
+                      <div className={`w-3/5 max-w-[34px] rounded ${d.counted ? 'bg-accent opacity-70' : ''}`} style={{ height: barPx(d.value), ...(d.counted ? {} : SKIPPED_BAR) }} />
+                    ) : (
+                      <div className="h-1 w-3/5 max-w-[34px] rounded border border-dashed border-faint" />
+                    )}
+                  </>
+                );
+                const cls = 'flex h-full min-w-0 flex-1 flex-col items-center justify-end';
+                if (!d.logged) return <div key={d.local_date} className={cls}>{inner}</div>;
+                const label = dayChoiceLabel(d, `${amountText(d.value, selected)} ${unit}`);
+                return (
+                  <button key={d.local_date} type="button" className={`tap ${cls}`} title={label} aria-label={label} aria-pressed={d.counted} data-testid={`week-day-${d.local_date}`} onClick={() => onChoice(d.local_date, nextChoice(d))}>
+                    {inner}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="h-px bg-border" />
           <div className="mt-1.5 flex gap-2.5">
             {m.days.map((d) => (
-              <div key={d.local_date} className={`flex-1 text-center text-[11px] ${d.logged ? 'text-secondary' : 'text-faint'}`}>
+              <div key={d.local_date} className={`flex-1 text-center text-[11px] ${d.counted ? 'text-secondary' : 'text-faint'}`}>
                 {weekday(d.local_date)}
               </div>
             ))}

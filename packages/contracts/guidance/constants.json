@@ -9,6 +9,7 @@
     "incomplete_ended_before_minute": { "value": 960, "status": "provisional", "source": "Chosen for this build: nothing logged from 16:00 on. B_DayEnd shows a day that stops at 13:10." },
     "incomplete_gap_minutes": { "value": 480, "status": "provisional", "source": "Chosen for this build: 8 hours between two entries. B_DayEnd only says a long gap." },
     "suggestion_limit": { "value": 3, "status": "settled", "source": "docs/MVP.md: 3 suggestions that fit the gap." },
-    "weekday_over_high": { "value": 1.05, "status": "provisional", "source": "D Night canvas, D_Trends weekday pattern: a weekday above 105% of target is drawn in the lighter orange." }
+    "weekday_over_high": { "value": 1.05, "status": "provisional", "source": "D Night canvas, D_Trends weekday pattern: a weekday above 105% of target is drawn in the lighter orange." },
+    "partial_day_below": { "value": 0.5, "status": "provisional", "source": "Decision 47 (Max, 2026-11-14): a logged day whose known calories are under half the calorie target looks partly logged and is left out of averages, unless the user counts it." }
   }
 }

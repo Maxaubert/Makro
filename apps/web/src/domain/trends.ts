@@ -49,14 +49,15 @@ export interface TrendsSummary {
   weekdays: TrendWeekday[];
 }
 
-export interface TrendsInput extends Pick<WeeklyInput, 'targets' | 'days'> {
+export interface TrendsInput extends Pick<WeeklyInput, 'targets' | 'days' | 'choices'> {
   today: string;
   range: TrendRange;
 }
 
 const mean = (values: number[]): number | null => (values.length === 0 ? null : values.reduce((sum, v) => sum + v, 0) / values.length);
-const knownValues = (days: WeeklyDay[]): number[] => days.flatMap((d) => (d.value === null ? [] : [d.value]));
-const isKnown = (d: WeeklyDay): d is WeeklyDay & { value: number } => d.value !== null;
+// Only counted days: a partly logged or left-out day is not a real day's eating (decision 47).
+const knownValues = (days: WeeklyDay[]): number[] => days.flatMap((d) => (d.value === null || !d.counted ? [] : [d.value]));
+const isKnown = (d: WeeklyDay): d is WeeklyDay & { value: number } => d.value !== null && d.counted;
 
 function bar(days: WeeklyDay[], target: number | null): TrendBar {
   const value = mean(knownValues(days));
@@ -88,10 +89,10 @@ function mondayIndex(localDate: string): number {
   return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
 }
 
-export function trendsSummary({ today, range, targets, days }: TrendsInput): TrendsSummary {
+export function trendsSummary({ today, range, targets, days, choices }: TrendsInput): TrendsSummary {
   const count = TREND_RANGE_DAYS[range];
   const dates = Array.from({ length: count }, (_, i) => shiftDay(today, i + 1 - count));
-  const window = averageOver(dates, { targets, days }, TREND_MEASURES);
+  const window = averageOver(dates, { targets, days, choices }, TREND_MEASURES);
   const kcal = window.measures.kcal;
   const goal = targets.kcal ?? null;
   const target = goal !== null && goal > 0 ? goal : null;

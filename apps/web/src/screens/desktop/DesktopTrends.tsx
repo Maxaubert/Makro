@@ -9,6 +9,7 @@ import { DesktopShell } from '../../ui/desktop';
 import { CountChip, HomeIcon, UnknownChip } from '../../ui/icons-desktop-home';
 import { Card, Icon } from '../../ui/kit';
 import { dayLine } from '../guidanceCopy';
+import { SKIPPED_BAR } from '../dayChoice';
 import { addDays, today } from '../day';
 import { averageTitle, axisLabels, coverageCount, coverageLabel, ofText, onTargetText, rangeLabel, vsGoalText } from './trendsCopy';
 
@@ -35,8 +36,13 @@ export function DesktopTrends() {
   const day = today();
   const [range, setRange] = useState<TrendRange>('7D');
   const { data, error } = useData(async () => {
-    const [entries, goal, weights] = await Promise.all([app.db.entriesBetween(addDays(day, 1 - LONGEST_RANGE), day), app.db.goalFor(day), app.db.weightHistory()]);
-    return { entries, goal, weights };
+    const [entries, goal, weights, choices] = await Promise.all([
+      app.db.entriesBetween(addDays(day, 1 - LONGEST_RANGE), day),
+      app.db.goalFor(day),
+      app.db.weightHistory(),
+      app.db.dayChoices(addDays(day, 1 - LONGEST_RANGE), day),
+    ]);
+    return { entries, goal, weights, choices };
   }, [day]);
 
   const targets = {
@@ -52,7 +58,7 @@ export function DesktopTrends() {
     const item = Object.fromEntries(TREND_MEASURES.map((n) => [n, e[`${n}_total`]])) as typeof targets;
     byDate.set(e.local_date, [...(byDate.get(e.local_date) ?? []), item]);
   }
-  const summary = trendsSummary({ today: day, range, targets, days: [...byDate].map(([local_date, items]) => ({ local_date, items })) });
+  const summary = trendsSummary({ today: day, range, targets, choices: data?.choices, days: [...byDate].map(([local_date, items]) => ({ local_date, items })) });
   const weightChange = trendChange(data?.weights ?? [], day, TREND_RANGE_DAYS[range]);
 
   return (
@@ -67,7 +73,7 @@ export function DesktopTrends() {
           <aside className="flex flex-col gap-5">
             <div className="grid grid-cols-2 gap-3">
               <Stat label="Days on target" value={onTargetText(summary.days_on_target, summary.days_judged)} testId="trends-on-target" />
-              <Stat label="Logged days" value={ofText(summary.window.counted_days, summary.window.dates.length)} testId="trends-logged" />
+              <Stat label="Days counted" value={ofText(summary.window.counted_days, summary.window.dates.length)} testId="trends-logged" />
               <Stat label="Highest day" value={formatNumber(summary.highest?.kcal, 0)} title={summary.highest ? dayLine(summary.highest.local_date) : undefined} testId="trends-highest" />
               <Stat label="Lowest day" value={formatNumber(summary.lowest?.kcal, 0)} title={summary.lowest ? dayLine(summary.lowest.local_date) : undefined} testId="trends-lowest" />
             </div>
@@ -137,15 +143,30 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
 
       <div className="relative mt-[22px] h-60" role="img" aria-label={described}>
         <div className="absolute inset-0 flex items-end" style={{ gap: CHART_GAP[range] }}>
-          {summary.bars.map((b) => (
-            <div
-              key={b.from}
-              data-testid="trends-bar"
-              title={b.value === null ? `${dayLine(b.from)}: nothing logged, left out` : undefined}
-              className={`min-w-0 flex-1 ${b.value === null ? 'h-[3px] border-t border-dashed border-faint' : 'rounded-[5px_5px_2px_2px]'}`}
-              style={b.value === null ? undefined : { height: percent(b.value, summary.top), minHeight: 2, background: b.band ? BAND_COLOR[b.band] : NO_GOAL_COLOR }}
-            />
-          ))}
+          {summary.bars.map((b) => {
+            // Decision 47: a day bar of a left-out day keeps its height, striped, and is not in the average.
+            const skippedDay = b.from === b.to ? kcal.days.find((d) => d.local_date === b.from && d.skipped !== null && d.value !== null) : undefined;
+            if (skippedDay) {
+              return (
+                <div
+                  key={b.from}
+                  data-testid="trends-bar"
+                  title={`${dayLine(b.from)}: ${formatNumber(skippedDay.value, 0)} kcal, ${skippedDay.skipped === 'auto' ? 'looks partly logged' : 'left out by you'}, not counted`}
+                  className="min-w-0 flex-1 rounded-[5px_5px_2px_2px]"
+                  style={{ height: percent(skippedDay.value as number, summary.top), minHeight: 2, ...SKIPPED_BAR }}
+                />
+              );
+            }
+            return (
+              <div
+                key={b.from}
+                data-testid="trends-bar"
+                title={b.value === null ? `${dayLine(b.from)}: nothing logged, left out` : undefined}
+                className={`min-w-0 flex-1 ${b.value === null ? 'h-[3px] border-t border-dashed border-faint' : 'rounded-[5px_5px_2px_2px]'}`}
+                style={b.value === null ? undefined : { height: percent(b.value, summary.top), minHeight: 2, background: b.band ? BAND_COLOR[b.band] : NO_GOAL_COLOR }}
+              />
+            );
+          })}
         </div>
         {goal !== null && (
           <>
@@ -179,6 +200,11 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
           {leftOut > 0 && (
             <CountChip icon="calendar" label={`${leftOut} ${leftOut === 1 ? 'day' : 'days'} with nothing logged, left out, not counted as 0`}>
               {leftOut}
+            </CountChip>
+          )}
+          {summary.window.skipped.length > 0 && (
+            <CountChip icon="calendar" tone="warn" label={`${summary.window.skipped.length} logged ${summary.window.skipped.length === 1 ? 'day is' : 'days are'} not counted: partly logged or left out by you. Change it on the Diary.`} testId="trends-skipped">
+              {summary.window.skipped.length}
             </CountChip>
           )}
           <UnknownChip count={unknown} what="calorie value" />
