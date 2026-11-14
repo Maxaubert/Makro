@@ -141,14 +141,14 @@ function MainCard({ summary, range, measure, onMeasure, targets }: {
 
   return (
     <Card className="p-6">
-      <div className="flex gap-1" role="group" aria-label="Nutrient">
+      <div className="flex gap-2" role="group" aria-label="Nutrient">
         {MEASURES.map((x) => (
           <button
             key={x.key}
             type="button"
             aria-pressed={x.key === measure}
             onClick={() => onMeasure(x.key)}
-            className={`tap rounded-full px-3 py-1.5 text-[13px] ${x.key === measure ? 'bg-raised font-semibold text-text' : 'text-secondary hover:text-text'}`}
+            className={`tap relative flex h-9 items-center rounded-full px-4 text-[13px] after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] ${x.key === measure ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
           >
             {x.name}
           </button>
