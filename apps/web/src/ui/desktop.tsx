@@ -9,10 +9,10 @@ import { syncLabel } from './syncLabel';
 
 export type DesktopNavItem = 'today' | 'diary' | 'add' | 'weight' | 'trends' | 'goals' | 'account';
 
-const NAV: { id: Exclude<DesktopNavItem, 'account'>; label: string; icon: IconName }[] = [
+// No Add food item (Max, 2026-11-14): the orange Add food button in each page header does that.
+const NAV: { id: Exclude<DesktopNavItem, 'account' | 'add'>; label: string; icon: IconName }[] = [
   { id: 'today', label: 'Today', icon: 'home' },
   { id: 'diary', label: 'Diary', icon: 'diary' },
-  { id: 'add', label: 'Add food', icon: 'plus' },
   { id: 'weight', label: 'Weight', icon: 'weight' },
   { id: 'trends', label: 'Trends', icon: 'trends' },
   { id: 'goals', label: 'Goals', icon: 'goals' },
