@@ -124,48 +124,15 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 
   // Skyr: 11 g protein and 62 kcal per 100 g, so 11 g on day one and 22 g on day two, which averages 16.5 and shows as 17.
-  // The ring: protein average 17 g, calories 93 kcal. Under 5 g a day of carbs or fat, the splits are not drawn.
-  // The numbers are in tooltips: a tap on a ring segment shows protein 17 g, a second tap hides it.
-  // Aim at the arc itself (upper right), not the empty middle of the ring.
-  const onArc = { position: { x: 117, y: 33 } };
-  await page.getByTestId('ring-seg-protein').tap(onArc);
-  await expect(page.getByTestId('ring-tip-protein')).toContainText('17 g');
-  await page.getByTestId('ring-seg-protein').tap(onArc);
-  await expect(page.getByTestId('ring-tip-protein')).toHaveCount(0);
-  // Carbs are 6 g a day, enough for the fast/slow split; skyr's carbs are all sugars, so it is all fast.
-  await page.getByTestId('split-sugars-part').tap();
-  await expect(page.getByTestId('split-sugars-tip')).toContainText('Fast carbs');
-  await expect(page.getByTestId('split-sugars-tip')).toContainText('6 g of 6 g');
-  await page.getByTestId('split-sugars-part').tap();
-  // A mouse: the tooltip shows on hover and follows the cursor along the arc.
-  // Protein is about 73% of the calories, so its arc runs clockwise from the top to about 263 degrees.
-  const ring = await page.getByTestId('macro-ring').locator('svg').boundingBox();
-  if (!ring) throw new Error('no ring');
-  const onRing = (deg: number) => {
-    const a = (deg * Math.PI) / 180;
-    return [ring.x + ring.width / 2 + 60 * Math.sin(a), ring.y + ring.height / 2 - 60 * Math.cos(a)] as const;
-  };
-  await page.mouse.move(...onRing(40));
-  const tipA = await page.getByTestId('ring-tip-protein').boundingBox();
-  // The card hugs the cursor: its lower-left corner is a few px up and right of the cursor tip.
-  {
-    const [cx, cy] = onRing(40);
-    const box = await page.getByTestId('ring-tip-protein').boundingBox();
-    if (!box) throw new Error('no tooltip');
-    const nearX = Math.abs(box.x - cx) <= 10 || Math.abs(box.x + box.width - cx) <= 10;
-    const nearY = Math.abs(box.y + box.height - cy) <= 10 || Math.abs(box.y - cy) <= 30;
-    expect(nearX && nearY, JSON.stringify({ cx, cy, box })).toBe(true);
-  }
-  await page.mouse.move(...onRing(150));
-  await expect.poll(async () => (await page.getByTestId('ring-tip-protein').boundingBox())?.y).toBeGreaterThan((tipA?.y ?? 0) + 40);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/ring-tooltip-hover.png`, clip: { x: ring.x - 120, y: ring.y - 120, width: 400, height: 360 } });
-  await page.mouse.move(0, 0);
-  await expect(page.getByTestId('ring-tip-protein')).toHaveCount(0);
-  await page.getByTestId('ring-seg-protein').tap(onArc);
-  await shot(page, 'ring-tooltips');
-  await page.getByTestId('ring-seg-protein').tap(onArc);
+  // The radar: every number is on screen, no hover or tap. Protein averages 17 g and calories 93 kcal.
+  // Skyr has protein, carbs and fat in every entry and the goal has targets, so the shape is drawn.
   await expect(page.getByTestId('ring-kcal')).toHaveText('93');
-  await expect(page.getByTestId('split-sat-fat')).toHaveCount(0);
+  await expect(page.getByTestId('tile-protein')).toContainText('17');
+  await expect(page.getByTestId('tile-carbs')).toContainText('6');
+  await expect(page.getByTestId('macro-radar')).toBeVisible();
+  await expect(page.getByTestId('radar-protein')).toContainText(/Protein\s*\d+%/);
+  await expect(page.getByTestId('radar-missing')).toHaveCount(0);
+  await shot(page, 'weekly-radar');
   const week = page.getByTestId('weekly-average');
   await expect(page.getByTestId('weekly-coverage')).toHaveCount(0);
   await expect(page.getByTestId('weekly-days')).toHaveText('2/2');

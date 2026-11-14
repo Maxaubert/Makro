@@ -1,27 +1,29 @@
-// The weekly average as a picture (Max, 2026-11-14): one ring split by where the calories come from
-// (protein, carbs, fat), the average kcal in the middle, and two split bars: sugars in the carbs and
-// saturated fat in the fat. The numbers sit in tooltips that follow the pointer: hover a part (or tap
-// it, or focus it with the keyboard). A split shows only when every entry of the week has the value, so a missing number never
-// makes a bar look smaller than it is (rule 2). The shares use sharesFromGrams
-// (goals/macro_shares.json), so there is no new maths here.
-import { useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+// The weekly average as a radar (Max, 2026-11-14, mockup "02 Radar + tiles"): one triangle with a corner
+// each for protein, carbs and fat, each measured against its own target. A hairline triangle is 100% of
+// the targets, so short and over show at a glance. The average kcal sits on top and the grams in three
+// tiles below. No hover or tooltips: every number is always on screen.
+// The radar needs all three averages complete (every entry had the value) and all three targets, so a
+// missing number never draws a corner shorter than it is (rule 2). Otherwise only the tiles show.
+// The file keeps its name and test ids (macro-ring, ring-kcal) so callers and tests stay stable.
+import { useEffect, useState } from 'react';
 import type { WeeklyAverage } from '../domain/guidance';
-import { sharesFromGrams } from '../domain/goals';
 import { formatNumber } from '../domain/format';
 
 export const MACRO_COLORS = { protein: '#FF4C00', carbs: '#FF8A57', fat: '#FFB38F' } as const;
-const SOFT = { sugars: '#FFD2BC', sat: '#FFE3D4' } as const;
-/** Below this many grams a day a split says nothing ("0 g and 0 g"), so it is not drawn. */
-const MIN_SPLIT_G = 5;
 
 type Targets = Partial<Record<'kcal' | 'protein_g' | 'carbs_g' | 'fat_g', number>>;
 type Macro = 'protein' | 'carbs' | 'fat';
-const MACROS: readonly (readonly [Macro, string, 'protein_g' | 'carbs_g' | 'fat_g'])[] = [
+type Key = 'protein_g' | 'carbs_g' | 'fat_g';
+const MACROS: readonly (readonly [Macro, string, Key])[] = [
   ['protein', 'Protein', 'protein_g'],
   ['carbs', 'Carbs', 'carbs_g'],
   ['fat', 'Fat', 'fat_g'],
 ];
+
+/** The radar's outer edge, as a share of the target. Further out is drawn at the edge. */
+const EDGE = 1.15;
+/** Above this share of the target, the percent turns orange. A display hint only. */
+const OVER = 1.05;
 
 /** A measure is complete when it has a value and every counted entry had one. */
 function complete(week: WeeklyAverage, key: string): number | null {
@@ -29,290 +31,136 @@ function complete(week: WeeklyAverage, key: string): number | null {
   return m && m.average !== null && m.covered === m.count ? m.average : null;
 }
 
-/** Which part the tooltip is for, the screen point it sits next to, and what put it there. */
-type TipAt<T> = { k: T; x: number; y: number; by: 'mouse' | 'touch' | 'key' };
-
-/**
- * A mouse shows the tooltip on hover and it follows the cursor; a finger or pen toggles it with a tap,
- * next to the tap; the keyboard shows it on focus, above the part. Each input does only its own job,
- * so a click after a hover does not close it again.
- */
-function useTip<T extends string>() {
-  const [tip, setTip] = useState<TipAt<T> | null>(null);
-  const clear = (k: T) => setTip((t) => (t?.k === k ? null : t));
-  const atMouse = (k: T) => (e: React.PointerEvent) => {
-    if (e.pointerType === 'mouse') setTip({ k, x: e.clientX, y: e.clientY, by: 'mouse' });
-  };
-  const handlers = (k: T) => ({
-    onPointerEnter: atMouse(k),
-    onPointerMove: atMouse(k),
-    onPointerLeave: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') clear(k); },
-    onPointerUp: (e: React.PointerEvent) => {
-      if (e.pointerType !== 'mouse') setTip((t) => (t?.k === k ? null : { k, x: e.clientX, y: e.clientY, by: 'touch' }));
-    },
-    onFocus: (e: React.FocusEvent) => {
-      if (!(e.target as Element).matches(':focus-visible')) return;
-      const r = (e.target as Element).getBoundingClientRect();
-      setTip({ k, x: r.left + r.width / 2, y: r.top, by: 'key' });
-    },
-    onBlur: () => clear(k),
-    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Escape') clear(k); },
-  });
-  return [tip, handlers] as const;
+/** 0 to 1 over 800 ms after mount, eased out. Straight to 1 when the user asks for less motion. */
+function useGrow(): number {
+  const [t, setT] = useState(() => (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 1 : 0));
+  useEffect(() => {
+    if (t === 1) return;
+    let raf = 0;
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const x = Math.min(1, (now - t0) / 800);
+      setT(1 - Math.pow(1 - x, 4));
+      if (x < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+    // Runs once, on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return t;
 }
 
-/** How far the card stays from the cursor tip, from a finger, and from the window edge. */
-const MOUSE_GAP = 6;
-const FINGER_GAP = 28;
-const EDGE = 8;
-
-/**
- * The tooltip card. It goes to document.body (so no card clips it).
- * Mouse: its lower-left corner sits right at the cursor tip, so the card hugs the cursor without the
- * arrow covering it; near the right or top edge it flips to the other side.
- * Touch and keyboard: centred above the point, clear of the finger.
- */
-function Tip({ at, children, testId }: { at: { x: number; y: number; by: 'mouse' | 'touch' | 'key' }; children: React.ReactNode; testId: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    let left: number;
-    let top: number;
-    if (at.by === 'mouse') {
-      left = at.x + MOUSE_GAP;
-      if (left + w > window.innerWidth - EDGE) left = at.x - MOUSE_GAP - w;
-      top = at.y - MOUSE_GAP - h;
-      // No room above: go below, past the arrow of the cursor.
-      if (top < EDGE) top = at.y + 22;
-    } else {
-      const gap = at.by === 'touch' ? FINGER_GAP : MOUSE_GAP;
-      left = Math.min(at.x - w / 2, window.innerWidth - EDGE - w);
-      top = at.y - gap - h;
-      if (top < EDGE) top = at.y + gap;
-    }
-    el.style.transform = `translate(${Math.round(Math.max(EDGE, left))}px, ${Math.round(Math.max(EDGE, top))}px)`;
-    el.style.visibility = 'visible';
-  }, [at.x, at.y, at.by]);
-  return createPortal(
-    <div
-      ref={ref}
-      role="tooltip"
-      data-testid={testId}
-      className="pointer-events-none fixed left-0 top-0 z-50 min-w-[128px] whitespace-nowrap rounded-xl border border-[#2A2A2D] bg-[#18181A] px-3 py-2 text-[13px] text-[#F4F4F5] shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
-      style={{ visibility: 'hidden' }}
-    >
-      {children}
-    </div>,
-    document.body,
-  );
-}
-
-/** The top line of a tooltip: a colour dot and the name. */
-function TipHead({ color, children }: { color: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-1.5 text-[12px] font-medium text-secondary">
-      <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: color }} />
-      {children}
-    </div>
-  );
-}
-
-/** A thin bar for "this much of that". */
-function TipBar({ value, of, color }: { value: number; of: number; color: string }) {
-  const pct = of > 0 ? Math.min(100, Math.max(0, (value / of) * 100)) : 0;
-  return (
-    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[#2A2A2D]">
-      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-    </div>
-  );
-}
+// Geometry: a 300 x 188 box, the triangle's centre at (150, 120), corners up, lower right, lower left.
+const W = 300;
+const H = 188;
+const CX = 150;
+const CY = 120;
+const R = 84;
+const ang = (i: number) => (i / 3) * Math.PI * 2;
+const pt = (i: number, share: number): [number, number] => [CX + R * (share / EDGE) * Math.sin(ang(i)), CY - R * (share / EDGE) * Math.cos(ang(i))];
+const path = (shares: number[]) => 'M' + shares.map((s, i) => pt(i, s).map((n) => n.toFixed(2)).join(' ')).join('L') + 'Z';
 
 export function MacroRing({ week, targets }: { week: WeeklyAverage; targets: Targets }) {
-  const [tip, tipOn] = useTip<Macro>();
+  const grow = useGrow();
   const kcal = week.measures.kcal?.average ?? null;
   const kcalLower = !!week.measures.kcal && week.measures.kcal.covered < week.measures.kcal.count;
-  const p = complete(week, 'protein_g');
-  const c = complete(week, 'carbs_g');
-  const f = complete(week, 'fat_g');
-  const shares = p !== null && c !== null && f !== null ? sharesFromGrams({ protein_g: p, carbs_g: c, fat_g: f }) : null;
 
-  // The ring: three arcs with a small gap between them, starting at the top.
-  const SIZE = 156;
-  const MID = SIZE / 2;
-  const R = 60;
-  const C = 2 * Math.PI * R;
-  const GAP = shares ? 3 : 0;
-  let offset = 0;
-  const arcs = shares
-    ? MACROS.filter(([k]) => shares[k] > 0).map(([k, label, key]) => {
-        const len = Math.max(0, (shares[k] / 100) * C - GAP);
-        const arc = { k, label, key, len, offset };
-        offset += (shares[k] / 100) * C;
-        return arc;
-      })
-    : [];
+  const axes = MACROS.map(([k, label, key]) => {
+    const grams = complete(week, key);
+    const target = targets[key];
+    const share = grams !== null && target ? grams / target : null;
+    return { k, label, key, share };
+  });
+  const drawable = axes.every((a) => a.share !== null);
 
-  const gramsText = (key: 'protein_g' | 'carbs_g' | 'fat_g') => {
+  const gramsText = (key: Key) => {
     const m = week.measures[key];
     if (!m || m.average === null) return '?';
-    return `${m.covered < m.count ? '≥' : ''}${formatNumber(m.average, 0)} g`;
+    return `${m.covered < m.count ? '≥' : ''}${formatNumber(m.average, 0)}`;
   };
-
-  const sugars = complete(week, 'sugars_g');
-  const sat = complete(week, 'sat_fat_g');
-  const showSugars = sugars !== null && c !== null && c >= MIN_SPLIT_G;
-  const showSat = sat !== null && f !== null && f >= MIN_SPLIT_G;
+  const pct = (share: number) => formatNumber(share * 100, 0);
 
   return (
     <div data-testid="macro-ring">
-      <div className="flex flex-col items-center">
-        <div className="relative" style={{ width: SIZE, height: SIZE }}>
-          <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden={shares ? undefined : true} role={shares ? undefined : 'img'} aria-label={shares ? undefined : 'Not every entry has protein, carbs and fat, so the split is not shown'}>
-            <circle cx={MID} cy={MID} r={R} fill="none" stroke="var(--color-border)" strokeWidth="16" />
-            {arcs.map((a) => (
-              <g key={a.k}>
-                <circle
-                  cx={MID}
-                  cy={MID}
-                  r={R}
-                  fill="none"
-                  stroke={MACRO_COLORS[a.k]}
-                  strokeWidth={tip?.k === a.k ? 20 : 16}
-                  strokeDasharray={`${a.len} ${C - a.len}`}
-                  strokeDashoffset={-a.offset}
-                  transform={`rotate(-90 ${MID} ${MID})`}
-                  style={{ transition: 'stroke-width 120ms' }}
-                />
-                {/* A wider, invisible band over the arc, gap included, so the tooltip does not blink between arcs. */}
-                <circle
-                  cx={MID}
-                  cy={MID}
-                  r={R}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth="30"
-                  strokeDasharray={`${a.len + GAP} ${C - a.len - GAP}`}
-                  strokeDashoffset={-a.offset}
-                  transform={`rotate(-90 ${MID} ${MID})`}
-                  className="cursor-pointer outline-none"
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`${a.label}: ${gramsText(a.key)} a day${targets[a.key] !== undefined ? ` of ${formatNumber(targets[a.key] as number, 0)} g` : ''}, ${shares?.[a.k]}% of calories`}
-                  data-testid={`ring-seg-${a.k}`}
-                  {...tipOn(a.k)}
-                />
-              </g>
-            ))}
-          </svg>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="num text-[30px] font-bold leading-none tracking-[-0.5px]" data-testid="ring-kcal">
-              {kcal === null ? '?' : `${kcalLower ? '≥' : ''}${formatNumber(kcal, 0)}`}
-            </span>
-            <span className="num mt-1 text-[12px] text-secondary">{targets.kcal ? `/ ${formatNumber(targets.kcal, 0)} kcal` : 'kcal'}</span>
-          </div>
-          {tip &&
-            arcs
-              .filter((a) => a.k === tip.k)
-              .map((a) => {
-                const target = targets[a.key];
-                const grams = week.measures[a.key]?.average ?? null;
-                return (
-                  <Tip key={a.k} at={tip} testId={`ring-tip-${a.k}`}>
-                    <TipHead color={MACRO_COLORS[a.k]}>{a.label}</TipHead>
-                    <div className="num mt-1 text-[18px] font-bold leading-none">
-                      {gramsText(a.key)}
-                      {target !== undefined && <span className="text-[12px] font-medium text-secondary"> / {formatNumber(target, 0)} g</span>}
-                    </div>
-                    {target !== undefined && grams !== null && <TipBar value={grams} of={target} color={MACRO_COLORS[a.k]} />}
-                    <div className="num mt-1.5 text-[12px] text-secondary">{shares?.[a.k]}% of calories</div>
-                  </Tip>
-                );
-              })}
-        </div>
-        {/* The colour key: names only, the numbers are in the tooltips. */}
-        <div className="mt-2 flex items-center gap-3.5 text-[12px] text-secondary" aria-hidden="true">
-          {MACROS.map(([k, label]) => (
-            <span key={k} className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: MACRO_COLORS[k] }} />
-              {label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {showSugars || showSat ? (
-        <div className="mt-4 flex flex-col gap-3">
-          {/* Max, 2026-11-14: fast vs slow carbs, unhealthy vs healthy fat. The label term stays in the tooltip:
-              fast = sugars, slow = the other carbs (mostly starch); unhealthy = saturated, healthy = the rest (unsaturated). */}
-          {showSugars && <Split label="Carbs" part={Math.min(sugars as number, c as number)} whole={c as number} partName="Fast" partTerm="sugars" restName="Slow" restTerm="mostly starch" color={MACRO_COLORS.carbs} soft={SOFT.sugars} testId="split-sugars" />}
-          {showSat && <Split label="Fat" part={Math.min(sat as number, f as number)} whole={f as number} partName="Unhealthy" partTerm="saturated" restName="Healthy" restTerm="unsaturated" color={MACRO_COLORS.fat} soft={SOFT.sat} testId="split-sat-fat" />}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/** One macro split in two (fast/slow carbs, unhealthy/healthy fat). Hover or tap a part for its grams. */
-function Split({ label, part, whole, partName, partTerm, restName, restTerm, color, soft, testId }: {
-  label: string; part: number; whole: number; partName: string; partTerm: string; restName: string; restTerm: string; color: string; soft: string; testId: string;
-}) {
-  const [tip, tipOn] = useTip<'part' | 'rest'>();
-  const pct = Math.round((part / whole) * 100);
-  const rest = whole - part;
-  const segs = [
-    { k: 'part' as const, name: `${partName} ${label.toLowerCase()}`, term: partTerm, grams: part, width: pct, bg: soft },
-    { k: 'rest' as const, name: `${restName} ${label.toLowerCase()}`, term: restTerm, grams: rest, width: 100 - pct, bg: color },
-  ];
-  return (
-    <div data-testid={testId}>
-      <div className="flex items-center justify-between text-[12px] text-secondary">
-        <span>{label}</span>
-        <span className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: soft }} />
-            {partName}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: color }} />
-            {restName}
-          </span>
+      <div className="num text-[13px] text-secondary">
+        <span className="font-semibold text-text" data-testid="ring-kcal">
+          {kcal === null ? '?' : `${kcalLower ? '≥' : ''}${formatNumber(kcal, 0)}`}
         </span>
+        {targets.kcal ? ` / ${formatNumber(targets.kcal, 0)} kcal` : ' kcal'}
       </div>
-      <div className="relative mt-1.5">
-        <div className="flex h-3 overflow-hidden rounded-full bg-border">
-          {segs.map((s) =>
-            s.width > 0 ? (
-              <button
-                key={s.k}
-                type="button"
-                aria-label={`${s.name} (${s.term}): ${formatNumber(s.grams, 0)} g a day`}
-                data-testid={`${testId}-${s.k}`}
-                className="h-full cursor-pointer outline-none focus-visible:brightness-125"
-                style={{ width: `${s.width}%`, background: s.bg }}
-                {...tipOn(s.k)}
-              />
-            ) : null,
-          )}
-        </div>
-        {tip &&
-          segs
-            .filter((s) => s.k === tip.k)
-            .map((s) => (
-              <Tip key={s.k} at={tip} testId={`${testId}-tip`}>
-                <TipHead color={s.bg}>{s.name}</TipHead>
-                <div className="num mt-1 text-[18px] font-bold leading-none">
-                  {formatNumber(s.grams, 0)} g
-                  <span className="text-[12px] font-medium text-secondary"> of {formatNumber(whole, 0)} g</span>
-                </div>
-                <TipBar value={s.grams} of={whole} color={s.bg} />
-                <div className="mt-1.5 text-[12px] text-secondary">
-                  {s.term.charAt(0).toUpperCase() + s.term.slice(1)} · <span className="num">{s.k === 'part' ? pct : 100 - pct}%</span>
-                </div>
-              </Tip>
-            ))}
+
+      {drawable ? (
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="mx-auto mt-1 block w-full max-w-[300px]"
+          role="img"
+          aria-label={`Share of target: ${axes.map((a) => `${a.label} ${pct(a.share as number)}%`).join(', ')}`}
+          data-testid="macro-radar"
+        >
+          <defs>
+            <linearGradient id="radar-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="var(--color-accent)" stopOpacity="0.42" />
+              <stop offset="1" stopColor="var(--color-accent)" stopOpacity="0.1" />
+            </linearGradient>
+          </defs>
+          {axes.map((_, i) => {
+            const [x, y] = pt(i, 1);
+            return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="#fff" strokeOpacity="0.05" />;
+          })}
+          {/* 100% of each target. */}
+          <path d={path([1, 1, 1])} fill="#fff" fillOpacity="0.025" stroke="#fff" strokeOpacity="0.16" strokeLinejoin="round" />
+          <path
+            d={path(axes.map((a) => Math.max(0.001, Math.min(a.share as number, EDGE) * grow)))}
+            fill="url(#radar-fill)"
+            stroke="var(--color-accent)"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          {axes.map((a, i) => {
+            const [x, y] = pt(i, Math.max(0.001, Math.min(a.share as number, EDGE) * grow));
+            return <circle key={a.k} cx={x} cy={y} r="3" fill={MACRO_COLORS[a.k]} stroke="var(--color-card)" strokeWidth="1.5" opacity={grow} />;
+          })}
+          {axes.map((a, i) => {
+            // The label sits above the top corner and beside the two lower ones.
+            const [x, y] = pt(i, EDGE);
+            const top = i === 0;
+            const right = Math.sin(ang(i)) > 0;
+            const tx = top ? x : x + (right ? 12 : -12);
+            const ny = top ? y - 28 : y - 3;
+            const anchor = top ? 'middle' : right ? 'start' : 'end';
+            const share = a.share as number;
+            return (
+              <g key={a.k} data-testid={`radar-${a.k}`}>
+                <text x={tx} y={ny} textAnchor={anchor} fontSize="11" fill="var(--color-text-secondary)" letterSpacing="0.02em">
+                  <tspan fill={MACRO_COLORS[a.k]}>●</tspan> {a.label}
+                </text>
+                <text x={tx} y={ny + 17} textAnchor={anchor} fontSize="15" fontWeight="600" fill={share > OVER ? 'var(--color-accent-2)' : 'var(--color-text)'} className="num">
+                  {pct(share)}%
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      ) : (
+        <p className="mt-2 text-[13px] text-secondary" data-testid="radar-missing">
+          The shape needs a target and a full week of protein, carbs and fat.
+        </p>
+      )}
+
+      <div className="mt-3 grid grid-cols-3 gap-1.5">
+        {axes.map((a) => (
+          <div key={a.k} className="rounded-xl border border-border bg-ground px-1.5 py-2 text-center" data-testid={`tile-${a.k}`}>
+            <div className="num text-[16px] font-bold">
+              {gramsText(a.key)}
+              <span className="ml-px text-[11px] font-medium text-secondary">g</span>
+            </div>
+            <div className="mt-px flex items-center justify-center gap-1.5 text-[11px] text-secondary">
+              <span aria-hidden="true" className="h-[5px] w-[5px] rounded-full" style={{ background: MACRO_COLORS[a.k] }} />
+              {a.label}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
