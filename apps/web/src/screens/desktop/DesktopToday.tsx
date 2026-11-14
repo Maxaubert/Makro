@@ -250,7 +250,7 @@ function TodayTable({ date, entries }: { date: string; entries: LocalLogEntry[] 
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between px-5 pb-3.5 pt-5">
         <span className="text-[17px] font-bold" title={dayLine(date)}>
-          Meals
+          Diary
         </span>
         <a href={href('diary')} className="tap flex h-11 items-center gap-1 text-[13px] font-semibold text-accent-2">
           Open diary <Icon name="next" size={14} />
