@@ -78,7 +78,7 @@ describe('daysLabel with partly logged days (decision 47)', () => {
   it('adds why logged days are not counted', () => {
     const dates = ['2026-11-09', '2026-11-10', '2026-11-11'];
     expect(daysLabel({ counted_days: 1, dates, left_out: ['2026-11-11'], skipped: [{ local_date: '2026-11-09', why: 'auto' }, { local_date: '2026-11-10', why: 'user' }] })).toBe(
-      '1 of 3 days counted, Wed not logged and left out; Mon partly logged and left out; Tue left out by you',
+      '1 of 3 days counted, Wed not logged and left out; Mon partly logged and left out; Tue untracked',
     );
   });
 });

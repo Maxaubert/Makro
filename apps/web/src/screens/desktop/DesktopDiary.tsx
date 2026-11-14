@@ -6,7 +6,7 @@ import { notYetRepeated } from '../../data/fastRepeat';
 import type { GoalRow, LocalLogEntry } from '../../data/logStore';
 import { isMeal, mealEntries, MEALS, type Meal } from '../../domain/entry';
 import { formatNumber, formatTotal } from '../../domain/format';
-import { remainingToday, weekWindow, weeklyAverage, type DayChoice, type Verdict, type WeeklyDay, type WeeklyMeasure } from '../../domain/guidance';
+import { daySkip, remainingToday, weekWindow, weeklyAverage, type DayChoice, type Verdict, type WeeklyDay, type WeeklyMeasure } from '../../domain/guidance';
 import { browserTimeZone } from '../../domain/localDate';
 import { NUTRIENTS, type Nutrient } from '../../domain/nutrients';
 import { href, navigate, useApp, useData } from '../../lib/hooks';
@@ -14,7 +14,7 @@ import { DesktopShell } from '../../ui/desktop';
 import { CountChip, HomeIcon, UnknownChip } from '../../ui/icons-desktop-home';
 import { Icon, Notice, SourceBadge } from '../../ui/kit';
 import { addDays, amountLabel, DIARY_GROUPS, GROUP_LABEL, longDayLabel, MEAL_LABEL, today, totalsOf, withDay } from '../day';
-import { SKIPPED_BAR, dayChoiceLabel, nextChoice } from '../dayChoice';
+import { SKIPPED_BAR, dayStatusLabel } from '../dayChoice';
 import { VERDICT_LABEL, amountText, remainingText, weekRange, weekday } from '../guidanceCopy';
 import { canPageForward, dayRowSummary, listWindow, pageDay, parsedQuantity, previewEntry, steppedAmount, topSources } from './diaryView';
 import { daysLabel, ofText } from './trendsCopy';
@@ -101,27 +101,40 @@ function targetsOf(goal: GoalRow | null): Partial<Record<Nutrient, number>> {
 export function DesktopDiary({ date: dateParam }: { date?: string }) {
   const app = useApp();
   const now = today();
-  const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : now;
+  const requested = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : now;
   const yesterday = addDays(now, -1);
-  const days = listWindow(date, now);
-  const week = weekWindow(date);
 
+  // The screen stays mounted from day to day (routes.tsx gives it no key), and keeps showing the day it
+  // last read until the next one is read, then switches in one go. Nothing empties and refills, so the
+  // layout does not jump when a day, a bar or the sidebar is clicked (Max, 2026-11-14).
   const { data, error: readError } = useData(async () => {
-    const [entries, goal, previous, listed, listGoals, weekEntries, choices] = await Promise.all([
-      app.db.dayEntries(date),
-      app.db.goalFor(date),
-      date === now ? app.db.dayEntries(yesterday) : Promise.resolve([]),
-      app.db.entriesBetween(days[6], days[0]),
-      Promise.all(days.map((d) => app.db.goalFor(d))),
-      week.length > 0 ? app.db.entriesBetween(week[0], week[week.length - 1]) : Promise.resolve([]),
-      week.length > 0 ? app.db.dayChoices(week[0], week[week.length - 1]) : Promise.resolve({} as Record<string, DayChoice>),
+    const listDays = listWindow(requested, now);
+    const weekDays = weekWindow(requested);
+    const [entries, goal, previous, listed, listGoals, weekEntries, choices, dayChoice] = await Promise.all([
+      app.db.dayEntries(requested),
+      app.db.goalFor(requested),
+      requested === now ? app.db.dayEntries(yesterday) : Promise.resolve([]),
+      app.db.entriesBetween(listDays[6], listDays[0]),
+      Promise.all(listDays.map((d) => app.db.goalFor(d))),
+      weekDays.length > 0 ? app.db.entriesBetween(weekDays[0], weekDays[weekDays.length - 1]) : Promise.resolve([]),
+      weekDays.length > 0 ? app.db.dayChoices(weekDays[0], weekDays[weekDays.length - 1]) : Promise.resolve({} as Record<string, DayChoice>),
+      app.db.dayChoices(requested, requested),
     ]);
-    return { entries, goal, previous, listed, listGoals, weekEntries, choices };
-  }, [date, now]);
+    return { date: requested, entries, goal, previous, listed, listGoals, weekEntries, choices, dayChoice: dayChoice[requested] };
+  }, [requested, now]);
+  const date = data?.date ?? requested;
+  const days = listWindow(date, now);
 
   const [editing, setEditing] = useState<EditState | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // An open edit or an error belongs to the day it was made on.
+  const [editedDay, setEditedDay] = useState(requested);
+  if (editedDay !== requested) {
+    setEditedDay(requested);
+    setEditing(null);
+    setProblem(null);
+  }
 
   const stored = data?.entries ?? [];
   const open = editing ? stored.find((e) => e.id === editing.id) ?? null : null;
@@ -161,7 +174,17 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
         <section className="flex min-w-0 flex-col gap-5">
           {readError && <Notice tone="error">{readError}</Notice>}
           {problem && <Notice tone="error">{problem}</Notice>}
-          <DayCard date={date} now={now} entries={entries} goal={goal} canRepeat={repeatable.length > 0} repeating={busy} onRepeat={repeat} />
+          <DayCard
+            date={date}
+            now={now}
+            entries={entries}
+            goal={goal}
+            canRepeat={repeatable.length > 0}
+            repeating={busy}
+            onRepeat={repeat}
+            skipped={data && stored.length > 0 ? daySkip(stored.map((e) => ({ kcal: e.kcal_total })), goal?.kcal_target, data.dayChoice) : undefined}
+            onTrack={(choice) => void run(() => app.db.setDayChoice(date, choice))}
+          />
           {data && (
             <MealTable
               date={date}
@@ -195,7 +218,6 @@ export function DesktopDiary({ date: dateParam }: { date?: string }) {
             weekEntries={data.weekEntries}
             goal={goal}
             choices={data.choices}
-            onChoice={(d, c) => void run(() => app.db.setDayChoice(d, c))}
           />
         )}
       </div>
@@ -278,7 +300,8 @@ function DayList({
                 <div className="text-[20px] font-bold">{dayOfMonth(d)}</div>
               </div>
               <div className="min-w-0 grow">
-                <div className="flex justify-between gap-1 whitespace-nowrap text-[13px]">
+                {/* A fixed line height, so a row is as tall before its numbers are read as after. */}
+                <div className="flex h-[17px] items-center justify-between gap-1 whitespace-nowrap text-[13px]">
                   {logged && kcal ? <span className="num font-semibold">{withUnknown(kcal)} kcal</span> : <span className="text-secondary">{summary ? 'Not logged' : ''}</span>}
                   <span className="text-secondary">{d === now ? 'Today' : summary?.over ? 'over' : ''}</span>
                 </div>
@@ -310,6 +333,8 @@ function DayCard({
   canRepeat,
   repeating,
   onRepeat,
+  skipped,
+  onTrack,
 }: {
   date: string;
   now: string;
@@ -318,6 +343,9 @@ function DayCard({
   canRepeat: boolean;
   repeating: boolean;
   onRepeat: () => void;
+  /** Decision 47: why this logged day is left out of averages, null when it counts, undefined when nothing is logged. */
+  skipped: 'auto' | 'user' | null | undefined;
+  onTrack: (choice: DayChoice) => void;
 }) {
   const totals = totalsOf(entries);
   const kcal = formatTotal(totals.kcal, 0);
@@ -331,18 +359,42 @@ function DayCard({
 
   return (
     <div className="card px-6 py-[22px]">
-      <div className="flex items-center justify-between gap-3">
+      {/* Always 44 px tall, so the buttons appearing never push the card down. */}
+      <div className="flex min-h-11 items-center justify-between gap-3">
         <div className="min-w-0 text-[13px] text-secondary">{longDayLabel(date)}</div>
-        {canRepeat && (
-          <button
-            type="button"
-            disabled={repeating}
-            onClick={onRepeat}
-            className="tap flex h-11 items-center whitespace-nowrap rounded-full border border-border bg-raised px-4 text-[14px] font-semibold disabled:text-secondary"
-          >
-            Repeat yesterday
-          </button>
-        )}
+        <div className="flex gap-2">
+          {canRepeat && (
+            <button
+              type="button"
+              disabled={repeating}
+              onClick={onRepeat}
+              className="tap flex h-11 items-center whitespace-nowrap rounded-full border border-border bg-raised px-4 text-[14px] font-semibold disabled:text-secondary"
+            >
+              Repeat yesterday
+            </button>
+          )}
+          {skipped !== undefined && (
+            // Decision 47: one button to count this day in averages or leave it out. The label says what a click does.
+            <button
+              type="button"
+              disabled={repeating}
+              onClick={() => onTrack(skipped === null ? 'skip' : 'count')}
+              title={
+                skipped === 'auto'
+                  ? 'Under half the calorie target, so it looks partly logged and is left out of averages. Track counts it.'
+                  : skipped === 'user'
+                    ? 'You left this day out of averages. Track counts it again.'
+                    : 'This day counts in averages. Untrack leaves it out, for a day you did not log fully.'
+              }
+              data-testid="day-track"
+              className={`tap flex h-11 w-[104px] items-center justify-center whitespace-nowrap rounded-full px-4 text-[14px] font-semibold disabled:text-secondary ${
+                skipped === null ? 'border border-border bg-raised' : 'bg-accent-tint text-accent-2'
+              }`}
+            >
+              {skipped === null ? 'Untrack' : 'Track'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2 whitespace-nowrap">
@@ -593,9 +645,9 @@ function isGoodVerdict(verdict: Verdict, key: Nutrient): boolean {
   return verdict === 'on_target' || (verdict === 'above_target' && (key === 'protein_g' || key === 'fibre_g'));
 }
 
-function WeeklyPanel({ date, now, entries, weekEntries, goal, choices, onChoice }: {
+function WeeklyPanel({ date, now, entries, weekEntries, goal, choices }: {
   date: string; now: string; entries: LocalLogEntry[]; weekEntries: LocalLogEntry[]; goal: GoalRow | null;
-  choices: Record<string, DayChoice>; onChoice: (date: string, choice: DayChoice) => void;
+  choices: Record<string, DayChoice>;
 }) {
   const [prefs, setPrefs] = usePrefs();
   const [menu, setMenu] = useState<'menu' | 'cfg' | null>(null);
@@ -767,28 +819,17 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal, choices, onChoice 
                 // No value: a dashed stub, so it reads as left out rather than 0 (rule 2).
                 <div className="h-[3px] w-full border-t border-dashed border-faint" />
               ) : (
-                // Decision 47: a left-out day keeps its bar, striped, so it can be seen and clicked back in.
+                // Decision 47: a left-out day keeps its bar, striped. Track / Untrack is on the day card.
                 <div
                   className={`w-full rounded-[5px_5px_2px_2px] ${b.picked ? 'bg-accent' : skipped ? '' : 'bg-strong'}`}
                   style={{ height: heightOf(b.value), ...(skipped ? SKIPPED_BAR : {}) }}
                 />
               );
-            if (b.day === null || !b.day.logged) return <div key={b.date} className="flex h-full min-w-0 flex-1 items-end">{bar}</div>;
-            const d = b.day;
-            const label = dayChoiceLabel(d, `${amountText(b.value, key)} ${unit}`);
+            const title = b.day !== null && b.day.logged ? dayStatusLabel(b.day, `${amountText(b.value, key)} ${unit}`) : undefined;
             return (
-              <button
-                key={b.date}
-                type="button"
-                title={label}
-                aria-label={label}
-                aria-pressed={d.counted}
-                data-testid={`week-day-${b.date}`}
-                onClick={() => onChoice(b.date, nextChoice(d))}
-                className="flex h-full min-w-0 flex-1 cursor-pointer items-end rounded-[5px] hover:bg-raised/60"
-              >
+              <div key={b.date} title={title} data-testid={`week-day-${b.date}`} data-counted={b.day?.counted ?? undefined} className="flex h-full min-w-0 flex-1 items-end">
                 {bar}
-              </button>
+              </div>
             );
           })}
         </div>

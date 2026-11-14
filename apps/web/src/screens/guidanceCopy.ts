@@ -51,7 +51,7 @@ export function skippedNotes(skipped: WeeklyAverage['skipped']): string[] {
   const user = skipped.filter((s) => s.why === 'user').map((s) => weekday(s.local_date));
   const out: string[] = [];
   if (auto.length > 0) out.push(`${joinDays(auto)} ${auto.length === 1 ? 'looks' : 'look'} partly logged (under half the calorie target) and ${auto.length === 1 ? 'is' : 'are'} left out.`);
-  if (user.length > 0) out.push(`You left out ${joinDays(user)}.`);
+  if (user.length > 0) out.push(`You untracked ${joinDays(user)}.`);
   return out;
 }
 

@@ -151,7 +151,7 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
                 <div
                   key={b.from}
                   data-testid="trends-bar"
-                  title={`${dayLine(b.from)}: ${formatNumber(skippedDay.value, 0)} kcal, ${skippedDay.skipped === 'auto' ? 'looks partly logged' : 'left out by you'}, not counted`}
+                  title={`${dayLine(b.from)}: ${formatNumber(skippedDay.value, 0)} kcal, ${skippedDay.skipped === 'auto' ? 'looks partly logged' : 'untracked'}, not counted`}
                   className="min-w-0 flex-1 rounded-[5px_5px_2px_2px]"
                   style={{ height: percent(skippedDay.value as number, summary.top), minHeight: 2, ...SKIPPED_BAR }}
                 />
@@ -203,7 +203,7 @@ function AverageCard({ summary, range, target, onRange }: { summary: TrendsSumma
             </CountChip>
           )}
           {summary.window.skipped.length > 0 && (
-            <CountChip icon="calendar" tone="warn" label={`${summary.window.skipped.length} logged ${summary.window.skipped.length === 1 ? 'day is' : 'days are'} not counted: partly logged or left out by you. Change it on the Diary.`} testId="trends-skipped">
+            <CountChip icon="calendar" tone="warn" label={`${summary.window.skipped.length} logged ${summary.window.skipped.length === 1 ? 'day is' : 'days are'} not counted: partly logged or untracked. Track or untrack a day on the Diary.`} testId="trends-skipped">
               {summary.window.skipped.length}
             </CountChip>
           )}
