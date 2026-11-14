@@ -5,7 +5,7 @@
 import type { OutboxItem, PulledRow, PushResult } from './logStore';
 
 /** The sync protocol version this client speaks (separate from user_version and schema_version). */
-export const SYNC_PROTOCOL = 1;
+export const SYNC_PROTOCOL = 2; // 2: daily_supplements and the supplements meal (#52)
 
 export interface SyncStore {
   outboxBatch(limit: number): Promise<OutboxItem[]>;

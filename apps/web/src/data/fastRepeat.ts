@@ -1,7 +1,7 @@
 // Logging again what was logged before: favourites, saved meals and repeat yesterday (#25).
 // Everything written here is a normal log entry with a new snapshot: the numbers of the current
 // food, or the last snapshot when that food is gone, and unknown stays null (rules 2 and 3).
-import { buildRepeatedEntry, type EntrySnapshot, type FoodKey, type FoodRef, type LogEntryRow, type Meal, type RepeatItem } from '../domain/entry';
+import { buildRepeatedEntry, mealEntries, type EntryMeal, type EntrySnapshot, type FoodKey, type FoodRef, type LogEntryRow, type Meal, type RepeatItem } from '../domain/entry';
 import { stampLocalDay } from '../domain/localDate';
 import type { LogStore } from './logStore';
 import { getProduct } from './products';
@@ -10,7 +10,7 @@ import type { Sql } from './sql';
 /** The installed product database; null until it is on this device. */
 export type Catalogue = { sql: Sql; db_version: string | null } | null;
 
-function currentFood(log: LogStore, catalogue: Catalogue, key: FoodKey): FoodRef | null {
+export function currentFood(log: LogStore, catalogue: Catalogue, key: FoodKey): FoodRef | null {
   if (key.custom_food_id !== null) {
     const food = log.customFood(key.custom_food_id);
     return food && !food.deleted_at ? { kind: 'custom', food } : null;
@@ -59,7 +59,7 @@ export function logSavedMeal(log: LogStore, catalogue: Catalogue, id: string, me
   return write(log, catalogue, saved.items.map((item) => ({ item, meal, snapshot: null })), at, tz);
 }
 
-type RepeatKey = FoodKey & { meal: Meal; quantity: number; unit: string };
+type RepeatKey = FoodKey & { meal: EntryMeal; quantity: number; unit: string };
 
 /** The entries of `from` that `already` does not hold yet, counting duplicates one by one. */
 export function notYetRepeated<T extends RepeatKey>(from: readonly T[], already: readonly RepeatKey[]): T[] {
@@ -76,6 +76,6 @@ export function notYetRepeated<T extends RepeatKey>(from: readonly T[], already:
 /** Copy the chosen meals of an earlier day to today, skipping what is already there. */
 export function repeatMeals(log: LogStore, catalogue: Catalogue, what: { from: string; meals: Meal[] }, at: Date, tz: string): number {
   const today = log.dayEntries(stampLocalDay(at, tz).local_date);
-  const entries = notYetRepeated(log.dayEntries(what.from).filter((e) => what.meals.includes(e.meal)), today);
+  const entries = notYetRepeated(mealEntries(log.dayEntries(what.from)).filter((e) => what.meals.includes(e.meal)), today);
   return write(log, catalogue, entries.map((e) => ({ item: e, meal: e.meal, snapshot: e })), at, tz);
 }

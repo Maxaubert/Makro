@@ -55,6 +55,7 @@ const paths = {
     </>
   ),
   next: <path d="M9 5l7 7-7 7" />,
+  trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3" />,
   heart: <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />,
   repeat: <path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" />,
   erase: <path d="M21 5H9l-6 7 6 7h12zM17 9l-6 6M11 9l6 6" />,

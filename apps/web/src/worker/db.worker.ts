@@ -19,6 +19,7 @@ import {
 } from '../data/products';
 import { ProductSlots } from '../data/productSlots';
 import { loadSuggestions } from '../data/suggestions';
+import { ensureSupplements, skipToday } from '../data/supplements';
 import { wrapDb, type Sql } from '../data/sql';
 import type { Meal } from '../domain/entry';
 
@@ -113,6 +114,14 @@ const api = {
   deleteSavedMeal: (id: string) => log.deleteSavedMeal(id),
   logSavedMeal: (id: string, meal: Meal, at: Date, tz: string) => logSavedMeal(log, catalogue(), id, meal, at, tz),
   repeatMeals: (what: { from: string; meals: Meal[] }, at: Date, tz: string) => repeatMeals(log, catalogue(), what, at, tz),
+  addDailySupplement: (...a: Parameters<LogStore['addDailySupplement']>) => log.addDailySupplement(...a),
+  dailySupplement: (id: string) => log.dailySupplement(id),
+  ensureSupplements: (at: Date, tz: string) => ensureSupplements(log, catalogue(), at, tz),
+  skipSupplementToday: (id: string, at: Date, tz: string) => skipToday(log, catalogue(), id, at, tz),
+  unskipSupplementToday: (...a: Parameters<LogStore['unskipSupplementToday']>) => log.unskipSupplementToday(...a),
+  updateSupplementAmount: (...a: Parameters<LogStore['updateSupplementAmount']>) => log.updateSupplementAmount(...a),
+  stopSupplement: (...a: Parameters<LogStore['stopSupplement']>) => log.stopSupplement(...a),
+  supplementEntriesOn: (d: string) => log.supplementEntriesOn(d),
   exportAll: () => log.exportAll(),
   wipe: () => log.wipe(),
   setupDoneFor: () => log.setupDoneFor(),

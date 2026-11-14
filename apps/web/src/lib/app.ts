@@ -5,6 +5,7 @@ import { syncProductFile, type LatestJson } from '../data/productFile';
 import type { ProductMeta } from '../data/products';
 import { SyncScheduler, syncOnce, type SyncStatus } from '../data/sync';
 import { buildMissPayload, type CustomFoodRow, type GoalWriteRow, type MissType, type WeightEntryRow } from '../domain/entry';
+import { browserTimeZone } from '../domain/localDate';
 import { createDb, type Db } from './db';
 import { flushMissQueue } from './misses';
 import { guardOwner, ownerReady } from './owner';
@@ -219,15 +220,36 @@ export class App {
     await this.openDb();
     const current = () => ({ session: this.state.session?.user.id ?? null, owner: this.state.owner });
     // Every RPC, and every result, is checked against the user this run started for.
-    const report = await syncOnce(this.db, guardOwner(current, runOwner, async (fn: string, args: Record<string, unknown>) => {
-      const { data, error } = await this.supabase.rpc(fn, args);
-      if (error) throw new Error(`${fn}: ${error.message}`);
-      return data;
-    }));
+    let report;
+    try {
+      report = await syncOnce(this.db, guardOwner(current, runOwner, async (fn: string, args: Record<string, unknown>) => {
+        const { data, error } = await this.supabase.rpc(fn, args);
+        if (error) throw new Error(`${fn}: ${error.message}`);
+        return data;
+      }));
+    } finally {
+      // Today's daily supplements (#52), after the pull so another device's entries and skips count.
+      // Also when offline: logging never waits for the network.
+      await this.makeSupplements();
+    }
     await this.refreshPending();
     if (report.pulled > 0 || report.pushed > 0) this.set({ dataVersion: this.state.dataVersion + 1 });
     await this.flushMisses();
     await this.refreshPopularity();
+  }
+
+  /** Make today's daily supplement entries; a new one is pushed on the next run. */
+  private async makeSupplements(): Promise<void> {
+    try {
+      const made = await this.db.ensureSupplements(new Date(), browserTimeZone());
+      if (made > 0) {
+        await this.refreshPending();
+        this.set({ dataVersion: this.state.dataVersion + 1 });
+        this.scheduler.trigger();
+      }
+    } catch {
+      // The product file may not be installed yet; the next run tries again.
+    }
   }
 
   /** Counts across all users, at most once a day. Only a ranking hint, so a failure is ignored. */

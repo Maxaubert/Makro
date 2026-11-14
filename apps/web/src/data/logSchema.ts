@@ -42,6 +42,7 @@ export const TABLES = {
     c('verified', 'flag', true),
     c('per_100_unit', 'text'),
     ...nutrientColumns,
+    c('daily_supplement_id', 'id', true),
   ],
   custom_foods: [
     c('name', 'text'),
@@ -87,6 +88,18 @@ export const TABLES = {
     c('source', 'text'),
     c('external_id', 'text', true),
   ],
+  // Sync protocol 2 (#52): foods added every day.
+  daily_supplements: [
+    c('product_id', 'text', true),
+    c('custom_food_id', 'id', true),
+    c('name', 'text'),
+    c('quantity', 'real'),
+    c('unit', 'text'),
+    c('grams', 'real'),
+    c('sort_order', 'int'),
+    c('start_date', 'date'),
+    c('stopped_on', 'date', true),
+  ],
 } satisfies Record<string, Column[]>;
 
 export type TableName = keyof typeof TABLES;
@@ -110,7 +123,7 @@ const SQL_TYPE: Record<ColumnKind, string> = {
   date: 'text',
 };
 
-/** The local schema, version 1 (pragma user_version). */
+/** The local schema (pragma user_version). A new file gets the latest shape; older files are upgraded in LogStore.migrate. */
 export function localSchemaSql(): string {
   const parts: string[] = [];
   for (const table of TABLE_NAMES) {
@@ -147,4 +160,4 @@ export function localSchemaSql(): string {
   return parts.join('\n');
 }
 
-export const LOCAL_SCHEMA_VERSION = 1;
+export const LOCAL_SCHEMA_VERSION = 2;

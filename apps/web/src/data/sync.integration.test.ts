@@ -4,6 +4,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildCustomFood, buildLogEntry, buildWeightEntry } from '../domain/entry';
+import { buildDailySupplement, supplementEntry } from '../domain/supplements';
+import { ensureSupplements } from './supplements';
 import { LogStore } from './logStore';
 import type { Product } from './products';
 import { syncOnce, type Rpc, type SyncStore } from './sync';
@@ -99,5 +101,33 @@ describe.runIf(enabled)('sync against the local Supabase', () => {
     expect(r.pushed).toBe(1);
     const { data } = await client.from('log_entries').select('deleted_at').eq('id', e.id).single();
     expect(data?.deleted_at).not.toBeNull();
+  });
+
+  it('a daily supplement travels, and two devices making the same day leave one live entry (#52)', async () => {
+    const client = await signedInClient(admin, `sync3-${Date.now()}@example.test`);
+    let now = new Date('2026-11-14T07:00:00.000Z');
+    const tz = 'Europe/Oslo';
+    const a = new LogStore(await memoryDb(), () => now);
+    a.migrate();
+    const food = { kind: 'product', product: skyr, db_version: 'v' } as const;
+    const s = buildDailySupplement({ food, quantity: 1, unit: 'serving', at: now, tz });
+    a.addDailySupplement(s, supplementEntry({ supplement: s, food, snapshot: null, at: now, tz }));
+    expect(await syncOnce(asyncStore(a), rpcOf(client))).toMatchObject({ pushed: 2, rejected: 0 });
+
+    // Device B learns the supplement, then both make the next day's entry before seeing each other's.
+    const b = new LogStore(await memoryDb(), () => now);
+    b.migrate();
+    await syncOnce(asyncStore(b), rpcOf(client));
+    expect(b.dailySupplement(s.id)).toMatchObject({ quantity: 1, unit: 'serving' });
+    now = new Date('2026-11-15T07:00:00.000Z');
+    expect(ensureSupplements(a, null, now, tz)).toBe(1);
+    expect(ensureSupplements(b, null, new Date(now.getTime() + 10), tz)).toBe(1);
+    await syncOnce(asyncStore(a), rpcOf(client));
+    await syncOnce(asyncStore(b), rpcOf(client));
+    await syncOnce(asyncStore(a), rpcOf(client));
+
+    const { data } = await client.from('log_entries').select('id').eq('daily_supplement_id', s.id).eq('local_date', '2026-11-15').is('deleted_at', null);
+    expect(data).toHaveLength(1);
+    for (const st of [a, b]) expect(st.dayEntries('2026-11-15').filter((e) => e.meal === 'supplements')).toHaveLength(1);
   });
 });

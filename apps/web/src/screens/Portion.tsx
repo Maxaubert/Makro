@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { productSubtext, type Product } from '../data/products';
 import { buildFavourite, buildLogEntry, MEALS, mealTimeOn, parseQuantity, unitsFor, type CustomFoodRow, type FoodRef, type Meal } from '../domain/entry';
+import { buildDailySupplement, supplementEntry } from '../domain/supplements';
 import { formatNumber } from '../domain/format';
 import { resolveGrams, type AmountUnit } from '../domain/grams';
 import { browserTimeZone, pastLocalDate } from '../domain/localDate';
@@ -70,6 +71,8 @@ function PortionForm({ food }: { food: Food }) {
   // Set when adding to an earlier day from the end-of-day screen.
   const day = pastLocalDate(useQueryParam('date'), today());
   const [meal, setMeal] = useState<Meal>(day ? 'dinner' : mealForNow());
+  // Add every day (#52): the food goes to Daily supplements and repeats each day. Not when adding to an earlier day.
+  const [daily, setDaily] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -98,6 +101,13 @@ function PortionForm({ food }: { food: Food }) {
     try {
       const tz = browserTimeZone();
       const saved_at = new Date();
+      if (daily && !day) {
+        const supplement = buildDailySupplement({ food: food.ref, quantity, unit, at: saved_at, tz });
+        await app.db.addDailySupplement(supplement, supplementEntry({ supplement, food: food.ref, snapshot: null, at: saved_at, tz }));
+        await app.changed();
+        navigate('/diary');
+        return;
+      }
       const entry = buildLogEntry({ food: food.ref, quantity, unit, meal, at: day ? mealTimeOn(day, meal, tz) : saved_at, tz, saved_at });
       await app.db.saveLogEntry(entry);
       await app.changed();
@@ -175,6 +185,28 @@ function PortionForm({ food }: { food: Food }) {
 
       {values && <NutrientGrid values={values} className="mt-3" />}
 
+      {!day && (
+        <Card className="mt-3 px-4 py-1">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={daily}
+            onClick={() => setDaily(!daily)}
+            className="flex w-full items-center justify-between gap-4 py-3 text-left"
+            data-testid="add-every-day"
+          >
+            <span>
+              <span className="block text-[15px] font-semibold">Add every day</span>
+              <span className="block text-[12px] text-secondary">For supplements like creatine or omega-3</span>
+            </span>
+            <span className={`relative h-[26px] w-11 flex-none rounded-full ${daily ? 'bg-accent' : 'bg-strong'}`}>
+              <span className={`absolute top-[3px] h-5 w-5 rounded-full bg-ground ${daily ? 'left-[21px]' : 'left-[3px]'}`} />
+            </span>
+          </button>
+        </Card>
+      )}
+
+      {!(daily && !day) && (
       <fieldset className="mt-3">
         <legend className="mb-2 text-[13px] text-secondary">Meal</legend>
         <div className="flex flex-wrap gap-2">
@@ -183,6 +215,7 @@ function PortionForm({ food }: { food: Food }) {
           ))}
         </div>
       </fieldset>
+      )}
 
       {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
 
@@ -198,7 +231,7 @@ function PortionForm({ food }: { food: Food }) {
             <Icon name="heart" size={22} filled={food.favourite} />
           </button>
           <PrimaryButton onClick={add} disabled={grams === null || saving}>
-            {noData ? `Log without numbers to ${MEAL_LABEL[meal]}` : `Add to ${MEAL_LABEL[meal]}`}
+            {daily && !day ? 'Add to daily supplements' : noData ? `Log without numbers to ${MEAL_LABEL[meal]}` : `Add to ${MEAL_LABEL[meal]}`}
           </PrimaryButton>
         </div>
         {!noData && food.ref.kind === 'product' && <SecondaryButton href={customHref}>Numbers wrong? Make a custom food</SecondaryButton>}

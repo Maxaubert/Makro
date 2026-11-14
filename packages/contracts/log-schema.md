@@ -49,7 +49,8 @@ One thing eaten. Carries its own nutrition snapshot (accuracy rule 3), so histor
 | `eaten_at` | timestamp | The instant it was eaten |
 | `tz` | text | IANA zone the phone was in, for example `Europe/Oslo` |
 | `local_date` | date | The day it counts toward, **fixed when saved** from the phone's local time. Never recomputed, so travel and daylight saving cannot move an entry between days. Day totals group by this. |
-| `meal` | text | `breakfast`, `lunch`, `dinner`, `snack` (four fixed). Checked in Swift and by a Postgres `CHECK`, not by a SQLite `CHECK`. |
+| `meal` | text | `breakfast`, `lunch`, `dinner`, `snack`, and `supplements` for a daily supplement's entry (sync protocol 2, #52). Checked in Swift and by a Postgres `CHECK`, not by a SQLite `CHECK`. |
+| `daily_supplement_id` | id? | Set on the day's entry that a `daily_supplements` row made, NULL otherwise (protocol 2). |
 | `quantity` | real | The amount as the user entered it |
 | `unit` | text | `g`, `ml`, `piece`, `serving`, `portion` (decision 42) |
 | `grams` | real | The resolved weight, not null. For `ml`, 1 ml = 1 g and the UI shows it as approximate. For `piece` and `serving`, `quantity * serving_g`. For `portion`, `quantity * 100`: not a weight, so the totals equal the printed per-portion values times the portions, and the UI never shows it as grams (decision 42). Editing the amount changes this and the totals. |
@@ -79,6 +80,26 @@ Deleting a meal also deletes its items: the phone sets `deleted_at` on the meal 
 
 `product_id?` or `custom_food_id?`. Recents are computed from `log_entries` on the phone and are not synced.
 
+## `daily_supplements` (sync protocol 2, #52)
+
+Foods added every day, such as creatine or omega-3. Each day's entry is a normal `log_entries` row with `meal` `supplements`, its own snapshot and `daily_supplement_id` set, so history never changes (accuracy rule 3).
+
+| Column | Type | Meaning |
+|---|---|---|
+| `product_id?` or `custom_food_id?` | | The food. Exactly one is set. |
+| `name` | text | Snapshot of the food's name, for display |
+| `quantity`, `unit`, `grams` | | As in `log_entries` |
+| `sort_order` | integer | Order in the section |
+| `start_date` | date | First local day it is added |
+| `stopped_on?` | date | First local day it is no longer added. NULL while active. |
+
+Rules (golden file `guidance/daily_supplements.json`):
+- When the app is first opened (or comes to the front) on a local day, it makes today's entry for every active supplement (`start_date <= today`, and `stopped_on` NULL or after today) that has no row for today yet, **tombstones included**. Days the app was never opened get no entry: no back-filling.
+- Skip today: tombstone today's entry. Because tombstones count as a row, the day is not filled in again.
+- A new amount changes the supplement row and today's entry, never earlier days.
+- Stop adding daily: set `stopped_on` to tomorrow's local date, so today's entry stays. Deleting the supplement row (a tombstone) also stops it.
+- The app makes the entries only after a pull, so a second device sees the first device's entries and skips first.
+
 ## `goals`
 
 History, not a single row: a new row each time the target changes, so past days keep the target they were measured against.
@@ -104,6 +125,7 @@ Retries and re-imports must not create two live rows. The natural key decides:
 | `weight_entries` | `source` + `external_id` (when `external_id` is set) |
 | `favourites` | `product_id`, or `custom_food_id` |
 | `goals` | `effective_from` |
+| `log_entries` | `daily_supplement_id` + `local_date` (when `daily_supplement_id` is set) |
 
 When two live rows share a key, the latest `updated_at` wins and the other is treated as deleted. The phone pulls before it imports HealthKit, so a second phone does not re-create samples the first already sent. #34 enforces the keys with partial unique indexes on live rows.
 
@@ -121,6 +143,8 @@ One set of names in Swift, SQL, the product database and the miss payload: the *
 - `db_version` (snapshot and misses) is the product database's, in the format `YYYY.MM.DD`, with `-2`, `-3` for a second build the same day (`products-db.md`).
 
 ## Not in this contract
+
+Sync protocol 2 (2026-11-14) adds `daily_supplements` and the `supplements` meal. A protocol 1 client neither sends nor receives either.
 
 The outbox (the phone's list of changes still to send) and the sync functions themselves: those are #34 and live behind this shape. Recents, search history and anything computed on the phone.
 
