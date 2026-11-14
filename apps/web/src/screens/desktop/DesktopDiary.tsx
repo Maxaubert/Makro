@@ -222,7 +222,8 @@ function DayList({
           const kcal = summary ? formatTotal(summary.kcal, 0) : null;
           const logged = summary !== null && summary.kcal.count > 0;
           // Over the target is not singled out: no light orange and no "over" label (Max, 2026-11-14).
-          const bar = selected || d >= yesterday ? 'bg-accent' : 'bg-strong';
+          // Every logged day gets the orange bar, not only today, yesterday and the picked day (Max, 2026-11-14).
+          const bar = 'bg-accent';
           return (
             <a
               key={d}
