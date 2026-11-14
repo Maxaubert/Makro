@@ -9,14 +9,16 @@ import type { StoredGoal } from '../../domain/entry';
 import { browserTimeZone } from '../../domain/localDate';
 import { useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
+import { HomeIcon, type HomeIconName } from '../../ui/icons-desktop-home';
 import { Notice } from '../../ui/kit';
 import { ACTIVITY, GOAL_TYPES, GoalNotes, ProfileNote, Under18Note, changePace, loadGoal, pickGoalType, useGoalForm } from '../goalFields';
 import { MacroEditor, RepairedNote } from '../macroEditor';
 
-const GOAL_SUB: Record<GoalType, string> = {
-  lose: 'Eat a little less than you burn',
-  maintain: 'Stay where you are',
-  gain: 'Eat a little more than you burn',
+// The direction of each goal as an arrow; the full meaning stays in the hover title.
+const GOAL_ICON: Record<GoalType, { icon: HomeIconName; title: string }> = {
+  lose: { icon: 'down', title: 'Eat a little less than you burn' },
+  maintain: { icon: 'flat', title: 'Stay where you are' },
+  gain: { icon: 'up', title: 'Eat a little more than you burn' },
 };
 
 const CARD = 'rounded-[20px] border border-border bg-card';
@@ -106,7 +108,7 @@ function PlanTiles({ form, set }: { form: GoalForm; set: (patch: Partial<GoalFor
     <div className="mt-4 grid grid-cols-2 gap-2.5">
       <label className={TILE}>
         <span className={TILE_LABEL}>Target weight</span>
-        <PlanValue unit={form.targetWeight.trim() === '' ? 'kg, optional' : 'kg'}>
+        <PlanValue unit="kg">
           <FitInput label="Target weight" placeholder="–" value={form.targetWeight} onChange={(targetWeight) => set({ targetWeight })} className={input} />
         </PlanValue>
       </label>
@@ -195,16 +197,15 @@ function Editor({ initial, justSaved, onSaved }: { initial: Prefill; justSaved: 
                   key={g.value}
                   type="button"
                   aria-pressed={on}
+                  title={GOAL_ICON[g.value].title}
                   onClick={() => set(pickGoalType(g))}
                   className={`tap flex items-center gap-3.5 rounded-2xl bg-raised p-4 text-left ${on ? 'border-[1.5px] border-accent' : 'border border-border'}`}
                 >
                   <span className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 ${on ? 'border-accent' : 'border-strong'}`}>
                     {on && <span className="h-2.5 w-2.5 rounded-full bg-accent" />}
                   </span>
-                  <span className="grow">
-                    <span className="block text-[16px] font-bold">{g.label}</span>
-                    <span className="mt-0.5 block text-[13px] text-secondary">{GOAL_SUB[g.value]}</span>
-                  </span>
+                  <span className="grow text-[16px] font-bold">{g.label}</span>
+                  <HomeIcon name={GOAL_ICON[g.value].icon} size={22} className={on ? 'text-accent' : 'text-secondary'} />
                 </button>
               );
             })}

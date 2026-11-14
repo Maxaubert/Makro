@@ -10,10 +10,12 @@ import { browserTimeZone } from '../../domain/localDate';
 import { NUTRIENTS, type Nutrient } from '../../domain/nutrients';
 import { href, navigate, useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
-import { Icon, Notice, SourceBadge, UnknownNote } from '../../ui/kit';
+import { CountChip, HomeIcon, UnknownChip } from '../../ui/icons-desktop-home';
+import { Icon, Notice, SourceBadge } from '../../ui/kit';
 import { addDays, amountLabel, DIARY_GROUPS, GROUP_LABEL, longDayLabel, MEAL_LABEL, today, totalsOf, withDay } from '../day';
-import { VERDICT_LABEL, amountText, coverageNote, leftOutNote, remainingText, weekRange, weekday } from '../guidanceCopy';
+import { VERDICT_LABEL, amountText, remainingText, weekRange, weekday } from '../guidanceCopy';
 import { canPageForward, dayRowSummary, listWindow, pageDay, parsedQuantity, previewEntry, steppedAmount, topSources } from './diaryView';
+import { daysLabel, ofText } from './trendsCopy';
 
 const TABLE_COLUMNS = 'grid grid-cols-[minmax(0,1fr)_64px_64px_64px_72px] gap-2';
 const MEAL_COLORS: Record<Meal, string> = { breakfast: '#FF4C00', lunch: '#FF8A57', dinner: '#FFB38F', snack: '#7A7A80' };
@@ -219,12 +221,12 @@ function DayList({
 }) {
   const forward = canPageForward(date, now);
   const yesterday = addDays(now, -1);
-  const chevron = 'flex h-8 w-8 items-center justify-center rounded-full';
+  const chevron = 'flex h-11 w-11 items-center justify-center rounded-full';
   return (
     <section aria-label="Days" className="card p-4">
       <div className="flex items-center justify-between px-1.5 pb-3 pt-1">
         <span className="text-[15px] font-bold">{monthLabel(days[0])}</span>
-        <span className="-my-1.5 flex text-secondary">
+        <span className="-my-3 -mr-1.5 flex text-secondary">
           <a href={href('diary', pageDay(date, now, -1))} aria-label="Earlier week" className={`tap ${chevron} hover:bg-raised hover:text-text`}>
             <Icon name="back" size={18} />
           </a>
@@ -322,7 +324,7 @@ function DayCard({
             type="button"
             disabled={repeating}
             onClick={onRepeat}
-            className="tap flex h-10 items-center whitespace-nowrap rounded-full border border-border bg-raised px-4 text-[14px] font-semibold disabled:text-secondary"
+            className="tap flex h-11 items-center whitespace-nowrap rounded-full border border-border bg-raised px-4 text-[14px] font-semibold disabled:text-secondary"
           >
             Repeat yesterday
           </button>
@@ -333,11 +335,15 @@ function DayCard({
         <span className="num text-[40px] font-bold tracking-[-1.2px]" data-testid="kcal-eaten">
           {kcal.text}
         </span>
-        <span className="text-[15px] text-secondary">kcal</span>
-        <span className="num ml-2.5 text-[14px] text-secondary">
-          {goal ? `of ${formatNumber(goal.kcal_target, 0)}${showLeft ? `, ${leftText.value} ${leftText.over ? 'over' : 'left'}` : ''}` : 'No goal set'}
+        <span className="text-[15px] text-secondary">{goal ? <span className="num">/ {formatNumber(goal.kcal_target, 0)} kcal</span> : 'kcal'}</span>
+        {goal && showLeft && (
+          <span className={`num ml-2 flex h-7 items-center self-center rounded-full px-3 text-[14px] font-bold ${leftText.over ? 'bg-[#2A1308] text-accent-2' : 'bg-raised text-text'}`} data-testid="kcal-left">
+            {leftText.value} {leftText.over ? 'over' : 'left'}
+          </span>
+        )}
+        <span className="self-center">
+          <UnknownChip count={kcal.unknown} what="calorie value" />
         </span>
-        <UnknownNote count={kcal.unknown} className="ml-2.5" />
       </div>
 
       <div className="mt-4 flex h-2.5 gap-[3px] overflow-hidden rounded-[5px] bg-border">
@@ -366,12 +372,12 @@ function DayCard({
             <div key={m.key} className="rounded-[14px] bg-raised px-3.5 py-3" data-testid={`macro-${m.key}`}>
               <div className="text-[12px] text-secondary">{m.label}</div>
               <div className="num mt-[3px] whitespace-nowrap text-[20px] font-bold">
-                {shown.text} g{shown.unknown > 0 && <span className="text-[12px] font-medium text-secondary"> +?</span>}
+                {shown.text} g{shown.unknown > 0 && <span className="text-[12px] font-medium text-secondary" title={`${shown.unknown} without a value`}> +?</span>}
+                {target !== null && <span className="text-[12px] font-medium text-secondary"> / {formatNumber(target, 0)}</span>}
               </div>
               <div className="mt-2 h-1 rounded-sm bg-border">
                 <div className="h-1 rounded-sm" style={{ width: `${pct}%`, background: m.color }} />
               </div>
-              <div className="num mt-1.5 text-[11px] text-secondary">{target !== null ? `of ${formatNumber(target, 0)} g` : 'No goal set'}</div>
             </div>
           );
         })}
@@ -420,8 +426,8 @@ function MealTable({
 
       {entries.length === 0 && (
         <div className="border-t border-border px-5 py-8 text-center">
-          <p className="text-[14px] text-secondary">Nothing logged {date === now ? 'yet today' : 'this day'}.</p>
-          <a href={date === now ? href('add') : withDay(href('add'), date)} className="tap mt-3 inline-flex h-10 items-center rounded-full bg-accent px-[18px] text-[14px] font-bold text-ground">
+          <a href={date === now ? href('add') : withDay(href('add'), date)} className="tap inline-flex h-11 items-center gap-2 rounded-full bg-accent px-[18px] text-[14px] font-bold text-ground">
+            <Icon name="plus" size={18} stroke={2.4} />
             Log food
           </a>
         </div>
@@ -433,9 +439,9 @@ function MealTable({
         return (
           <div key={meal} role="group" aria-label={GROUP_LABEL[meal]}>
             <div className={`${TABLE_COLUMNS} items-center border-t border-border bg-raised px-5 py-2.5`}>
-              <span className="text-[13px] font-bold text-soft">
+              <span className="flex items-center gap-2 text-[13px] font-bold text-soft">
                 {GROUP_LABEL[meal]}
-                {meal === 'supplements' && <span className="ml-2 text-[12px] font-normal text-secondary">Added every day</span>}
+                {meal === 'supplements' && <HomeIcon name="daily" size={14} className="text-secondary" label="Added every day" />}
               </span>
               <span className="num text-right text-[13px] font-bold">{withUnknown(formatTotal(totalsOf(rows).kcal, 0))}</span>
             </div>
@@ -459,9 +465,9 @@ function MealTable({
                   >
                     <span className="min-w-0">
                       <span className="block truncate font-semibold">{e.name}</span>
-                      <span className="mt-0.5 block text-[12px] text-secondary">
+                      <span className="mt-0.5 flex items-center gap-1.5 text-[12px] text-secondary">
                         {amountLabel(e)}
-                        {e.server_seq === null && <span className="ml-1.5 text-[11px]">not synced</span>}
+                        {e.server_seq === null && <HomeIcon name="notSynced" size={13} label="Not synced" />}
                       </span>
                     </span>
                     <span className={`${number} font-semibold`}>{formatNumber(e.kcal_total, 0)}</span>
@@ -500,7 +506,7 @@ function EditRow({
   onDelete: () => void;
 }) {
   const step = (direction: -1 | 1) => onChange({ ...editing, quantity: String(steppedAmount(parsedQuantity(editing.quantity) ?? entry.quantity, entry.unit, direction)) });
-  const stepButton = 'tap flex h-10 w-10 items-center justify-center rounded-full bg-border';
+  const stepButton = 'tap flex h-11 w-11 items-center justify-center rounded-full bg-border';
   return (
     <div className="flex flex-wrap items-center gap-3.5 border-t border-border bg-raised-2 px-5 pb-[18px] pt-3.5 shadow-[inset_3px_0_0_var(--color-accent)]" data-testid="diary-edit">
       {/* Accuracy rule 4: the snapshot's source and whether it is verified. */}
@@ -509,7 +515,7 @@ function EditRow({
         <SourceBadge sourceName={entry.source === 'custom' ? 'Your own food' : entry.source} verified={entry.verified === null ? null : entry.verified === 1} detail />
       </div>
 
-      <button type="button" aria-label="Delete entry" disabled={busy} onClick={onDelete} className="tap flex h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-[#7A2A2E] bg-[#2A1517] text-[#FF6B6B]">
+      <button type="button" aria-label="Delete entry" disabled={busy} onClick={onDelete} className="tap flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-[#7A2A2E] bg-[#2A1517] text-[#FF6B6B]">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3" />
         </svg>
@@ -546,7 +552,7 @@ function EditRow({
             type="button"
             aria-pressed={editing.meal === m}
             onClick={() => onChange({ ...editing, meal: m })}
-            className={`tap flex h-8 items-center rounded-full px-3 text-[12px] ${editing.meal === m ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
+            className={`tap flex h-11 items-center rounded-full px-3.5 text-[13px] ${editing.meal === m ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
           >
             {MEAL_LABEL[m]}
           </button>
@@ -554,10 +560,10 @@ function EditRow({
       </div>
 
       <div className="ml-auto flex gap-2">
-        <button type="button" onClick={onCancel} className="tap flex h-10 items-center rounded-full bg-border px-[18px] text-[14px] font-semibold">
+        <button type="button" onClick={onCancel} className="tap flex h-11 items-center rounded-full bg-border px-[18px] text-[14px] font-semibold">
           Cancel
         </button>
-        <button type="button" disabled={busy || !valid} onClick={onDone} className="tap flex h-10 items-center rounded-full bg-accent px-5 text-[14px] font-bold text-ground disabled:bg-border disabled:text-faint">
+        <button type="button" disabled={busy || !valid} onClick={onDone} className="tap flex h-11 items-center rounded-full bg-accent px-5 text-[14px] font-bold text-ground disabled:bg-border disabled:text-faint">
           Done
         </button>
       </div>
@@ -592,7 +598,9 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
   const bars = [...m.days.map((d) => ({ date: d.local_date, value: d.value, picked: false })), { date, value: dayValue, picked: true }];
 
   const before = date === now ? 'today' : 'this day';
-  const caption = m.average === null ? `${current.label}: no values logged before ${before}` : `${current.label}, ${m.covered < m.count ? 'at least, per logged day' : 'average per day'} before ${before}`;
+  const lowerBound = m.average !== null && m.covered < m.count;
+  // Hover only: the headline, its chips and the bars say this on screen.
+  const caption = m.average === null ? `${current.label}: no values logged before ${before}` : `${current.label}, ${lowerBound ? 'at least, per logged day' : 'average per logged day'} before ${before}`;
   const sources = topSources(entries, key);
 
   return (
@@ -656,7 +664,7 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
         <div className="desktop-scroll absolute inset-x-3 top-28 z-[6] max-h-[560px] overflow-auto rounded-2xl border border-strong bg-raised-2 p-4 shadow-[0_14px_34px_rgba(0,0,0,0.55)]">
           <div className="flex items-center justify-between">
             <span className="text-[15px] font-bold">Show in the list</span>
-            <button type="button" onClick={() => setMenu(null)} className="text-[13px] font-bold text-accent-2">
+            <button type="button" onClick={() => setMenu(null)} className="-my-3 -mr-2 h-11 px-2 text-[13px] font-bold text-accent-2">
               Done
             </button>
           </div>
@@ -689,30 +697,48 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
         </div>
       )}
 
-      <div className="mt-5 text-[12px] text-secondary">{caption}</div>
-      <div className="flex items-baseline gap-2 whitespace-nowrap">
+      {/* The average per logged day before the picked one. "≥" when some entries have no value (rule 2). */}
+      <div className="mt-5 flex items-baseline gap-2 whitespace-nowrap" title={caption}>
         <span className="num text-[38px] font-bold tracking-[-1px]" data-testid="weekly-average">
+          {lowerBound ? '≥ ' : ''}
           {amountText(m.average, key)} {unit}
         </span>
-        <span className="num text-[13px] text-secondary">{target !== null ? `of ${amountText(target, key)} ${unit}` : 'No goal set'}</span>
+        {target !== null && <span className="num text-[13px] text-secondary">/ {amountText(target, key)}</span>}
       </div>
-      <div className="mt-2 flex min-h-6 items-center gap-2.5">
+      {target !== null && target > 0 && (
+        <div
+          className="mt-2 h-1.5 rounded-[3px] bg-border"
+          role="img"
+          aria-label={m.average === null ? 'Target progress unknown' : `${formatNumber((m.average / target) * 100, 0)}% of target`}
+          data-testid="weekly-progress"
+        >
+          {m.average !== null && <div className="h-1.5 rounded-[3px] bg-accent" style={{ width: `${Math.min(100, (m.average / target) * 100)}%` }} />}
+        </div>
+      )}
+      <div className="mt-3 flex min-h-6 flex-wrap items-center gap-2" data-testid="weekly-coverage">
         {m.verdict && (
           <span className={`flex h-6 items-center rounded-xl px-2.5 text-[12px] font-semibold ${isGoodVerdict(m.verdict, key) ? GOOD_PILL : BAD_PILL}`} data-testid="weekly-verdict">
             {VERDICT_LABEL[m.verdict]}
           </span>
         )}
-        {m.average !== null && target !== null && target > 0 && <span className="num text-[12px] text-secondary">{formatNumber((m.average / target) * 100, 0)}% of target</span>}
-      </div>
-      <div className="mt-1.5 min-h-3.5 text-[11px] text-secondary" data-testid="weekly-coverage">
-        {week.dates.length === 0 ? 'The week starts on this day.' : `${leftOutNote(week)} ${coverageNote(m, key)}`.trim()}
+        {week.dates.length > 0 && (
+          <CountChip icon="calendar" label={daysLabel(week)} testId="weekly-days">
+            {ofText(week.counted_days, week.dates.length)}
+          </CountChip>
+        )}
+        <UnknownChip count={m.count - m.covered} what={`${current.label.toLowerCase()} value`} testId="weekly-unknown" />
       </div>
 
       <div className="relative mt-3.5 h-[120px]" role="img" aria-label={bars.map((b) => `${weekday(b.date)} ${amountText(b.value, key)} ${unit}`).join(', ')}>
         {target !== null && <div className="absolute inset-x-0 border-t border-dashed border-faint" style={{ bottom: heightOf(target) }} />}
         <div className="absolute inset-0 flex items-end gap-2">
           {bars.map((b) => (
-            <div key={b.date} className={`min-w-0 flex-1 rounded-[5px_5px_2px_2px] ${b.picked ? 'bg-accent' : 'bg-strong'}`} style={{ height: heightOf(b.value) }} />
+            b.value === null ? (
+              // No value: a dashed stub, so it reads as left out rather than 0 (rule 2).
+              <div key={b.date} className="h-[3px] min-w-0 flex-1 border-t border-dashed border-faint" />
+            ) : (
+              <div key={b.date} className={`min-w-0 flex-1 rounded-[5px_5px_2px_2px] ${b.picked ? 'bg-accent' : 'bg-strong'}`} style={{ height: heightOf(b.value) }} />
+            )
           ))}
         </div>
       </div>
@@ -725,9 +751,11 @@ function WeeklyPanel({ date, now, entries, weekEntries, goal }: { date: string; 
       </div>
 
       <div className="mt-[22px] border-t border-border pt-4">
-        <div className="text-[14px] font-bold">Top sources {date === now ? 'today' : 'this day'}</div>
+        <div className="text-[14px] font-bold">Top sources</div>
         {sources.length === 0 ? (
-          <p className="mt-3.5 text-[13px] text-secondary">No known {current.label.toLowerCase()} values for this day.</p>
+          <p className="num mt-2 text-[20px] font-bold text-secondary" title={`No known ${current.label.toLowerCase()} values for ${before}`}>
+            ?
+          </p>
         ) : (
           <div className="mt-3.5 flex flex-col gap-3">
             {sources.map((s) => (

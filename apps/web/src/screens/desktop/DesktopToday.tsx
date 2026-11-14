@@ -11,9 +11,11 @@ import { remainingToday, weekWindow } from '../../domain/guidance';
 import { rangeStart, toGoal, weightLine, weightLineFill, weightSummary, type WeightRange } from '../../domain/weight';
 import { href, useApp, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
-import { Card, Icon, Notice, Ring, SourceBadge, UnknownNote } from '../../ui/kit';
+import { HomeIcon, UnknownChip } from '../../ui/icons-desktop-home';
+import { Card, Icon, Notice, Ring, SourceBadge } from '../../ui/kit';
 import { addDays, amountLabel, DIARY_GROUPS, GROUP_LABEL, longDayLabel, today, totalsOf } from '../day';
 import { amountText, dayLine, weekday } from '../guidanceCopy';
+import { ofText, rangeLabel } from './trendsCopy';
 
 const MACROS = [
   { key: 'protein_g', label: 'Protein', color: 'var(--color-accent)', goal: 'protein_g_target' },
@@ -22,11 +24,7 @@ const MACROS = [
   { key: 'fibre_g', label: 'Fibre', color: 'var(--color-muted)', goal: 'fibre_g_target' },
 ] as const;
 
-const RANGES: { range: WeightRange; label: string }[] = [
-  { range: '7D', label: 'last 7 days' },
-  { range: '30D', label: 'last 30 days' },
-  { range: '90D', label: 'last 90 days' },
-];
+const RANGES = ['7D', '30D', '90D'] as const satisfies readonly WeightRange[];
 
 const QUICK_LOG_ROWS = 4;
 const TABLE_COLUMNS = 'grid-cols-[minmax(0,1fr)_90px_70px_70px_70px_80px]';
@@ -50,12 +48,15 @@ function signedKg(kg: number | null): string {
 /** "17 Oct": dayLine ("Sat 17 Oct") without its weekday. */
 const shortDate = (localDate: string): string => dayLine(localDate).slice(4);
 
-function Tile({ label, children, compact = false, testId }: { label: string; children: ReactNode; compact?: boolean; testId?: string }) {
+function Tile({ label, children, compact = false, testId, extra }: { label: string; children: ReactNode; compact?: boolean; testId?: string; extra?: ReactNode }) {
   return (
     <div className={`min-w-0 rounded-[14px] bg-raised px-3.5 ${compact ? 'py-2.5' : 'py-3'}`}>
       <div className="truncate text-[12px] text-secondary">{label}</div>
-      <div className={`num mt-0.5 font-bold ${compact ? 'text-[18px]' : 'text-[20px]'}`} data-testid={testId}>
-        {children}
+      <div className={`mt-0.5 flex items-center gap-1.5 font-bold ${compact ? 'text-[18px]' : 'text-[20px]'}`}>
+        <span className="num" data-testid={testId}>
+          {children}
+        </span>
+        {extra}
       </div>
     </div>
   );
@@ -101,12 +102,11 @@ function CaloriesCard({ entries, goal }: { entries: LocalLogEntry[]; goal: GoalR
       </div>
 
       <div className="mt-5 grid grid-cols-3 gap-2.5">
-        <Tile label="Eaten" testId="kcal-eaten">
+        <Tile label="Eaten" testId="kcal-eaten" extra={<UnknownChip count={kcal.unknown} what="calorie value" />}>
           {kcal.text}
-          {kcal.unknown > 0 && <UnknownNote count={kcal.unknown} className="ml-1 font-medium" />}
         </Tile>
-        <Tile label="Meals logged">
-          {mealsLogged} of {MEALS.length}
+        <Tile label="Meals">
+          <span aria-label={`${mealsLogged} of ${MEALS.length} meals logged`}>{ofText(mealsLogged, MEALS.length)}</span>
         </Tile>
         <Tile label="Items" testId="foods-logged">
           {entries.length}
@@ -125,10 +125,12 @@ function CaloriesCard({ entries, goal }: { entries: LocalLogEntry[]; goal: GoalR
               </div>
               <div className="min-w-0">
                 <div className="text-[12px] text-secondary">{m.label}</div>
-                <div className="num mt-0.5 text-[17px] font-bold">
-                  {f.text} <span className="text-[12px] font-medium text-secondary">{target !== null ? `/ ${formatNumber(target, 0)} g` : 'g'}</span>
+                <div className="mt-0.5 flex items-center gap-1.5">
+                  <span className="num text-[17px] font-bold">
+                    {f.text} <span className="text-[12px] font-medium text-secondary">{target !== null ? `/ ${formatNumber(target, 0)} g` : 'g'}</span>
+                  </span>
+                  <UnknownChip count={f.unknown} what={`${m.label.toLowerCase()} value`} />
                 </div>
-                {f.unknown > 0 && <div className="text-[11px] text-secondary">+? ({f.unknown})</div>}
               </div>
             </div>
           );
@@ -145,7 +147,7 @@ function WeightCard({ date, weights, goal }: { date: string; weights: { local_da
   const line = weightLine(summary.days);
   const distance = goal ? toGoal(latest?.weight_kg ?? null, goal.target_weight_kg, goal.goal_type) : null;
   const target = goal?.target_weight_kg ?? null;
-  const sub = RANGES.find((r) => r.range === range)?.label ?? '';
+  const sub = range === 'All' ? 'all time' : rangeLabel(range);
   const middle = summary.days[Math.floor((summary.days.length - 1) / 2)];
   const weighIns = summary.days.filter((d) => d.weight_kg !== null).length;
   const fill = weightLineFill(line.segments);
@@ -155,7 +157,7 @@ function WeightCard({ date, weights, goal }: { date: string; weights: { local_da
     <Card className="flex flex-col p-6">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[13px] text-secondary">Weight, {sub}</div>
+          <div className="text-[13px] text-secondary">Weight</div>
           <div className="mt-1 flex items-baseline gap-3.5">
             <span className="num text-[44px] font-bold tracking-[-1.2px]">
               {kgText(latest?.weight_kg)} <span className="text-[18px] font-medium tracking-normal text-secondary">kg</span>
@@ -166,13 +168,14 @@ function WeightCard({ date, weights, goal }: { date: string; weights: { local_da
         <div className="flex shrink-0 gap-2">
           {RANGES.map((r) => (
             <button
-              key={r.range}
+              key={r}
               type="button"
-              aria-pressed={range === r.range}
-              onClick={() => setRange(r.range)}
-              className={`tap flex h-8 items-center rounded-full px-3.5 text-[13px] ${range === r.range ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
+              aria-pressed={range === r}
+              aria-label={`${r}, ${rangeLabel(r)}`}
+              onClick={() => setRange(r)}
+              className={`tap relative flex h-8 items-center rounded-full px-3.5 text-[13px] after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] ${range === r ? 'bg-text font-bold text-ground' : 'border border-border bg-raised text-soft'}`}
             >
-              {r.range}
+              {r}
             </button>
           ))}
         </div>
@@ -203,11 +206,16 @@ function WeightCard({ date, weights, goal }: { date: string; weights: { local_da
         )}
         {line.segments.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center">
-            <p className="text-sm text-secondary">No weights in this period.</p>
-            {latest === null && (
-              <a href={href('weight')} className="tap text-sm font-semibold text-accent-2">
-                Log your weight
+            {latest === null ? (
+              <a href={href('weight')} className="tap flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-bold text-ground">
+                <HomeIcon name="scale" size={18} stroke={2.2} />
+                Log weight
               </a>
+            ) : (
+              <span className="flex items-center gap-2 text-sm text-secondary">
+                <HomeIcon name="scale" size={18} />
+                No weigh-ins
+              </span>
             )}
           </div>
         )}
@@ -241,15 +249,17 @@ function TodayTable({ date, entries }: { date: string; entries: LocalLogEntry[] 
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between px-5 pb-3.5 pt-5">
-        <span className="text-[17px] font-bold">Today, {dayLine(date)}</span>
-        <a href={href('diary')} className="tap flex items-center gap-1 text-[13px] font-semibold text-accent-2">
+        <span className="text-[17px] font-bold" title={dayLine(date)}>
+          Meals
+        </span>
+        <a href={href('diary')} className="tap flex h-11 items-center gap-1 text-[13px] font-semibold text-accent-2">
           Open diary <Icon name="next" size={14} />
         </a>
       </div>
       {entries.length === 0 ? (
         <div className="border-t border-border px-5 py-10 text-center">
-          <p className="text-sm text-secondary">Nothing logged yet today.</p>
-          <a href={href('add')} className="tap mt-3 inline-flex h-11 items-center rounded-full bg-accent px-5 text-sm font-bold text-ground">
+          <a href={href('add')} className="tap inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-bold text-ground">
+            <Icon name="plus" size={18} stroke={2.4} />
             Add food
           </a>
         </div>
@@ -270,9 +280,9 @@ function TodayTable({ date, entries }: { date: string; entries: LocalLogEntry[] 
             return (
               <section key={meal} aria-label={GROUP_LABEL[meal]}>
                 <div className={`grid ${TABLE_COLUMNS} items-center gap-2 border-t border-border bg-raised px-5 py-2.5`}>
-                  <span className="text-[13px] font-bold text-soft">
+                  <span className="flex items-center gap-2 text-[13px] font-bold text-soft">
                     {GROUP_LABEL[meal]}
-                    {meal === 'supplements' && <span className="ml-2 text-[12px] font-normal text-secondary">Added every day</span>}
+                    {meal === 'supplements' && <HomeIcon name="daily" size={14} className="text-secondary" label="Added every day" />}
                   </span>
                   <span />
                   <span className="num text-right text-[13px] font-bold">
@@ -282,9 +292,9 @@ function TodayTable({ date, entries }: { date: string; entries: LocalLogEntry[] 
                 </div>
                 {rows.map((e) => (
                   <a key={e.id} href={href('entry', e.id)} className={`tap grid ${TABLE_COLUMNS} items-center gap-2 border-t border-border px-5 py-[11px] text-[14px] hover:bg-raised/60`} data-testid="today-entry">
-                    <span className="min-w-0 truncate font-semibold" title={e.name}>
-                      {e.name}
-                      {e.server_seq === null && <span className="ml-1.5 text-[11px] font-normal text-secondary">not synced</span>}
+                    <span className="flex min-w-0 items-center gap-1.5 font-semibold" title={e.name}>
+                      <span className="truncate">{e.name}</span>
+                      {e.server_seq === null && <HomeIcon name="notSynced" size={14} className="text-secondary" label="Not synced" />}
                     </span>
                     <span className="text-secondary">{amountLabel(e)}</span>
                     <span className="num text-right font-semibold">{formatNumber(e.kcal_total, 0)}</span>
@@ -302,51 +312,46 @@ function TodayTable({ date, entries }: { date: string; entries: LocalLogEntry[] 
   );
 }
 
+/** Recent foods, one tap from a portion. Hidden until something has been logged. */
 function QuickLog({ foods }: { foods: RecentFood[] }) {
+  if (foods.length === 0) return null;
   return (
     <Card className="p-5">
       <div className="flex items-center justify-between">
         <span className="text-[17px] font-bold">Quick log</span>
-        <a href={href('add')} className="tap text-[13px] font-semibold text-accent-2">
+        <a href={href('add')} className="tap flex h-11 items-center text-[13px] font-semibold text-accent-2">
           All foods
         </a>
       </div>
-      {foods.length === 0 ? (
-        <p className="mt-3.5 text-[13px] text-secondary">Foods you log show up here.</p>
-      ) : (
-        <ul className="mt-3.5 flex flex-col gap-2">
-          {foods.map((f) => (
-            <li key={f.product_id ?? `c:${f.custom_food_id}`}>
-              <a
-                href={f.product_id ? href('portion', 'product', f.product_id) : href('portion', 'custom', f.custom_food_id as string)}
-                className="tap flex items-center gap-3 rounded-[14px] bg-raised px-3 py-2.5"
-                data-testid="quick-log-row"
-              >
-                <div className="min-w-0 grow">
-                  <div className="truncate text-[14px] font-semibold">{f.name}</div>
-                  <div className="mt-px flex flex-wrap items-center gap-x-2 text-[12px] text-secondary">
-                    {f.brand && <span className="truncate">{f.brand}</span>}
-                    <SourceBadge sourceName={f.source === 'custom' ? 'Your own food' : f.source} verified={f.verified === null ? null : f.verified === 1} />
-                  </div>
+      <ul className="mt-2 flex flex-col gap-2">
+        {foods.map((f) => (
+          <li key={f.product_id ?? `c:${f.custom_food_id}`}>
+            <a
+              href={f.product_id ? href('portion', 'product', f.product_id) : href('portion', 'custom', f.custom_food_id as string)}
+              className="tap flex min-h-11 items-center gap-3 rounded-[14px] bg-raised px-3 py-2.5"
+              data-testid="quick-log-row"
+            >
+              <div className="min-w-0 grow">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-[14px] font-semibold">{f.name}</span>
+                  <SourceBadge sourceName={f.source === 'custom' ? 'Your own food' : f.source} verified={f.verified === null ? null : f.verified === 1} />
                 </div>
-                <div className="shrink-0 text-right">
-                  {f.kcal === null ? (
-                    <div className="text-[13px] font-semibold text-secondary">No data</div>
-                  ) : (
-                    <>
-                      <div className="num text-[15px] font-bold">{formatNumber(f.kcal, 0)}</div>
-                      <div className="text-[11px] text-secondary">kcal / {perLabel(f.per_100_unit)}</div>
-                    </>
-                  )}
+                {f.brand && <div className="mt-px truncate text-[12px] text-secondary">{f.brand}</div>}
+              </div>
+              <div className="shrink-0 text-right">
+                {/* Rule 2: no calorie value is "?", never 0. */}
+                <div className="num text-[15px] font-bold" title={f.kcal === null ? 'Calories unknown' : undefined}>
+                  {formatNumber(f.kcal, 0)}
                 </div>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-border" aria-hidden="true">
-                  <Icon name="plus" size={16} stroke={2.2} />
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
+                <div className="text-[11px] text-secondary">kcal/{perLabel(f.per_100_unit)}</div>
+              </div>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-border" aria-hidden="true">
+                <Icon name="plus" size={16} stroke={2.2} />
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }
@@ -374,7 +379,12 @@ function ThisWeek({ date, entries, goal }: { date: string; entries: LocalLogEntr
     <Card className="p-5">
       <div className="flex items-center justify-between">
         <span className="text-[17px] font-bold">This week</span>
-        <span className="text-[12px] text-secondary">{target !== null ? `Goal ${formatNumber(target, 0)} kcal` : 'No goal set'}</span>
+        {target !== null && (
+          <span className="flex items-center gap-1.5 text-[12px] text-secondary" title={`Goal ${formatNumber(target, 0)} kcal`}>
+            <span aria-hidden="true" className="w-4 border-t border-dashed border-strong" />
+            <span className="num">{formatNumber(target, 0)}</span>
+          </span>
+        )}
       </div>
       <div className="relative mt-4" role="img" aria-label={days.map(dayText).join(', ')}>
         {target !== null && <div className="absolute inset-x-0 border-t border-dashed border-strong" style={{ bottom: BAR_LABEL + px(target) }} />}

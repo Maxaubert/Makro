@@ -32,8 +32,9 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
   await expect(page.getByText('Goal 2,800 kcal').first()).toBeVisible();
   await expect(page.getByTestId('kcal-headline')).toHaveText('2,800');
-  await expect(page.getByText('Nothing logged yet today.')).toBeVisible();
-  await expect(page.getByText('Foods you log show up here.')).toBeVisible();
+  // Empty: no rows and no explanation, just the action; Quick log stays hidden until a food is logged.
+  await expect(page.getByTestId('today-entry')).toHaveCount(0);
+  await expect(page.getByTestId('quick-log-row')).toHaveCount(0);
   expect((await page.getByRole('heading', { name: 'Today', exact: true }).boundingBox())?.x).toBe(272);
   await expect(page.getByTestId('kcal-eaten')).toHaveCSS('font-variant-numeric', 'normal');
 
@@ -52,9 +53,10 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   await expect(entry).toHaveCount(1);
   await expect(entry).toContainText('Skyr Naturell');
   await expect(entry).toContainText('150 g');
-  await expect(page.getByTestId('quick-log-row').first()).toContainText('Verified');
+  // A verified food shows only the seal; its label names the source (decision 46).
+  await expect(page.getByTestId('quick-log-row').first().getByTestId('source-badge')).toHaveAttribute('aria-label', /^Verified/);
   await page.getByRole('button', { name: '7D' }).click();
-  await expect(page.getByText('Weight, last 7 days')).toBeVisible();
+  await expect(page.getByRole('button', { name: '7D' })).toHaveAttribute('aria-pressed', 'true');
   if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/desktop-today.png` });
 
   // D_Diary: pick the entry, change the amount, and the day total follows.
@@ -63,7 +65,7 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   await expect(page.getByTestId('diary-day')).toHaveCount(7);
   await expect(page.getByTestId('kcal-eaten')).toHaveText('93');
   await page.getByTestId('diary-entry').click();
-  await expect(page.getByTestId('diary-edit')).toContainText('Verified');
+  await expect(page.getByTestId('diary-edit').getByRole('button', { name: /^Verified/ })).toBeVisible();
   await page.getByTestId('diary-edit').getByLabel('Amount in g').fill('200');
   await expect(page.getByTestId('kcal-eaten')).toHaveText('124');
   await page.getByTestId('diary-edit').getByRole('button', { name: 'Cancel' }).click();
@@ -77,7 +79,7 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   // The weekly panel switches measure and keeps unknown as "?".
   await page.getByRole('button', { name: 'Protein' }).first().click();
   await page.getByRole('option', { name: 'Calories' }).click();
-  await expect(page.getByText(/Calories: no values logged before today/)).toBeVisible();
+  await expect(page.getByTestId('weekly-average')).toHaveText('? kcal');
 
   // A wide window does not break the layout, and 390 px is still the phone column.
   await page.setViewportSize({ width: 2200, height: 1100 });

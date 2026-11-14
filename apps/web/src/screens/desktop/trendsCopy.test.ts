@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { averageTitle, axisLabels, coverageLine, onTargetText, vsGoalText } from './trendsCopy';
+import { averageTitle, axisLabels, coverageCount, coverageLabel, daysLabel, onTargetText, vsGoalText } from './trendsCopy';
 
 describe('vsGoalText', () => {
   it('says how far under or over, from the rounded average so the two numbers add up', () => {
@@ -20,10 +20,10 @@ describe('vsGoalText', () => {
 });
 
 describe('averageTitle', () => {
-  it('names the range and the weekly bars', () => {
-    expect(averageTitle('7D')).toBe('Average intake, last 7 days');
-    expect(averageTitle('30D')).toBe('Average intake, last 30 days');
-    expect(averageTitle('90D')).toBe('Average intake, last 90 days (weekly)');
+  it('is short; the range chip names the range, and 90D says its bars are weeks', () => {
+    expect(averageTitle('7D')).toBe('Daily average');
+    expect(averageTitle('30D')).toBe('Daily average');
+    expect(averageTitle('90D')).toBe('Daily average, by week');
   });
 });
 
@@ -41,7 +41,7 @@ describe('axisLabels', () => {
 
 describe('onTargetText', () => {
   it('counts judged days', () => {
-    expect(onTargetText(4, 7)).toBe('4 of 7');
+    expect(onTargetText(4, 7)).toBe('4/7');
   });
 
   it('is unknown with no goal or no judged day, never 0', () => {
@@ -50,13 +50,27 @@ describe('onTargetText', () => {
   });
 });
 
-describe('coverageLine', () => {
+describe('coverageCount', () => {
   it('is empty when everything is known or nothing is logged', () => {
-    expect(coverageLine('Calories', { covered: 3, count: 3 })).toBe('');
-    expect(coverageLine('Calories', { covered: 0, count: 0 })).toBe('');
+    expect(coverageCount({ covered: 3, count: 3 })).toBe('');
+    expect(coverageCount({ covered: 0, count: 0 })).toBe('');
   });
 
-  it('says how many entries it covers', () => {
-    expect(coverageLine('Fibre', { covered: 2, count: 6 })).toBe('Fibre covers 2 of 6 entries.');
+  it('counts the entries with a value', () => {
+    expect(coverageCount({ covered: 2, count: 6 })).toBe('2/6');
+    expect(coverageCount({ covered: 0, count: 5 })).toBe('0/5');
+  });
+
+  it('keeps the full meaning for screen readers', () => {
+    expect(coverageLabel('Fibre', { covered: 2, count: 6 })).toBe('Fibre: 2 of 6 entries have a value; the others are left out, not counted as 0');
+  });
+});
+
+describe('daysLabel', () => {
+  const dates = ['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13'];
+
+  it('counts the days and names the ones left out', () => {
+    expect(daysLabel({ counted_days: 4, dates, left_out: ['2026-11-10'] })).toBe('4 of 5 days counted, Tue not logged and left out');
+    expect(daysLabel({ counted_days: 5, dates, left_out: [] })).toBe('5 of 5 days counted');
   });
 });

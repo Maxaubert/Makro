@@ -6,6 +6,7 @@ import { ageFromBirthYear } from '../../domain/goals';
 import { APP_VERSION } from '../../lib/app';
 import { href, useApp, useAppState, useData } from '../../lib/hooks';
 import { DesktopShell } from '../../ui/desktop';
+import { HomeIcon } from '../../ui/icons-desktop-home';
 import { Icon, Notice } from '../../ui/kit';
 import { syncLabel } from '../../ui/syncLabel';
 import { useDataActions, useDeleteAccount } from '../accountActions';
@@ -14,7 +15,6 @@ import { ACTIVITY, HelpNote, loadGoal } from '../goalFields';
 const CARD = 'rounded-[20px] border border-border bg-card p-6';
 const CARD_TITLE = 'text-[17px] font-bold';
 const ROW = 'flex w-full items-center justify-between gap-4 border-t border-border text-left text-[15px] font-semibold';
-const ROW_HINT = 'shrink-0 text-[14px] font-normal text-secondary';
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -87,12 +87,14 @@ export function DesktopProfile() {
               </div>
               <button type="button" onClick={() => void app.signOut()} className="tap flex h-[42px] shrink-0 items-center rounded-full border border-border bg-raised px-[18px] text-[14px] font-semibold">Sign out</button>
             </div>
-            <button type="button" onClick={() => void app.scheduler.runNow()} className={`tap ${ROW} mt-[18px] pt-4`}>
+            <button type="button" onClick={() => void app.scheduler.runNow()} className={`tap ${ROW} mt-[18px] pt-3`}>
               <span className="min-w-0">
                 <span className="block">Backup and sync</span>
                 <span className="mt-0.5 block truncate text-[12px] font-normal text-secondary">{syncLabel(sync, pending)}</span>
               </span>
-              <span className={ROW_HINT}>Sync now</span>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-raised text-soft">
+                <HomeIcon name="sync" size={18} label="Sync now" />
+              </span>
             </button>
             {products.status === 'ready' && products.note && <div className="mt-4"><Notice>{products.note}</Notice></div>}
             {sync.error && <div className="mt-4"><Notice tone="error">Last sync failed: {sync.error}</Notice></div>}
@@ -134,7 +136,14 @@ export function DesktopProfile() {
             <div className={CARD_TITLE}>Your data</div>
             <button type="button" onClick={() => void download()} className={`tap ${ROW} mt-2 py-4`}>
               <span>Export my data</span>
-              <span className={`shrink-0 text-[14px] font-normal ${downloaded ? 'text-[#7FD99A]' : 'text-secondary'}`}>{downloaded ? 'Saved as JSON' : 'JSON file'}</span>
+              {downloaded ? (
+                <span className="flex shrink-0 items-center gap-1.5 text-[14px] font-normal text-[#7FD99A]">
+                  <Icon name="check" size={16} stroke={2.4} />
+                  Saved
+                </span>
+              ) : (
+                <HomeIcon name="download" size={18} className="text-secondary" label="JSON file" />
+              )}
             </button>
             <button
               type="button"
@@ -161,8 +170,9 @@ export function DesktopProfile() {
             {dataError && <div className="mt-4"><Notice tone="error">{dataError}</Notice></div>}
             <div className="mt-4 border-t border-border pt-4"><HelpNote /></div>
           </div>
-          <p className="px-1 text-[12px] leading-relaxed text-secondary">
-            Food database {foodDatabase}. App {APP_VERSION}.
+          <p className="flex gap-3 px-1 text-[12px] text-secondary">
+            <span title="Food database">Foods {foodDatabase}</span>
+            <span title="App version">App {APP_VERSION}</span>
           </p>
         </section>
       </div>
