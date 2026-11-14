@@ -76,6 +76,13 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   await expect(page.getByTestId('kcal-eaten')).toHaveText('124');
   await expect(page.getByTestId('diary-edit')).toHaveCount(0);
 
+  // The day bar is one bar against the target, not split by meal; the weekly panel is on Trends now.
+  await expect(page.getByTestId('day-kcal-bar')).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Weekly average' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Trends', exact: true }).click();
+  await expect(page.getByRole('complementary', { name: 'Weekly average' })).toBeVisible();
+  if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/desktop-trends-weekly.png`, fullPage: true });
+
   // The weekly panel switches measure and keeps unknown as "?".
   await page.getByRole('button', { name: 'Protein' }).first().click();
   await page.getByRole('option', { name: 'Calories' }).click();
@@ -83,6 +90,7 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   await expect(page.getByTestId('ring-kcal')).toHaveText('?');
 
   // A wide window does not break the layout, and 390 px is still the phone column.
+  await page.getByRole('link', { name: 'Diary', exact: true }).click();
   await page.setViewportSize({ width: 2200, height: 1100 });
   await expect(page.getByTestId('diary-entry')).toBeVisible();
   expect(await page.locator('html').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
