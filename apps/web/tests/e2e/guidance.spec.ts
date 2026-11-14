@@ -127,6 +127,7 @@ test('weekly average, what is left and the yesterday row', async ({ page }) => {
   // The radar: every number is on screen, no hover or tap. Protein averages 17 g and calories 93 kcal.
   // Skyr has protein, carbs and fat in every entry and the goal has targets, so the shape is drawn.
   await expect(page.getByTestId('ring-kcal')).toHaveText('93');
+  await expect(page.getByTestId('ring-kcal-bar')).toBeVisible();
   await expect(page.getByTestId('tile-protein')).toContainText('17');
   await expect(page.getByTestId('tile-carbs')).toContainText('6');
   await expect(page.getByTestId('macro-radar')).toBeVisible();
