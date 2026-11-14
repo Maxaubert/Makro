@@ -58,7 +58,7 @@ test('a daily supplement is added every day, can be skipped for a day and stoppe
 
   const section = page.getByRole('region', { name: 'Daily supplements' });
   await expect(section.getByTestId('supplement-entry')).toHaveCount(1);
-  await expect(section.getByText('daily', { exact: true })).toBeVisible();
+  await expect(section.getByRole('img', { name: 'Added every day' })).toBeVisible();
   await expect.poll(() => liveOn(userId, iso(day(0))), { timeout: 15_000 }).toBe(1);
   await expect
     .poll(() => pgRows<{ n: number }>(`select count(*)::int as n from public.daily_supplements where user_id = '${userId}'`)[0]?.n, { timeout: 15_000 })
@@ -87,7 +87,7 @@ test('a daily supplement is added every day, can be skipped for a day and stoppe
   await expect(page.getByTestId('supplement-entry')).toHaveCount(1);
   await expect.poll(() => liveOn(userId, iso(day(2))), { timeout: 15_000 }).toBe(1);
   await openDiaryOn(page, day(3));
-  await expect(page.getByText('Nothing logged yet today.')).toBeVisible();
+  await expect(page.getByText('Nothing logged', { exact: true })).toBeVisible();
   expect(await liveOn(userId, iso(day(3)))).toBe(0);
 
   // Earlier days keep their entries.

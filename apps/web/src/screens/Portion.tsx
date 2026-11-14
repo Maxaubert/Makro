@@ -12,6 +12,7 @@ import { NUTRIENTS } from '../domain/nutrients';
 import { packAmounts } from '../domain/packSizes';
 import { portion } from '../domain/portion';
 import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../lib/hooks';
+import { CalendarIcon, InfoChip, MacroSplit, RepeatIcon } from '../ui/icons-add-food';
 import { Card, Chip, Header, Icon, Notice, Page, PrimaryButton, SecondaryButton, SourceBadge } from '../ui/kit';
 import { dayLabel, MEAL_LABEL, mealForNow, today, withDay } from './day';
 
@@ -137,28 +138,33 @@ function PortionForm({ food }: { food: Food }) {
   return (
     <Page>
       <Header title="Add portion" back="/add" />
-      {day && <p className="mt-1 text-[13px] font-semibold text-accent-2" data-testid="adding-to-day">Adding to {dayLabel(day)}</p>}
-      <div className="pt-3">
-        <div className="text-[22px] font-bold" data-testid="portion-name">{p.name}</div>
-        <div className="mt-0.5 text-[13px] text-secondary">{'pack_size' in p ? productSubtext(p) : p.brand}</div>
-        <div className="mt-1.5">
-          <SourceBadge sourceName={food.sourceName} verified={food.verified} detail />
+      {day && (
+        <div className="mt-1">
+          <InfoChip tone="accent" icon={<CalendarIcon size={14} />} label={`Adding to ${dayLabel(day)}`} testId="adding-to-day">{dayLabel(day)}</InfoChip>
         </div>
+      )}
+      <div className="pt-3">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1 text-[22px] font-bold" data-testid="portion-name">{p.name}</div>
+          <span className="mt-1.5">
+            <SourceBadge sourceName={food.sourceName} verified={food.verified} detail />
+          </span>
+        </div>
+        {('pack_size' in p ? productSubtext(p) : p.brand) && <div className="mt-0.5 text-[13px] text-secondary">{'pack_size' in p ? productSubtext(p) : p.brand}</div>}
       </div>
 
       {noData && (
-        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-border p-4">
-          <Icon name="alert" className="mt-0.5 shrink-0 text-accent-2" />
-          <div className="text-sm">
-            <div className="font-semibold">No nutrition data</div>
-            <div className="mt-0.5 text-secondary">You can log it without numbers, or enter the numbers from the label.</div>
-            <a href={customHref} className="mt-2 inline-block font-semibold text-accent-2">Enter numbers from the label</a>
-          </div>
+        <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border p-3 pl-4">
+          <Icon name="alert" className="shrink-0 text-accent-2" />
+          <div className="flex-1 text-[15px] font-semibold">No nutrition data</div>
+          <a href={customHref} aria-label="Enter numbers from the label" className="tap flex h-11 shrink-0 items-center rounded-full bg-text px-4 text-sm font-bold text-ground">
+            From label
+          </a>
         </div>
       )}
 
       <Card className="mt-4 px-4 py-5 text-center">
-        <label htmlFor="qty" className="text-[13px] text-secondary">Amount</label>
+        <label htmlFor="qty" className="sr-only">Amount</label>
         <div className="flex items-baseline justify-center gap-1">
           <input
             id="qty"
@@ -172,7 +178,7 @@ function PortionForm({ food }: { food: Food }) {
           <span className="text-[22px] font-medium text-secondary">{unit === 'portion' ? (quantity === 1 ? 'portion' : 'portions') : unit === 'serving' ? (quantity === 1 ? 'serving' : 'servings') : unit === 'piece' ? (quantity === 1 ? 'piece' : 'pieces') : unit}</span>
         </div>
         {(unit === 'serving' || unit === 'piece') && grams !== null && <div className="num text-[13px] text-secondary">{formatNumber(grams, 0)} g</div>}
-        {unit === 'ml' && <div className="text-[13px] text-secondary">About {formatNumber(grams, 0)} g (1 ml counted as 1 g)</div>}
+        {unit === 'ml' && <div className="num text-[13px] text-secondary" title="1 ml counted as 1 g">≈ {formatNumber(grams, 0)} g</div>}
         <div className="mt-3.5 flex flex-wrap justify-center gap-2">
           {units.map((u) => (
             <Chip key={u} selected={u === unit && !packPicked} onClick={() => pickUnit(u)}>{unitLabel(u)}</Chip>
@@ -195,9 +201,9 @@ function PortionForm({ food }: { food: Food }) {
             className="flex w-full items-center justify-between gap-4 py-3 text-left"
             data-testid="add-every-day"
           >
-            <span>
-              <span className="block text-[15px] font-semibold">Add every day</span>
-              <span className="block text-[12px] text-secondary">For supplements like creatine or omega-3</span>
+            <span className="flex items-center gap-2.5 text-[15px] font-semibold">
+              <RepeatIcon size={18} className={daily ? 'text-accent' : 'text-secondary'} />
+              Add every day
             </span>
             <span className={`relative h-[26px] w-11 flex-none rounded-full ${daily ? 'bg-accent' : 'bg-strong'}`}>
               <span className={`absolute top-[3px] h-5 w-5 rounded-full bg-ground ${daily ? 'left-[21px]' : 'left-[3px]'}`} />
@@ -208,7 +214,7 @@ function PortionForm({ food }: { food: Food }) {
 
       {!(daily && !day) && (
       <fieldset className="mt-3">
-        <legend className="mb-2 text-[13px] text-secondary">Meal</legend>
+        <legend className="sr-only">Meal</legend>
         <div className="flex flex-wrap gap-2">
           {MEALS.map((m) => (
             <Chip key={m} selected={meal === m} onClick={() => setMeal(m)}>{MEAL_LABEL[m]}</Chip>
@@ -234,7 +240,9 @@ function PortionForm({ food }: { food: Food }) {
             {daily && !day ? 'Add to daily supplements' : noData ? `Log without numbers to ${MEAL_LABEL[meal]}` : `Add to ${MEAL_LABEL[meal]}`}
           </PrimaryButton>
         </div>
-        {!noData && food.ref.kind === 'product' && <SecondaryButton href={customHref}>Numbers wrong? Make a custom food</SecondaryButton>}
+        {!noData && food.ref.kind === 'product' && (
+          <SecondaryButton href={customHref}>Fix numbers</SecondaryButton>
+        )}
       </div>
     </Page>
   );
@@ -242,26 +250,33 @@ function PortionForm({ food }: { food: Food }) {
 
 /** kcal and macros for a portion. "?" for unknown, never 0. */
 export function NutrientGrid({ values, className = '' }: { values: Record<string, number | null>; className?: string }) {
-  const cell = (label: string, key: string) => (
+  const cell = (label: string, key: string, dot?: string) => (
     <div>
-      <div className="text-[11px] text-secondary">{label}</div>
-      <div className={`num text-[15px] font-semibold ${values[key] === null ? 'text-secondary' : ''}`} data-testid={`portion-${key}`}>
+      <div className="flex items-center justify-center gap-1 text-[11px] text-secondary">
+        {dot && <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dot}`} />}
+        {label}
+      </div>
+      <div
+        className={`num text-[15px] font-semibold ${values[key] === null ? 'text-secondary' : ''}`}
+        data-testid={`portion-${key}`}
+        title={values[key] === null ? 'No value in the source, not counted as 0' : undefined}
+      >
         {values[key] === null ? '?' : `${formatNumber(values[key], 1)} g`}
       </div>
     </div>
   );
   return (
     <Card className={`p-4 ${className}`}>
-      <div className="flex items-baseline justify-between">
-        <span className="text-[13px] text-secondary">This portion</span>
-        <span className="num text-2xl font-bold text-accent-2" data-testid="portion-kcal">
-          {formatNumber(values.kcal, 0)} <span className="text-[13px] font-medium text-secondary">kcal</span>
+      <div className="text-center">
+        <span className={`num text-4xl font-bold tracking-[-0.02em] ${values.kcal === null ? 'text-secondary' : 'text-accent-2'}`} data-testid="portion-kcal">
+          {formatNumber(values.kcal, 0)} <span className="text-[15px] font-medium text-secondary">kcal</span>
         </span>
       </div>
+      <MacroSplit values={values} className="mt-3" />
       <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-        {cell('Protein', 'protein_g')}
-        {cell('Carbs', 'carbs_g')}
-        {cell('Fat', 'fat_g')}
+        {cell('Protein', 'protein_g', 'bg-accent')}
+        {cell('Carbs', 'carbs_g', 'bg-accent-2')}
+        {cell('Fat', 'fat_g', 'bg-accent-3')}
         {cell('Fibre', 'fibre_g')}
       </div>
       <div className="mt-2 grid grid-cols-4 gap-2 text-center">
@@ -270,7 +285,6 @@ export function NutrientGrid({ values, className = '' }: { values: Record<string
         {cell('Salt', 'salt_g')}
         <div />
       </div>
-      {Object.values(values).some((v) => v === null) && <p className="mt-2 text-[11px] text-secondary">? means the source has no value. It is not counted as 0.</p>}
     </Card>
   );
 }

@@ -7,6 +7,7 @@ import { formatNumber } from '../domain/format';
 import { NUTRIENTS } from '../domain/nutrients';
 import { portion } from '../domain/portion';
 import { navigate, useApp, useData } from '../lib/hooks';
+import { CalendarIcon, InfoChip, RepeatIcon } from '../ui/icons-add-food';
 import { Card, Chip, Header, Icon, Notice, Page, PrimaryButton, SourceBadge } from '../ui/kit';
 import { MEAL_LABEL, today } from './day';
 import { NutrientGrid } from './Portion';
@@ -76,18 +77,9 @@ export function EditEntry({ id }: { id: string }) {
       </div>
 
       <Card className="mt-4 p-5 text-center">
-        <label htmlFor="qty" className="text-[13px] text-secondary">
-          Amount ({entry.unit})
-        </label>
-        <input
-          id="qty"
-          className="num mx-auto mt-1 block w-48 rounded-xl bg-transparent text-center text-6xl font-bold tracking-[-0.03em] outline-none focus:bg-raised"
-          inputMode="decimal"
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-        />
-        {entry.unit !== 'g' && entry.unit !== 'ml' && grams !== null && <div className="text-[13px] text-secondary">{formatNumber(grams, 0)} g</div>}
-        {entry.unit === 'ml' && <div className="text-[13px] text-secondary">About {formatNumber(grams, 0)} g (1 ml counted as 1 g)</div>}
+        <AmountField unit={entry.unit} qty={qty} setQty={setQty} />
+        {entry.unit !== 'g' && entry.unit !== 'ml' && grams !== null && <div className="num text-[13px] text-secondary">{formatNumber(grams, 0)} g</div>}
+        {entry.unit === 'ml' && <div className="num text-[13px] text-secondary" title="1 ml counted as 1 g">≈ {formatNumber(grams, 0)} g</div>}
       </Card>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -154,22 +146,27 @@ function EditSupplement({ entry }: { entry: LocalLogEntry }) {
       <Header title="Daily supplement" back="/diary" />
       <div className="pt-3">
         <div className="text-[22px] font-bold">{entry.name}</div>
-        <div className="mt-1 text-[13px] text-secondary">
-          Daily supplements · {stopped ? 'Stopped from tomorrow' : supplement ? `Added every day since ${supplement.start_date}` : 'Added every day'}
+        <div className="mt-2 flex flex-wrap gap-2">
+          <InfoChip tone="accent" icon={<RepeatIcon size={14} />} label={stopped ? 'Daily, stopped from tomorrow' : 'Added every day'}>
+            {stopped ? 'Ends today' : 'Daily'}
+          </InfoChip>
+          {supplement && !stopped && (
+            <InfoChip icon={<CalendarIcon size={14} />} label={`Since ${supplement.start_date}`}>
+              {supplement.start_date}
+            </InfoChip>
+          )}
         </div>
       </div>
 
       <Card className="mt-4 p-5 text-center">
-        <label htmlFor="qty" className="text-[13px] text-secondary">Amount ({entry.unit})</label>
-        <input
-          id="qty"
-          className="num mx-auto mt-1 block w-48 rounded-xl bg-transparent text-center text-6xl font-bold tracking-[-0.03em] outline-none focus:bg-raised"
-          inputMode="decimal"
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-        />
-        <div className="mt-1 text-[13px] text-secondary">
-          {isToday ? 'A new amount counts from today on. Earlier days keep theirs.' : 'Changes this day only.'}
+        <AmountField unit={entry.unit} qty={qty} setQty={setQty} />
+        <div className="mt-2 flex justify-center">
+          <InfoChip
+            icon={<CalendarIcon size={14} />}
+            label={isToday ? 'A new amount counts from today on. Earlier days keep theirs.' : 'Changes this day only'}
+          >
+            {isToday ? 'From today' : 'This day only'}
+          </InfoChip>
         </div>
       </Card>
 
@@ -201,7 +198,7 @@ function EditSupplement({ entry }: { entry: LocalLogEntry }) {
           )}
           <PrimaryButton onClick={() => void done()} disabled={quantity === null || busy}>Done</PrimaryButton>
         </div>
-        {isToday && !stopped && <p className="text-[12px] text-secondary">The bin stops adding it daily from tomorrow. Today and earlier days stay.</p>}
+        {isToday && !stopped && <p className="text-[12px] text-secondary">Bin: stops from tomorrow</p>}
         {!isToday && (
           <button
             type="button"
@@ -214,6 +211,25 @@ function EditSupplement({ entry }: { entry: LocalLogEntry }) {
         )}
       </div>
     </Page>
+  );
+}
+
+/** The big amount with its unit beside it. The label is for screen readers only. */
+function AmountField({ unit, qty, setQty }: { unit: string; qty: string; setQty: (v: string) => void }) {
+  return (
+    <>
+      <label htmlFor="qty" className="sr-only">Amount in {unit}</label>
+      <div className="flex items-baseline justify-center gap-1">
+        <input
+          id="qty"
+          className="num w-40 rounded-xl bg-transparent text-right text-6xl font-bold tracking-[-0.03em] outline-none focus:bg-raised"
+          inputMode="decimal"
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+        />
+        <span className="text-[22px] font-medium text-secondary">{unit}</span>
+      </div>
+    </>
   );
 }
 

@@ -1,5 +1,5 @@
 // Add food: search the product database (FTS5, same query and ranking as the phone), with
-// source and verified on every row (rule 4), recents, favourites, your own foods and saved
+// the verified seal on verified rows (rule 4, decision 46), recents, favourites, your own foods and saved
 // meals. Never a dead end: "Add custom" is always there (rule 5).
 import { useDeferredValue, useState } from 'react';
 import type { SavedMeal } from '../data/logStore';
@@ -10,7 +10,8 @@ import { formatNumber } from '../domain/format';
 import { browserTimeZone, pastLocalDate } from '../domain/localDate';
 import { href, navigate, useApp, useAppState, useData, useQueryParam } from '../lib/hooks';
 import { canTryScan } from '../lib/scanner';
-import { Chip, Header, Icon, Notice, Page, SourceBadge } from '../ui/kit';
+import { CalendarIcon, InfoChip } from '../ui/icons-add-food';
+import { Chip, Header, Icon, Notice, Page, SourceBadge, type IconName } from '../ui/kit';
 import { dayLabel, MEAL_LABEL, mealForNow, today, withDay } from './day';
 
 type Tab = 'all' | 'recent' | 'favourites' | 'mine';
@@ -94,7 +95,11 @@ export function AddFood() {
   return (
     <Page>
       <Header title="Log food" back="/today" />
-      {day && <p className="mt-1 text-[13px] font-semibold text-accent-2" data-testid="adding-to-day">Adding to {dayLabel(day)}</p>}
+      {day && (
+        <div className="mt-1">
+          <InfoChip tone="accent" icon={<CalendarIcon size={14} />} label={`Adding to ${dayLabel(day)}`} testId="adding-to-day">{dayLabel(day)}</InfoChip>
+        </div>
+      )}
 
       <div className="mt-2 flex h-12 items-center gap-2.5 rounded-full border border-border bg-card pl-4 pr-1.5 focus-within:border-accent-2">
         <Icon name="search" size={20} className="text-secondary" />
@@ -127,7 +132,7 @@ export function AddFood() {
       {products.status === 'loading' && (tab === 'all' || tab === 'favourites') && <div className="mt-4"><Notice>{products.message}...</Notice></div>}
       {products.status === 'error' && tab === 'all' && (
         <div className="mt-4">
-          <Notice tone="error">The food database could not be loaded: {products.message}. You can still add a custom food.</Notice>
+          <Notice tone="error">Food database failed: {products.message}</Notice>
         </div>
       )}
       {error && <div className="mt-4"><Notice tone="error">{error}</Notice></div>}
@@ -139,21 +144,18 @@ export function AddFood() {
           <li key={r.key}>
             <a href={withDay(r.to, day)} className="tap flex min-h-11 items-center gap-3 rounded-2xl border border-border bg-card py-3 pl-4 pr-3" data-testid="food-row">
               <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-semibold">{r.name}</div>
-                {r.sub && <div className="mt-0.5 truncate text-[13px] text-secondary">{r.sub}</div>}
-                <div className="mt-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="min-w-0 text-[15px] font-semibold">{r.name}</span>
                   <SourceBadge sourceName={r.sourceName} verified={r.verified} />
                 </div>
+                {r.sub && <div className="mt-0.5 truncate text-[13px] text-secondary">{r.sub}</div>}
               </div>
-              <div className="text-right">
-                {r.kcal === null ? (
-                  <div className="text-[13px] font-semibold text-secondary">No data</div>
-                ) : (
-                  <>
-                    <div className="num text-lg font-bold">{formatNumber(r.kcal, 0)}</div>
-                    <div className="text-[11px] text-secondary">kcal / {perLabel(r.unit)}</div>
-                  </>
-                )}
+              <div className="text-right" title={r.kcal === null ? 'No nutrition data' : undefined}>
+                <div className={`num text-lg font-bold ${r.kcal === null ? 'text-secondary' : ''}`}>
+                  {formatNumber(r.kcal, 0)}
+                  {r.kcal === null && <span className="sr-only"> No nutrition data</span>}
+                </div>
+                <div className="text-[11px] text-secondary">kcal/{perLabel(r.unit)}</div>
               </div>
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-border" aria-hidden="true">
                 <Icon name="plus" size={18} stroke={2.2} />
@@ -163,25 +165,28 @@ export function AddFood() {
         ))}
       </ul>
 
-      {tab === 'all' && q.trim() && resultsCurrent && results && results.length === 0 && rows.length === 0 && (
-        <p className="mt-4 text-center text-sm text-secondary">No food matches "{q.trim()}".</p>
-      )}
-      {tab === 'recent' && recents && recents.length === 0 && <p className="mt-4 text-center text-sm text-secondary">Foods you log show up here.</p>}
-      {tab === 'favourites' && favourites && favourites.length === 0 && <p className="mt-4 text-center text-sm text-secondary">Tap the heart on a food to keep it here.</p>}
-      {tab === 'mine' && mine && mine.length === 0 && !(savedMeals && savedMeals.length > 0) && (
-        <p className="mt-4 text-center text-sm text-secondary">Foods you add yourself, and meals you save from the diary, show up here.</p>
-      )}
+      {tab === 'all' && q.trim() && resultsCurrent && results && results.length === 0 && rows.length === 0 && <Empty icon="search" text="No match" />}
+      {tab === 'recent' && recents && recents.length === 0 && <Empty icon="repeat" text="No recents" />}
+      {tab === 'favourites' && favourites && favourites.length === 0 && <Empty icon="heart" text="No favourites" />}
+      {tab === 'mine' && mine && mine.length === 0 && !(savedMeals && savedMeals.length > 0) && <Empty icon="profile" text="No own foods" />}
 
-      <div className="mt-3 flex items-center gap-3 rounded-2xl border border-dashed border-strong p-3.5">
-        <div className="flex-1 text-sm font-semibold">Can't find it?</div>
-        <a
-          href={withDay(`${href('custom')}?name=${encodeURIComponent(query.trim())}&q=${encodeURIComponent(query.trim())}`, day)}
-          className="tap flex h-11 shrink-0 items-center rounded-full bg-text px-4 text-sm font-bold text-ground"
-        >
-          Add custom
-        </a>
-      </div>
+      <a
+        href={withDay(`${href('custom')}?name=${encodeURIComponent(query.trim())}&q=${encodeURIComponent(query.trim())}`, day)}
+        className="tap mt-3 flex h-14 items-center justify-center gap-2 rounded-2xl border border-dashed border-strong text-[15px] font-bold"
+      >
+        <Icon name="plus" size={20} stroke={2.2} />
+        Add custom
+      </a>
     </Page>
+  );
+}
+
+function Empty({ icon, text }: { icon: IconName; text: string }) {
+  return (
+    <div className="mt-8 flex flex-col items-center gap-2 text-secondary">
+      <Icon name={icon} size={32} stroke={1.6} />
+      <p className="text-[15px] font-semibold">{text}</p>
+    </div>
   );
 }
 

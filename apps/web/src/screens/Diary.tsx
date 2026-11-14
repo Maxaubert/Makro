@@ -7,7 +7,8 @@ import { buildSavedMeal, mealEntries, MEALS, type Meal } from '../domain/entry';
 import { formatNumber, formatTotal } from '../domain/format';
 import { browserTimeZone } from '../domain/localDate';
 import { href, navigate, useApp, useData } from '../lib/hooks';
-import { Card, Icon, Notice, Page, PrimaryButton, Sheet, UnknownNote } from '../ui/kit';
+import { RepeatIcon, UnknownCount } from '../ui/icons-add-food';
+import { Card, Icon, Notice, Page, PrimaryButton, Sheet } from '../ui/kit';
 import { addDays, amountLabel, dayLabel, MEAL_LABEL, mealForNow, today, totalsOf } from './day';
 
 export function Diary({ date: dateParam }: { date?: string }) {
@@ -39,7 +40,7 @@ export function Diary({ date: dateParam }: { date?: string }) {
               setSaved(null);
               setRepeating(true);
             }}
-            className="tap flex h-9 items-center gap-1.5 rounded-full border border-border bg-raised px-3.5 text-[13px] font-semibold"
+            className="tap flex h-11 items-center gap-1.5 rounded-full border border-border bg-raised px-3.5 text-[13px] font-semibold"
           >
             <Icon name="repeat" size={16} stroke={2} />
             Repeat yesterday
@@ -69,34 +70,45 @@ export function Diary({ date: dateParam }: { date?: string }) {
       <Card className="mt-1 rounded-2xl px-4 py-3">
         <div className="flex items-baseline justify-between text-sm text-secondary">
           <span>
-            <b className="num text-lg text-text">{kcal.text}</b> {goal ? `of ${formatNumber(goal.kcal_target, 0)} kcal` : 'kcal'}
+            <b className="num text-2xl text-text">{kcal.text}</b> {goal ? `/ ${formatNumber(goal.kcal_target, 0)} kcal` : 'kcal'}
           </span>
-          <UnknownNote count={kcal.unknown} />
+          <UnknownCount count={kcal.unknown} />
         </div>
         {goal && (
           <div className="mt-2 h-2 overflow-hidden rounded bg-border">
             <div className="h-full rounded bg-accent" style={{ width: `${Math.min(100, ((totals.kcal.value ?? 0) / goal.kcal_target) * 100)}%` }} />
           </div>
         )}
-        <div className="num mt-2 flex gap-4 text-[13px] text-secondary">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           {(['protein_g', 'carbs_g', 'fat_g'] as const).map((n) => {
             const t = formatTotal(totals[n], 0);
             return (
-              <span key={n}>
-                {n === 'protein_g' ? 'Protein' : n === 'carbs_g' ? 'Carbs' : 'Fat'} <b className="text-text">{t.text} g</b>
-                {t.unknown > 0 && ' +?'}
-              </span>
+              <div key={n}>
+                <div className="flex items-baseline gap-1">
+                  <b className="num text-[17px] text-text">{t.text}</b>
+                  <span className="text-[12px] text-secondary">g</span>
+                  <UnknownCount count={t.unknown} />
+                </div>
+                <div className="text-[12px] text-secondary">{n === 'protein_g' ? 'Protein' : n === 'carbs_g' ? 'Carbs' : 'Fat'}</div>
+              </div>
             );
           })}
         </div>
       </Card>
 
-      {saved && <div className="mt-3"><Notice>Saved "{saved}". Find it under Log food, My foods.</Notice></div>}
+      {saved && (
+        <p role="status" className="mt-3 flex items-center gap-2 text-[15px] font-semibold text-accent-2">
+          <Icon name="check" size={18} stroke={2.4} />
+          Saved "{saved}"
+        </p>
+      )}
 
       {data && entries.length === 0 && (
-        <div className="mt-10 text-center">
-          <p className="text-secondary">Nothing logged {date === now ? 'yet today' : 'this day'}.</p>
-          <a href={href('add')} className="tap mt-4 inline-flex h-11 items-center rounded-full bg-accent px-5 text-sm font-bold text-ground">
+        <div className="mt-10 flex flex-col items-center text-center">
+          <Icon name="diary" size={36} stroke={1.6} className="text-secondary" />
+          <p className="mt-2 text-[15px] font-semibold text-secondary">Nothing logged</p>
+          <a href={href('add')} className="tap mt-4 inline-flex h-11 items-center gap-1.5 rounded-full bg-accent px-5 text-sm font-bold text-ground">
+            <Icon name="plus" size={18} stroke={2.4} />
             Log food
           </a>
         </div>
@@ -127,7 +139,7 @@ export function Diary({ date: dateParam }: { date?: string }) {
               </div>
               <span className="num text-sm text-secondary">
                 {t.text} kcal
-                <UnknownNote count={t.unknown} className="ml-1.5" />
+                <UnknownCount count={t.unknown} className="ml-1.5" />
               </span>
             </div>
             <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -140,7 +152,11 @@ export function Diary({ date: dateParam }: { date?: string }) {
                 >
                   <span className="min-w-0 text-[17px] font-semibold">
                     {e.name} <span className="text-sm font-normal text-secondary">{amountLabel(e)}</span>
-                    {e.server_seq === null && <span className="ml-1.5 text-[11px] font-normal text-secondary">not synced</span>}
+                    {e.server_seq === null && (
+                      <span role="img" aria-label="Not synced" title="Not synced" className="ml-1.5 inline-flex align-middle text-secondary">
+                        <Icon name="cloud" size={14} />
+                      </span>
+                    )}
                   </span>
                   <span className="num shrink-0 text-[17px] font-bold">{formatNumber(e.kcal_total, 0)}</span>
                 </a>
@@ -204,7 +220,10 @@ function RepeatSheet({ entries, from, onClose }: { entries: LocalLogEntry[]; fro
                 {on && <Icon name="check" size={12} stroke={3.5} />}
               </span>
               <span className="flex-1 text-left">{MEAL_LABEL[m]}</span>
-              <span className="num text-secondary">{t.text} kcal{t.unknown > 0 && ' +?'}</span>
+              <span className="num text-secondary">
+                {t.text} kcal
+                <UnknownCount count={t.unknown} className="ml-1" />
+              </span>
             </button>
           );
         })}
@@ -267,13 +286,13 @@ export function SupplementSection({ entries }: { entries: readonly LocalLogEntry
   return (
     <section aria-label="Daily supplements">
       <div className="flex items-baseline justify-between pb-1.5 pt-5">
-        <div className="flex items-baseline gap-2.5">
-          <h2 className="text-[15px] font-bold text-secondary">Daily supplements</h2>
-          <span className="text-[12px] text-secondary">Added every day</span>
-        </div>
+        <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-secondary">
+          <RepeatIcon size={15} className="text-accent-2" />
+          Daily supplements
+        </h2>
         <span className="num text-sm text-secondary">
           {t.text} kcal
-          <UnknownNote count={t.unknown} className="ml-1.5" />
+          <UnknownCount count={t.unknown} className="ml-1.5" />
         </span>
       </div>
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -286,7 +305,9 @@ export function SupplementSection({ entries }: { entries: readonly LocalLogEntry
           >
             <span className="min-w-0 text-[17px] font-semibold">
               {e.name} <span className="text-sm font-normal text-secondary">{amountLabel(e)}</span>
-              <span className="ml-1.5 rounded-md border border-[#4A2D1C] px-1.5 text-[11px] font-bold text-accent-2">daily</span>
+              <span role="img" aria-label="Added every day" title="Added every day" className="ml-1.5 inline-flex align-middle text-accent-2">
+                <RepeatIcon size={14} />
+              </span>
             </span>
             <span className="num shrink-0 text-[17px] font-bold">{formatNumber(e.kcal_total, 0)}</span>
           </a>

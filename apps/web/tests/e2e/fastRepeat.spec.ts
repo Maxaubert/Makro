@@ -74,7 +74,7 @@ test('favourites, saved meals and repeat yesterday write normal log entries', as
   await page.getByRole('button', { name: 'Favourites' }).click();
   await expect(page.getByTestId('food-row')).toHaveCount(1);
   await expect(page.getByTestId('food-row')).toContainText('Skyr Naturell');
-  await expect(page.getByTestId('food-row')).toContainText('Verified');
+  await expect(page.getByTestId('food-row').getByTestId('source-badge')).toHaveAttribute('aria-label', /^Verified/);
   await shot(page, '02-favourites-tab');
   await page.getByTestId('food-row').click();
   await expect(page.getByTestId('portion-name')).toHaveText('Skyr Naturell');
