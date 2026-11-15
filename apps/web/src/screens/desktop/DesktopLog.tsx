@@ -587,21 +587,22 @@ function PortionForm({ food, day, scannedEan }: { food: Food; day: string | null
     <>
       <div className="flex items-start gap-3">
         <div className="min-w-0 grow">
-          <div className="flex items-center gap-2">
-            <div className="min-w-0 text-[26px] font-bold tracking-[-0.5px]" data-testid="portion-name">{p.name}</div>
-            <SourceBadge sourceName={food.sourceName} verified={food.verified} detail />
-          </div>
+          <div className="min-w-0 text-[26px] font-bold tracking-[-0.5px]" data-testid="portion-name">{p.name}</div>
           {sub && <div className="mt-[3px] text-[13px] text-secondary">{sub}</div>}
         </div>
-        <button
-          type="button"
-          aria-label="Favourite"
-          aria-pressed={food.favourite}
-          onClick={() => void toggleFavourite()}
-          className={`tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-raised ${food.favourite ? 'text-accent' : 'text-text'}`}
-        >
-          <Icon name="heart" size={20} filled={food.favourite} />
-        </button>
+        {/* The verified seal sits beside the heart, on its centre line; an unverified food shows none (decision 50). */}
+        <div className="flex shrink-0 items-center gap-3">
+          <SourceBadge sourceName={food.sourceName} verified={food.verified} detail />
+          <button
+            type="button"
+            aria-label="Favourite"
+            aria-pressed={food.favourite}
+            onClick={() => void toggleFavourite()}
+            className={`tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-raised ${food.favourite ? 'text-accent' : 'text-text'}`}
+          >
+            <Icon name="heart" size={20} filled={food.favourite} />
+          </button>
+        </div>
       </div>
       {noData ? (
         <div>
