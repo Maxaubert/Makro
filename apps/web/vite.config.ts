@@ -44,8 +44,6 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,wasm,webmanifest}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        // The on-device speech runtime (26 MB) loads only when someone uses it (decision 51), so it is not precached.
-        globIgnores: ['**/ort-wasm*'],
         navigateFallbackDenylist: [/^\/__fixture\//],
       },
       manifest: {
