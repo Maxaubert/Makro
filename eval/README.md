@@ -67,19 +67,11 @@ A case with no output counts as wrong. The report gives the accuracy of the real
 python -I -m unittest discover -s eval/voice
 ```
 
-## Web runner and baseline (decision 49)
+## Web baseline (decisions 49 and 52)
 
-The web app has a rule-based parser (`apps/web/src/domain/voice.ts`, cases in `packages/contracts/voice/parse.json`) and a resolver that uses the normal search (`apps/web/src/data/voiceResolve.ts`). The runner writes `run.jsonl` from a release `products.sqlite` (never committed):
+A rule-based parser and resolver (no AI) were built and scored on `db-2026.11.19` (2026-11-15): products right 51.2%, quantities right 76.4%, real lines 1 of 6. Max then tried it by voice: it picked foods he did not say and missed foods he did, and on-device Whisper took about 40 s. Both were taken out (decision 52); the code is in git history (#119, #120, #122). Voice comes back with an AI step the user pays for.
 
-```powershell
-# in apps/web
-$env:VOICE_DB='<path>\products.sqlite'; $env:VOICE_OUT='<path>\run.jsonl'; npx vitest run src/data/voiceEval.test.ts
-python -I ../../eval/voice/score.py --cases ../../eval/voice/cases.jsonl --output <path>\run.jsonl
-```
-
-Ids move between database releases. `refresh_ids.py --db <products.sqlite> [--write]` follows the database's `redirects`; it reported 521 kept, 489 moved and 37 dropped on `db-2026.11.19` (one item, s015, was re-picked by hand).
-
-Baseline on `db-2026.11.19` (2026-11-15), no AI: products right 51.2%, quantities right 76.4%, real lines 1 of 6, stress set 21 of 81. The parser never asks yet, so the 10 ask cases always fail.
+Ids move between database releases. `refresh_ids.py --db <products.sqlite> [--write]` follows the database's `redirects`; on `db-2026.11.19` it kept 521, moved 489 and dropped 37 (s015 re-picked by hand).
 
 ## Not here yet
 
