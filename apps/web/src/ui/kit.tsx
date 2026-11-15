@@ -249,12 +249,12 @@ export function VerifiedSeal({ size = 14, className = '' }: { size?: number; cla
 /**
  * Where the numbers come from and whether they are verified (accuracy rule 4, decision 46).
  * In lists only the seal shows, and only for a verified food; the source is in its label.
- * On a food's own screen (detail) the seal, or an info mark when unverified, opens the source on tap.
+ * On a food's own screen (detail) the seal opens the source on tap. An unverified food shows no mark (decision 50).
  */
 export function SourceBadge({ sourceName, verified, detail = false }: { sourceName: string; verified: boolean | null; detail?: boolean }) {
   const [open, setOpen] = useState(false);
   const label = `${verified === true ? 'Verified' : verified === false ? 'Not verified' : 'Source'}: ${sourceName}`;
-  if (!detail) {
+  if (!detail || verified !== true) {
     return verified === true ? (
       <span className="inline-flex shrink-0 items-center" title={label} aria-label={label} role="img" data-testid="source-badge">
         <VerifiedSeal />
@@ -270,7 +270,7 @@ export function SourceBadge({ sourceName, verified, detail = false }: { sourceNa
         onClick={() => setOpen(!open)}
         className="tap -m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
       >
-        {verified === true ? <VerifiedSeal size={18} /> : <Icon name="info" size={18} className="text-secondary" />}
+        <VerifiedSeal size={18} />
       </button>
       {open && <span className="truncate text-[13px] text-secondary">{label}</span>}
     </span>

@@ -22,7 +22,7 @@ From `docs/MVP.md` and decision 6. Every PR must keep them true.
 1. Nutrition numbers come only from the product database or from deterministic code. AI never produces a number: it may only pick a product id from candidates that code found, plus a quantity, and code validates both.
 2. Missing means unknown, never zero. Nutrients are optional values (`Double?` in Swift, `NULL` in SQL); never default them to `0`. Totals carry how many items they cover.
 3. Every log entry stores a snapshot of its nutrition values when it is saved, so later database updates never change history.
-4. Every product shows its source and whether it is verified.
+4. A verified product shows the verified seal, and its source on tap. An unverified product shows no mark (decision 50).
 5. Logging never blocks: a missing product becomes a custom food immediately, and the miss is recorded anonymously.
 
 Goal maths, portion maths, display rounding and search normalisation exist in Swift and in the web app's TypeScript (goal maths on the web since decision 38), and both must pass the same golden files in `packages/contracts/` (decision 34). Do not reimplement any of it in SQL, Python or an Edge Function.
