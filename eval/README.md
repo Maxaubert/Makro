@@ -67,13 +67,26 @@ A case with no output counts as wrong. The report gives the accuracy of the real
 python -I -m unittest discover -s eval/voice
 ```
 
+## Web runner and baseline (decision 49)
+
+The web app has a rule-based parser (`apps/web/src/domain/voice.ts`, cases in `packages/contracts/voice/parse.json`) and a resolver that uses the normal search (`apps/web/src/data/voiceResolve.ts`). The runner writes `run.jsonl` from a release `products.sqlite` (never committed):
+
+```powershell
+# in apps/web
+$env:VOICE_DB='<path>\products.sqlite'; $env:VOICE_OUT='<path>\run.jsonl'; npx vitest run src/data/voiceEval.test.ts
+python -I ../../eval/voice/score.py --cases ../../eval/voice/cases.jsonl --output <path>\run.jsonl
+```
+
+Ids move between database releases. `refresh_ids.py --db <products.sqlite> [--write]` follows the database's `redirects`; it reported 521 kept, 489 moved and 37 dropped on `db-2026.11.19` (one item, s015, was re-picked by hand).
+
+Baseline on `db-2026.11.19` (2026-11-15), no AI: products right 51.2%, quantities right 76.4%, real lines 1 of 6, stress set 21 of 81. The parser never asks yet, so the 10 ask cases always fail.
+
 ## Not here yet
 
 - Enough real lines: the gate needs 100 to 200 from both of us before slice 9. There are 6 so far.
 - A way to look up product ids while writing a case. Until then, take ids from the nutrition-data release.
-- A runner that feeds `text` through the app's parser and writes `run.jsonl`. That belongs with the Swift Voice package (slice 9).
 - Where audio files are stored, if we keep them.
 
 ## Research
 
-- 2026-11-15: options for voice logging (on-device Apple, cloud speech and LLM, ChatGPT, Siri), with costs, privacy and a phased plan. Recommendation: hybrid, cloud on the web first, on-device on the iPhone later. Not decided yet; decision 17 still stands. Report: `C:\Users\Admin\Documents\Claude\research\makro\2026-11-15-voice-logging-options.md`.
+- 2026-11-15: options for voice logging (on-device Apple, cloud speech and LLM, ChatGPT, Siri), with costs, privacy and a phased plan. Max (2026-11-15): Makro does not pay for AI; it must be on the device or paid by the user. So the web starts rule-based with no AI (decision 49). Report: `C:\Users\Admin\Documents\Claude\research\makro\2026-11-15-voice-logging-options.md`.
