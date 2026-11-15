@@ -37,3 +37,24 @@ test('voice: type a line, confirm the foods, log them', async ({ page }) => {
     .poll(() => pgRows<{ quantity: number; unit: string }>(`select quantity, unit from public.log_entries where user_id = '${userId}'`).length, { timeout: 15_000 })
     .toBe(1);
 });
+
+test('voice: a browser with no speech recognition offers the on-device model (decision 51)', async ({ page }) => {
+  // Firefox and Zen have no SpeechRecognition: hide it here to act like them.
+  await page.addInitScript(() => {
+    const w = globalThis as unknown as Record<string, unknown>;
+    delete w.SpeechRecognition;
+    delete w.webkitSpeechRecognition;
+  });
+  await desktopSignIn(page, 'voice-local');
+  await page.goto('/#/voice');
+  await expect(page.getByRole('heading', { name: 'Log by voice', exact: true })).toBeVisible();
+  // The mic is still there; the first press asks before a large download, and "Not now" leaves it.
+  await page.getByTestId('voice-mic').click();
+  const card = page.getByTestId('voice-model');
+  await expect(card).toContainText('about 285 MB');
+  await expect(card).toContainText('No audio leaves your device');
+  await expect(page.getByTestId('voice-model-download')).toBeVisible();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/voice-local-ask.png` });
+  await card.getByRole('button', { name: 'Not now' }).click();
+  await expect(card).toHaveCount(0);
+});
