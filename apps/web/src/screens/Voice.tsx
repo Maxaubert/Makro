@@ -1,6 +1,7 @@
 // Voice and typed logging, step 2 (decision 49): say or type what you ate, check what Makro found, log it.
 // The line is split by rules and each food comes from the normal search (domain/voice.ts, data/voiceResolve.ts);
-// no AI and no cost. Speech uses the browser's own recognition when it has one; typing always works.
+// no AI and no cost. Speech uses the browser's own recognition when it has one, and otherwise a Norwegian
+// speech model on this device (decision 51, lib/localSpeech.ts); typing always works.
 // Nothing is saved until the user presses Log, and an item with no amount must get one first (rule 1:
 // Makro never guesses a number). A food with no match goes to the custom-food screen (rule 5).
 import { useEffect, useRef, useState } from 'react';
@@ -11,6 +12,7 @@ import { formatNumber } from '../domain/format';
 import { resolveGrams, type AmountUnit } from '../domain/grams';
 import { browserTimeZone } from '../domain/localDate';
 import { href, navigate, useApp, useAppState } from '../lib/hooks';
+import { loadSpeechModel, modelDownloaded, startRecording, transcribe } from '../lib/localSpeech';
 import { DesktopShell } from '../ui/desktop';
 import { Chip, Header, Icon, Notice, Page } from '../ui/kit';
 import { MEAL_LABEL, mealForNow } from './day';
@@ -102,6 +104,11 @@ function VoiceLog() {
   const [saving, setSaving] = useState(false);
   const rec = useRef<Recognition | null>(null);
   const Ctor = typeof window === 'undefined' ? null : recognitionCtor();
+  // On-device speech for browsers without their own (Firefox, Zen): ask, download once, record, transcribe.
+  const [local, setLocal] = useState<'idle' | 'ask' | 'downloading' | 'recording' | 'transcribing'>('idle');
+  const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
+  const recording = useRef<{ stop: () => Promise<Float32Array> } | null>(null);
+  const canRecord = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
 
   // Read the line again shortly after it changes; the rows follow the text.
   useEffect(() => {
@@ -128,12 +135,61 @@ function VoiceLog() {
     }
   }
 
+  const say = (what: string) => setText((t) => `${t.trim()}${t.trim() ? ' ' : ''}${what.trim()}`);
+
+  async function recordLocal() {
+    try {
+      setProblem(null);
+      recording.current = await startRecording();
+      setLocal('recording');
+      // Load the model from the cache while the user talks.
+      void loadSpeechModel().catch(() => undefined);
+    } catch {
+      setLocal('idle');
+      setProblem('Makro may not use the microphone. Allow it in the browser, or type instead.');
+    }
+  }
+
+  async function downloadModel() {
+    setLocal('downloading');
+    setProblem(null);
+    try {
+      await loadSpeechModel(setProgress);
+      await recordLocal();
+    } catch (e) {
+      setLocal('idle');
+      setProblem(`The speech model could not load: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  async function stopLocal() {
+    const r = recording.current;
+    recording.current = null;
+    if (!r) return;
+    setLocal('transcribing');
+    try {
+      const audio = await r.stop();
+      say(await transcribe(audio, lang === 'nb-NO' ? 'norwegian' : 'english'));
+    } catch (e) {
+      setProblem(`Could not turn the speech into text: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLocal('idle');
+    }
+  }
+
   function toggleMic() {
     if (listening) {
       rec.current?.stop();
       return;
     }
-    if (!Ctor) return;
+    if (!Ctor) {
+      if (local === 'recording') void stopLocal();
+      else if (local === 'idle') {
+        if (modelDownloaded()) void recordLocal();
+        else setLocal('ask');
+      }
+      return;
+    }
     const r = new Ctor();
     r.lang = lang;
     r.continuous = true;
@@ -194,7 +250,9 @@ function VoiceLog() {
 
       <section className="card p-4">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[13px] text-secondary">{Ctor ? 'Say or type what you ate' : 'Type what you ate'}</span>
+          <span className="text-[13px] text-secondary">
+            {local === 'recording' ? 'Listening. Tap the mic when you are done.' : local === 'transcribing' ? 'Turning speech into text on this device…' : Ctor || canRecord ? 'Say or type what you ate' : 'Type what you ate'}
+          </span>
           <div className="flex gap-1.5" role="group" aria-label="Language">
             {(['nb-NO', 'en-US'] as const).map((l) => (
               <Chip key={l} selected={lang === l} onClick={() => pickLang(l)}>
@@ -212,20 +270,50 @@ function VoiceLog() {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          {Ctor && (
+          {(Ctor || canRecord) && (
             <button
               type="button"
               onClick={toggleMic}
-              aria-pressed={listening}
-              aria-label={listening ? 'Stop listening' : 'Start listening'}
+              disabled={local === 'downloading' || local === 'transcribing'}
+              aria-pressed={listening || local === 'recording'}
+              aria-label={listening || local === 'recording' ? 'Stop listening' : 'Start listening'}
               data-testid="voice-mic"
-              className={`tap flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${listening ? 'animate-pulse bg-accent text-ground' : 'bg-accent-tint text-accent'}`}
+              className={`tap flex h-14 w-14 shrink-0 items-center justify-center rounded-full disabled:opacity-60 ${listening || local === 'recording' ? 'animate-pulse bg-accent text-ground' : 'bg-accent-tint text-accent'}`}
             >
               <Icon name="mic" size={24} stroke={2} />
             </button>
           )}
         </div>
       </section>
+
+      {(local === 'ask' || local === 'downloading') && (
+        <section className="card p-4" data-testid="voice-model">
+          <div className="text-[15px] font-semibold">Speech on this device</div>
+          <p className="mt-1 text-[13px] leading-snug text-secondary">
+            This browser has no speech recognition, so Makro can run a Norwegian speech model on your device. It downloads once (about 285 MB),
+            then works offline. No audio leaves your device.
+          </p>
+          {local === 'downloading' ? (
+            <div className="mt-3">
+              <div className="h-1.5 overflow-hidden rounded-[3px] bg-strong">
+                <div className="h-full rounded-[3px] bg-accent" style={{ width: `${progress && progress.total > 0 ? Math.min(100, (progress.loaded / progress.total) * 100) : 2}%` }} />
+              </div>
+              <div className="num mt-1.5 text-[12px] text-secondary">
+                {progress && progress.total > 0 ? `${formatNumber(progress.loaded / 1e6, 0)} of ${formatNumber(progress.total / 1e6, 0)} MB` : 'Starting…'}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 flex gap-2">
+              <button type="button" onClick={() => void downloadModel()} className="tap flex h-10 items-center rounded-full bg-accent px-4 text-[14px] font-bold text-ground" data-testid="voice-model-download">
+                Download and listen
+              </button>
+              <button type="button" onClick={() => setLocal('idle')} className="tap flex h-10 items-center rounded-full bg-border px-4 text-[14px] font-semibold">
+                Not now
+              </button>
+            </div>
+          )}
+        </section>
+      )}
 
       {problem && <Notice tone="error">{problem}</Notice>}
 
