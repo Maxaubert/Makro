@@ -94,16 +94,17 @@ function CaloriesCard({ entries, goal }: { entries: LocalLogEntry[]; goal: GoalR
           label={goal ? `${kcal.text} of ${formatNumber(goal.kcal_target, 0)} kilocalories eaten` : `${kcal.text} kilocalories eaten`}
         />
         <div className="absolute inset-x-0 bottom-1.5 text-center">
-          <div className="num text-[64px] font-bold leading-none tracking-[-2px]" data-testid="kcal-headline">
-            {showLeft ? formatNumber(Math.abs(left), 0) : kcal.text}
+          <div className="num text-[64px] font-bold leading-none tracking-[-2px]" data-testid="kcal-eaten">
+            {kcal.text}
           </div>
-          <div className="mt-0.5 text-[14px] text-secondary">{showLeft ? (left >= 0 ? 'kcal left' : 'kcal over') : 'kcal eaten'}</div>
+          {/* The total eaten, not what is left or over (Max, 2026-11-15); the tile below has the difference. */}
+          <div className="mt-0.5 text-[14px] text-secondary">kcal eaten</div>
         </div>
       </div>
 
       <div className="mt-5 grid grid-cols-3 gap-2.5">
-        <Tile label="Eaten" testId="kcal-eaten" extra={<UnknownChip count={kcal.unknown} what="calorie value" />}>
-          {kcal.text}
+        <Tile label={showLeft && left < 0 ? 'Over' : 'Left'} testId="kcal-left" extra={<UnknownChip count={kcal.unknown} what="calorie value" />}>
+          {showLeft ? formatNumber(Math.abs(left), 0) : '?'}
         </Tile>
         <Tile label="Meals">
           <span aria-label={`${mealsLogged} of ${MEALS.length} meals logged`}>{ofText(mealsLogged, MEALS.length)}</span>

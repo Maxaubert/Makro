@@ -31,7 +31,9 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
   // D_Today, empty day: goal, empty table, figures use the board's default (not tabular) digits.
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
   await expect(page.getByText('Goal 2,800 kcal').first()).toBeVisible();
-  await expect(page.getByTestId('kcal-headline')).toHaveText('2,800');
+  // The gauge shows the total eaten; the Left tile shows the difference (2026-11-15).
+  await expect(page.getByTestId('kcal-eaten')).toHaveText('0');
+  await expect(page.getByTestId('kcal-left')).toHaveText('2,800');
   // Empty: no rows and no explanation, just the action; Quick log stays hidden until a food is logged.
   await expect(page.getByTestId('today-entry')).toHaveCount(0);
   await expect(page.getByTestId('quick-log-row')).toHaveCount(0);
@@ -47,7 +49,7 @@ test('desktop: sign in, log a food, Today and Diary follow the boards', async ({
 
   await page.goto('/#/today');
   await expect(page.getByTestId('kcal-eaten')).toHaveText('93');
-  await expect(page.getByTestId('kcal-headline')).toHaveText('2,707');
+  await expect(page.getByTestId('kcal-left')).toHaveText('2,707');
   await expect(page.getByTestId('foods-logged')).toHaveText('1');
   const entry = page.getByTestId('today-entry');
   await expect(entry).toHaveCount(1);
