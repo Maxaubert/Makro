@@ -284,6 +284,12 @@ export function DesktopLog() {
                       }}
                     />
                     {!day && (
+                      <a href={href('voice')} className="tap flex h-[38px] shrink-0 items-center gap-1.5 rounded-full bg-accent-tint px-4 text-[13px] font-semibold text-accent">
+                        <Icon name="mic" size={16} stroke={2} />
+                        Voice
+                      </a>
+                    )}
+                    {!day && (
                       <button
                         type="button"
                         onClick={() => {

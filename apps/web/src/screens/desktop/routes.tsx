@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { DesktopDiary } from './DesktopDiary';
 import { DesktopGoals } from './DesktopGoals';
 import { DesktopLog } from './DesktopLog';
+import { DesktopVoice } from '../Voice';
 import { DesktopProfile } from './DesktopProfile';
 import { DesktopTrends } from './DesktopTrends';
 import { DesktopWeight } from './DesktopWeight';
@@ -15,6 +16,8 @@ export function desktopScreen(screen: string | undefined, a: string | undefined)
       return <DesktopDiary date={a} />;
     case 'add':
       return <DesktopLog />;
+    case 'voice':
+      return <DesktopVoice />;
     case 'weight':
       return <DesktopWeight />;
     case 'trends':

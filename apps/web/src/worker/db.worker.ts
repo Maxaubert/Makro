@@ -22,6 +22,8 @@ import { loadSuggestions } from '../data/suggestions';
 import { ensureSupplements, skipToday } from '../data/supplements';
 import { wrapDb, type Sql } from '../data/sql';
 import type { Meal } from '../domain/entry';
+import { parseFoodLine } from '../domain/voice';
+import { resolveItems } from '../data/voiceResolve';
 
 const LOG = '/log.sqlite';
 
@@ -91,6 +93,11 @@ const api = {
   search: (q: string, limit?: number) => {
     const sql = requireProducts();
     return searchProducts(sql, q, limit, resolvePopularity(sql, log.productCounts(), log.popularity()));
+  },
+  /** Voice and typed logging (decision 49): split the line by rules, then candidates from the normal search. */
+  voice: (text: string) => {
+    const sql = requireProducts();
+    return resolveItems(sql, parseFoodLine(text), resolvePopularity(sql, log.productCounts(), log.popularity()));
   },
   popularityStale: (maxAgeMs: number) => log.popularityStale(maxAgeMs),
   savePopularity: (...a: Parameters<LogStore['savePopularity']>) => log.savePopularity(...a),
