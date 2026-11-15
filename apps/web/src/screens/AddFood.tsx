@@ -116,6 +116,11 @@ export function AddFood() {
           }}
         />
         {!day && (
+          <a href={href('voice')} aria-label="Log by voice" className="tap flex h-[38px] w-[38px] items-center justify-center rounded-full bg-accent-tint text-accent">
+            <Icon name="mic" size={20} stroke={2} />
+          </a>
+        )}
+        {!day && (
           <a href={href(canTryScan() ? 'scan' : 'code')} aria-label={canTryScan() ? 'Scan a barcode' : 'Type a barcode'} className="tap flex h-[38px] w-[38px] items-center justify-center rounded-full bg-accent text-ground">
             <Icon name="barcode" size={20} stroke={2} />
           </a>

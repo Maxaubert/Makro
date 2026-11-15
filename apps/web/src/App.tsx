@@ -18,6 +18,7 @@ import { Scan } from './screens/Scan';
 import { SignIn } from './screens/SignIn';
 import { Today } from './screens/Today';
 import { TypeCode } from './screens/TypeCode';
+import { Voice } from './screens/Voice';
 import { Weight } from './screens/Weight';
 import { Notice, Page, SecondaryButton } from './ui/kit';
 
@@ -74,6 +75,8 @@ export function App() {
       return <Scan />;
     case 'code':
       return <TypeCode />;
+    case 'voice':
+      return <Voice />;
     case 'not-found':
       return <BarcodeNotFound code={a ?? ''} />;
     case 'no-data':
