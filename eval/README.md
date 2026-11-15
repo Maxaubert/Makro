@@ -73,3 +73,7 @@ python -I -m unittest discover -s eval/voice
 - A way to look up product ids while writing a case. Until then, take ids from the nutrition-data release.
 - A runner that feeds `text` through the app's parser and writes `run.jsonl`. That belongs with the Swift Voice package (slice 9).
 - Where audio files are stored, if we keep them.
+
+## Research
+
+- 2026-11-15: options for voice logging (on-device Apple, cloud speech and LLM, ChatGPT, Siri), with costs, privacy and a phased plan. Recommendation: hybrid, cloud on the web first, on-device on the iPhone later. Not decided yet; decision 17 still stands. Report: `C:\Users\Admin\Documents\Claude\research\makro\2026-11-15-voice-logging-options.md`.
